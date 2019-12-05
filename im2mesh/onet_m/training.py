@@ -175,8 +175,8 @@ class Trainer(BaseTrainer):
             for batch_id, single_c in enumerate(c):
                 self.model.category_centers[c_idx[batch_id],:] += single_c
 
-
         loss = 0
+        force_loss = 0
 
         # Category loss
         if self.calc_feature_category_loss:
@@ -196,7 +196,8 @@ class Trainer(BaseTrainer):
                 d = F.pairwise_distance(current_category_center, c, p=2)
                 replusive_loss += (- self.repulsive_p * self.feature_k * torch.log(d)).sum()
 
-            loss += attrative_loss + replusive_loss 
+            force_loss = attrative_loss + replusive_loss 
+            loss += force_loss
 
         # KL-divergence
         kl = dist.kl_divergence(q_z, self.model.p0_z).sum(dim=-1)
@@ -208,4 +209,4 @@ class Trainer(BaseTrainer):
             logits, occ, reduction='none')
         loss = loss + loss_i.sum(-1).mean()
 
-        return loss
+        return loss, force_loss

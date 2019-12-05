@@ -121,8 +121,13 @@ while True:
 
     for batch in train_loader:
         it += 1
-        loss = trainer.train_step(batch)
-        logger.add_scalar('train/loss', loss, it)
+        if cfg['method'] == 'onet_m':
+            loss, force_loss = trainer.train_step(batch)
+            logger.add_scalar('train/loss', loss, it)
+            logger.add_scalar('train/force_loss', force_loss, it)
+        else:
+            loss = trainer.train_step(batch)
+            logger.add_scalar('train/loss', loss, it)
 
 
         # Print output
@@ -169,13 +174,14 @@ while True:
                                loss_val_best=metric_val_best)
             exit(3)
 
-    # update category_center
-    model.pre_category_centers = model.category_centers.copy()
-    model.category_centers = torch.zeros(model.category_centers.shape)
+    if cfg['method'] == 'onet_m':
+        # update category_center
+        model.pre_category_centers = model.category_centers.copy()
+        model.category_centers = torch.zeros(model.category_centers.shape)
 
-    if epoch_it == 1:
-        trainer.calc_feature_category_loss = True
-    if epoch_it == cfg['training']['stop_category_loss_epoch']:
-        trainer.record_feature_category = False
-        trainer.calc_feature_category_loss = False
+        if epoch_it == 1:
+            trainer.calc_feature_category_loss = True
+        if epoch_it == cfg['training']['stop_category_loss_epoch']:
+            trainer.record_feature_category = False
+            trainer.calc_feature_category_loss = False
 
