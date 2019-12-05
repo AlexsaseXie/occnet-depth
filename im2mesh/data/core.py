@@ -77,6 +77,7 @@ class Shapes3dDataset(data.Dataset):
 
         # Get all models
         self.models = []
+        self.models_count = []
         for c_idx, c in enumerate(categories):
             subpath = os.path.join(dataset_folder, c)
             if not os.path.isdir(subpath):
@@ -90,6 +91,7 @@ class Shapes3dDataset(data.Dataset):
                 {'category': c, 'model': m}
                 for m in models_c
             ]
+            self.models_count.append(len(models_c))
 
     def __len__(self):
         ''' Returns the length of the dataset.

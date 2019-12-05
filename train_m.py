@@ -177,6 +177,8 @@ while True:
     if cfg['method'] == 'onet_m':
         # update category_center
         model.pre_category_centers = model.category_centers.copy()
+        for i in range(model.category_count):
+            model.pre_category_centers[i,:] /= train_dataset.models_count[i]
         model.category_centers = torch.zeros(model.category_centers.shape)
 
         if epoch_it == 1:

@@ -51,7 +51,7 @@ class OccupancyNetwork(nn.Module):
         category_count = len(dataset.metadata)
         self.category_count = category_count
         self.category_centers = torch.zeros(category_count,decoder.c_dim).to(device) 
-        self.pre_category_centers = torch.zeros(category_count,decoder.c_dim).to(device)
+        self.pre_category_centers = torch.rand(category_count,decoder.c_dim).to(device)
 
 
         self._device = device
