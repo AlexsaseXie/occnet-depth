@@ -90,6 +90,8 @@ class DecoderCBatchNorm(nn.Module):
                  hidden_size=256, leaky=False, legacy=False):
         super().__init__()
         self.z_dim = z_dim
+        self.c_dim = c_dim 
+       
         if not z_dim == 0:
             self.fc_z = nn.Linear(z_dim, hidden_size)
 

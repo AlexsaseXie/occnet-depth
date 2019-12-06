@@ -52,10 +52,13 @@ class Trainer(BaseTrainer):
         '''
         self.model.train()
         self.optimizer.zero_grad()
-        loss = self.compute_loss(data)
+        loss,force_loss = self.compute_loss(data)
         loss.backward()
         self.optimizer.step()
-        return loss.item()
+        if not (type(force_loss) == int):
+            return loss.item(), force_loss.item()
+        else:
+            return loss.item(), force_loss
 
     def eval_step(self, data):
         ''' Performs an evaluation step.
@@ -171,7 +174,7 @@ class Trainer(BaseTrainer):
         #record c
 
         if self.record_feature_category:
-            c_idx = data.get('category').squeeze(1) # batch_size tensor
+            c_idx = data.get('category') # batch_size tensor
             for batch_id, single_c in enumerate(c):
                 self.model.category_centers[c_idx[batch_id],:] += single_c
 
@@ -180,6 +183,7 @@ class Trainer(BaseTrainer):
 
         # Category loss
         if self.calc_feature_category_loss:
+            c_idx = data.get('category')
             current_category_center = self.model.pre_category_centers[c_idx].to(device) # batch_size * c_dim
             d = F.pairwise_distance(current_category_center, c, p=2) 
 

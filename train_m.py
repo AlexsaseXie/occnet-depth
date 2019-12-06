@@ -48,7 +48,7 @@ if not os.path.exists(out_dir):
     os.makedirs(out_dir)
 
 # Dataset
-train_dataset = config.get_dataset('train', cfg)
+train_dataset = config.get_dataset('train', cfg, return_category=True)
 val_dataset = config.get_dataset('val', cfg)
 
 train_loader = torch.utils.data.DataLoader(

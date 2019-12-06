@@ -12,7 +12,7 @@ method_dict = {
     'psgn': psgn,
     'pix2mesh': pix2mesh,
     'dmc': dmc,
-    'one_m': onet_m,
+    'onet_m': onet_m,
 }
 
 
