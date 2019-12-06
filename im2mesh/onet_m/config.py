@@ -76,8 +76,8 @@ def get_trainer(model, optimizer, cfg, device, **kwargs):
         device=device, input_type=input_type,
         vis_dir=vis_dir, threshold=threshold,
         eval_sample=cfg['training']['eval_sample'],
-        calc_feature_category_loss=cfg['training']['calc_feature_category_loss'],
-        record_feature_category=cfg['training']['record_feature_category'], 
+        calc_feature_category_loss=False,
+        record_feature_category=False, 
         attractive_p=cfg['training']['attractive_p'], 
         repulsive_p=cfg['training']['repulsive_p'],
         feature_k=cfg['training']['feature_k']

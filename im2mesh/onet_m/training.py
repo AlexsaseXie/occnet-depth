@@ -195,7 +195,9 @@ class Trainer(BaseTrainer):
             # f_r(x) = alpha * k / x
             replusive_loss = 0
             for i in range(self.model.category_count):
-                tmp_i = torch.ones(c_idx.shape[0]) * i
+                tmp_i = torch.IntTensor(c_idx.shape[0]).zero_()
+                tmp_i = tmp_i + 1
+                tmp_i = tmp_i * i
                 current_category_center = self.model.pre_category_centers[tmp_i].to(device)
                 d = F.pairwise_distance(current_category_center, c, p=2)
                 replusive_loss += (- self.repulsive_p * self.feature_k * torch.log(d)).sum()

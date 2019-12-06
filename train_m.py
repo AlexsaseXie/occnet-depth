@@ -119,6 +119,16 @@ while True:
     epoch_it += 1
 #     scheduler.step()
 
+    if cfg['method'] == 'onet_m':
+        if epoch_it == cfg['training']['start_category_loss_epoch'] - 1:
+            trainer.record_feature_category = True
+        if epoch_it == cfg['training']['start_category_loss_epoch']:
+            trainer.calc_feature_category_loss = True
+        if epoch_it == cfg['training']['stop_category_loss_epoch']:
+            trainer.record_feature_category = False
+            trainer.calc_feature_category_loss = False
+
+
     for batch in train_loader:
         it += 1
         if cfg['method'] == 'onet_m':
@@ -132,8 +142,13 @@ while True:
 
         # Print output
         if print_every > 0 and (it % print_every) == 0:
-            print('[Epoch %02d] it=%03d, loss=%.4f'
-                  % (epoch_it, it, loss))
+            if cfg['method'] == 'onet_m':
+                print('[Epoch %02d] it=%03d, loss=%.4f, force_loss=%.4f'
+                      % (epoch_it, it, loss, force_loss))
+            else:
+                print('[Epoch %02d] it=%03d, loss=%.4f'
+                      % (epoch_it, it, loss))
+               
 
         # Visualize output
         if visualize_every > 0 and (it % visualize_every) == 0:
@@ -176,14 +191,11 @@ while True:
 
     if cfg['method'] == 'onet_m':
         # update category_center
-        model.pre_category_centers = model.category_centers.copy()
-        for i in range(model.category_count):
-            model.pre_category_centers[i,:] /= train_dataset.models_count[i]
-        model.category_centers = torch.zeros(model.category_centers.shape)
+        if trainer.record_feature_category == True:
+            print('updating category centers')
+            model.pre_category_centers = model.category_centers.clone()
+            for i in range(model.category_count):
+                model.pre_category_centers[i,:] /= train_dataset.models_count[i]
+            model.category_centers.zero_()
 
-        if epoch_it == 1:
-            trainer.calc_feature_category_loss = True
-        if epoch_it == cfg['training']['stop_category_loss_epoch']:
-            trainer.record_feature_category = False
-            trainer.calc_feature_category_loss = False
 
