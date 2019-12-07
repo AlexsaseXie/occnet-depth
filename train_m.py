@@ -141,7 +141,7 @@ while True:
 
 
         # Print output
-        if print_every > 0 and (it % print_every) == 0:
+        if print_every > 0 and (it % print_every) == 0 and it!=0:
             if cfg['method'] == 'onet_m':
                 print('[Epoch %02d] it=%03d, loss=%.4f, force_loss=%.4f'
                       % (epoch_it, it, loss, force_loss))
@@ -151,23 +151,23 @@ while True:
                
 
         # Visualize output
-        if visualize_every > 0 and (it % visualize_every) == 0:
+        if visualize_every > 0 and (it % visualize_every) == 0 and it!=0:
             print('Visualizing')
             trainer.visualize(data_vis)
 
         # Save checkpoint
-        if (checkpoint_every > 0 and (it % checkpoint_every) == 0):
+        if (checkpoint_every > 0 and (it % checkpoint_every) == 0 and it!=0):
             print('Saving checkpoint')
             checkpoint_io.save('model.pt', epoch_it=epoch_it, it=it,
                                loss_val_best=metric_val_best)
 
         # Backup if necessary
-        if (backup_every > 0 and (it % backup_every) == 0):
+        if (backup_every > 0 and (it % backup_every) == 0 and it!=0):
             print('Backup checkpoint')
             checkpoint_io.save('model_%d.pt' % it, epoch_it=epoch_it, it=it,
                                loss_val_best=metric_val_best)
         # Run validation
-        if validate_every > 0 and (it % validate_every) == 0:
+        if validate_every > 0 and (it % validate_every) == 0 and it!=0:
             eval_dict = trainer.evaluate(val_loader)
             metric_val = eval_dict[model_selection_metric]
             print('Validation metric (%s): %.4f'
