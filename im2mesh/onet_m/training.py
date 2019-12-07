@@ -53,9 +53,11 @@ class Trainer(BaseTrainer):
         self.model.train()
         self.optimizer.zero_grad()
         loss,force_loss = self.compute_loss(data)
+        if self.calc_feature_category_loss:
+            force_loss.backward(retain_graph=True)
         loss.backward()
         self.optimizer.step()
-        if not (type(force_loss) == int):
+        if self.calc_feature_category_loss:
             return loss.item(), force_loss.item()
         else:
             return loss.item(), force_loss
@@ -175,7 +177,7 @@ class Trainer(BaseTrainer):
         if self.record_feature_category:
             c_idx = data.get('category')  # batch_size tensor
             for batch_id, single_c in enumerate(c):
-                self.model.category_centers[c_idx[batch_id],:] = self.model.category_centers[c_idx[batch_id],:] + single_c
+                self.model.category_centers[c_idx[batch_id],:] = self.model.category_centers[c_idx[batch_id],:] + single_c.detach()
 
         loss = 0
         force_loss = 0
@@ -183,7 +185,7 @@ class Trainer(BaseTrainer):
         # Category loss
         if self.calc_feature_category_loss:
             c_idx = data.get('category')
-            a_current_category_center = self.model.pre_category_centers[c_idx].to(device) # batch_size * c_dim
+            a_current_category_center = self.model.pre_category_centers[c_idx].detach().to(device) # batch_size * c_dim
             a_d = F.pairwise_distance(a_current_category_center, c, p=2) 
 
             #attractive
@@ -193,9 +195,9 @@ class Trainer(BaseTrainer):
             #repulsive
             # f_r(x) = alpha * k / x
             tmp_i = torch.LongTensor(range(self.model.category_count)).repeat(c_idx.shape[0],1)
-            current_category_center = self.model.pre_category_centers[tmp_i].to(device)
-            current_c = c[:,None,:].repeat(1,self.model.category_count)
-            d = F.pairwise_distance(current_category_center, current_c, p=2)
+            current_category_center = self.model.pre_category_centers[tmp_i].detach().to(device)
+            current_c = c[:,None,:].repeat(1,self.model.category_count,1)
+            d = torch.sqrt( torch.pow(current_category_center - current_c, 2).sum(2) )
             replusive_loss = (-self.repulsive_p * self.feature_k * torch.log(d + 1e-8)).sum()
 
             #replusive_loss = 0
@@ -208,7 +210,7 @@ class Trainer(BaseTrainer):
             #    replusive_loss = replusive_loss + (- self.repulsive_p * self.feature_k * torch.log(d + 1e-8)).sum()
 
             force_loss = attrative_loss + replusive_loss 
-            loss = loss + force_loss
+            #loss = loss + force_loss
 
         # KL-divergence
         kl = dist.kl_divergence(q_z, self.model.p0_z).sum(dim=-1)
