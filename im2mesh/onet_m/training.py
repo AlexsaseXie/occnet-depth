@@ -183,9 +183,8 @@ class Trainer(BaseTrainer):
         # Category loss
         if self.calc_feature_category_loss:
             c_idx = data.get('category')
-            current_c = c.clone()
             a_current_category_center = self.model.pre_category_centers[c_idx].to(device) # batch_size * c_dim
-            a_d = F.pairwise_distance(a_current_category_center, current_c, p=2) 
+            a_d = F.pairwise_distance(a_current_category_center, c, p=2) 
 
             #attractive
             # f_a(x) = alpha * x / k
@@ -193,14 +192,20 @@ class Trainer(BaseTrainer):
 
             #repulsive
             # f_r(x) = alpha * k / x
-            replusive_loss = 0
-            for i in range(self.model.category_count):
-                tmp_i = torch.LongTensor(c_idx.shape[0]).zero_()
-                tmp_i = tmp_i + 1
-                tmp_i = tmp_i * i
-                current_category_center = self.model.pre_category_centers[tmp_i].to(device)
-                d = F.pairwise_distance(current_category_center, current_c, p=2)
-                replusive_loss = replusive_loss + (- self.repulsive_p * self.feature_k * torch.log(d + 1e-8)).sum()
+            tmp_i = torch.LongTensor(range(self.model.category_count)).repeat(c_idx.shape[0],1)
+            current_category_center = self.model.pre_category_centers[tmp_i].to(device)
+            current_c = c[:,None,:].repeat(1,self.model.category_count)
+            d = F.pairwise_distance(current_category_center, current_c, p=2)
+            replusive_loss = (-self.repulsive_p * self.feature_k * torch.log(d + 1e-8)).sum()
+
+            #replusive_loss = 0
+            #for i in range(self.model.category_count):
+            #    tmp_i = torch.LongTensor(c_idx.shape[0]).zero_()
+            #    tmp_i = tmp_i + 1
+            #    tmp_i = tmp_i * i
+            #    current_category_center = self.model.pre_category_centers[tmp_i].to(device)
+            #    d = F.pairwise_distance(current_category_center, current_c, p=2)
+            #    replusive_loss = replusive_loss + (- self.repulsive_p * self.feature_k * torch.log(d + 1e-8)).sum()
 
             force_loss = attrative_loss + replusive_loss 
             loss = loss + force_loss
