@@ -128,6 +128,9 @@ while True:
             trainer.record_feature_category = False
             trainer.calc_feature_category_loss = False
 
+    if epoch_it == 200:
+        for p in optimizer.param_groups:
+            p['lr'] *= 0.1
 
     for batch in train_loader:
         it += 1
