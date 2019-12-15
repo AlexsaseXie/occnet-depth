@@ -128,7 +128,8 @@ while True:
             trainer.record_feature_category = False
             trainer.calc_feature_category_loss = False
 
-    if epoch_it == 200:
+    if epoch_it == cfg['training']['lr_reduction']:
+        print('lr reduced')
         for p in optimizer.param_groups:
             p['lr'] *= 0.1
 

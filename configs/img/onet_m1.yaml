@@ -19,6 +19,7 @@ training:
   validate_every: 20000
   stop_category_loss_epoch: 100000
   start_category_loss_epoch: 100
+  lr_reduction: 200
   attractive_p: 0.0001
   repulsive_p: 0.01
   feature_k: 50
