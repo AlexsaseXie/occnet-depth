@@ -170,9 +170,12 @@ class Trainer(BaseTrainer):
         if self.loss_type == 'cross_entropy':
             loss_i = F.binary_cross_entropy_with_logits(
                 logits, occ, reduction='none')
-        else:
+        elif self.loss_type == 'l2':
             logits = F.sigmoid(logits)
             loss_i = torch.pow((logits - occ), 2)
+        else:
+            logits = F.sigmoid(logits)
+            loss_i = F.binary_cross_entropy(logits, occ, reduction='none')
         loss = loss + loss_i.sum(-1).mean()
 
         return loss
