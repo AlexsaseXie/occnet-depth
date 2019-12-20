@@ -188,9 +188,18 @@ class Trainer(BaseTrainer):
             a_current_category_center = self.model.pre_category_centers[c_idx].detach().to(device) # batch_size * c_dim
             a_d = F.pairwise_distance(a_current_category_center, c, p=2) 
 
+            #compensate
+            a_c_d = F.relu(self.feature_k - a_d)
+            compensate_loss = - ((self.repulsive_p * a_c_d * a_c_d / (2.0)).sum())
+
+            a_d = F.relu(a_d - self.feature_k / 3.)
+
             #attractive
             # f_a(x) = alpha * x / k
-            attrative_loss = (self.attractive_p * a_d * a_d / (2.0 * self.feature_k)).sum()
+            #attractive_loss = (self.attractive_p * a_d * a_d / (2.0 * self.feature_k)).sum()
+
+            # f_a(x) = alpha * (x - k / 3) (x >= k / 3)
+            attractive_loss = (self.attractive_p * a_d * a_d / (2.0)).sum()
 
             #repulsive
             # f_r(x) = alpha * k / x
@@ -198,18 +207,14 @@ class Trainer(BaseTrainer):
             current_category_center = self.model.pre_category_centers[tmp_i].detach().to(device)
             current_c = c[:,None,:].repeat(1,self.model.category_count,1)
             d = torch.sqrt( torch.pow(current_category_center - current_c, 2).sum(2) )
-            replusive_loss = (-self.repulsive_p * self.feature_k * torch.log(d + 1e-8)).sum()
-
-            #replusive_loss = 0
-            #for i in range(self.model.category_count):
-            #    tmp_i = torch.LongTensor(c_idx.shape[0]).zero_()
-            #    tmp_i = tmp_i + 1
-            #    tmp_i = tmp_i * i
-            #    current_category_center = self.model.pre_category_centers[tmp_i].to(device)
-            #    d = F.pairwise_distance(current_category_center, current_c, p=2)
-            #    replusive_loss = replusive_loss + (- self.repulsive_p * self.feature_k * torch.log(d + 1e-8)).sum()
-
-            force_loss = attrative_loss + replusive_loss 
+            #repulsive_loss = (-self.repulsive_p * self.feature_k * torch.log(d + 1e-8)).sum()
+            
+            #f_r(x) = alpha * (k - x) (x <= k)
+            d = F.relu(self.feature_k - d)
+            repulsive_loss = (self.repulsive_p * d * d / 2.0).sum()
+            
+            repulsive_loss = repulsive_loss + compensate_loss
+            force_loss = attractive_loss + repulsive_loss 
             #loss = loss + force_loss
 
         # KL-divergence
