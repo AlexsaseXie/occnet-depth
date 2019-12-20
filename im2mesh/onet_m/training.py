@@ -189,8 +189,8 @@ class Trainer(BaseTrainer):
             a_d = F.pairwise_distance(a_current_category_center, c, p=2) 
 
             #compensate
-            a_c_d = F.relu(self.feature_k - a_d)
-            compensate_loss = - ((self.repulsive_p * a_c_d * a_c_d / (2.0)).sum())
+            #a_c_d = F.relu(self.feature_k - a_d)
+            #compensate_loss = - ((self.repulsive_p * a_c_d * a_c_d / (2.0)).sum())
 
             a_d = F.relu(a_d - self.feature_k / 3.)
 
@@ -205,16 +205,26 @@ class Trainer(BaseTrainer):
             # f_r(x) = alpha * k / x
             tmp_i = torch.LongTensor(range(self.model.category_count)).repeat(c_idx.shape[0],1)
             current_category_center = self.model.pre_category_centers[tmp_i].detach().to(device)
-            current_c = c[:,None,:].repeat(1,self.model.category_count,1)
-            d = torch.sqrt( torch.pow(current_category_center - current_c, 2).sum(2) )
+            #current_c = c[:,None,:].repeat(1,self.model.category_count,1)
+            #d = torch.sqrt( torch.pow(current_category_center - current_c, 2).sum(2) )
             #repulsive_loss = (-self.repulsive_p * self.feature_k * torch.log(d + 1e-8)).sum()
+
+            a_current_category_center = a_current_category_center[:,None,:].repeat(1, self.model.category_count, 1)
+            repulsive_direction = a_current_category_center - current_category_center
+            d = torch.max(torch.sqrt( torch.pow(repulsive_direction, 2).sum(2) ), 1e-8)
+            repulsive_direction = repulsive_direction / d[:,:,None]
+            d = F.relu(self.feature_k - d)
+            repulsive_direction = self.repulsive_p * repulsive_direction * d[:,:,None]
+            repulsive_loss = (c * repulsive_direction.sum(1)).sum()
             
             #f_r(x) = alpha * (k - x) (x <= k)
-            d = F.relu(self.feature_k - d)
-            repulsive_loss = (self.repulsive_p * d * d / 2.0).sum()
+            #d = F.relu(self.feature_k - d)
+            #repulsive_loss = (self.repulsive_p * d * d / 2.0).sum()
             
-            repulsive_loss = repulsive_loss + compensate_loss
+            #repulsive_loss = repulsive_loss + compensate_loss
             force_loss = attractive_loss + repulsive_loss 
+            print('attractive_loss:', attractive_loss.item())
+            print('repulsive_loss:', repulsive_loss.item())
             #loss = loss + force_loss
 
         # KL-divergence
