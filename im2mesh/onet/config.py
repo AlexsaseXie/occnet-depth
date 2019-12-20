@@ -78,6 +78,10 @@ def get_trainer(model, optimizer, cfg, device, **kwargs):
         eval_sample=cfg['training']['eval_sample'],
     )
 
+    if 'loss_type' in cfg['training']:
+        trainer.loss_type = cfg['training']['loss_type']
+        print('loss type:', trainer.loss_type)
+
     return trainer
 
 

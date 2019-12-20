@@ -192,7 +192,7 @@ def export_points(mesh, modelname, loc, scale, args):
     # surface + noise
     points_noise_surface, points_noise_index = mesh.sample(n_points_noise_surface, return_index=True)
     points_noise_normal = mesh.face_normals[points_noise_index]
-    points_noise_ratio = np.random.rand(n_points_noise_surface)
+    points_noise_ratio = np.random.rand(n_points_noise_surface) * 2. - 1.
     points_noise_surface += args.points_sigma * points_noise_ratio.reshape(n_points_noise_surface, 1) * points_noise_normal
     
     points = np.concatenate([points_uniform, points_on_surface, points_noise_surface], axis=0)

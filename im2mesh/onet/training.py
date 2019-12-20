@@ -25,7 +25,7 @@ class Trainer(BaseTrainer):
     '''
 
     def __init__(self, model, optimizer, device=None, input_type='img',
-                 vis_dir=None, threshold=0.5, eval_sample=False):
+                 vis_dir=None, threshold=0.5, eval_sample=False, loss_type='cross_entropy'):
         self.model = model
         self.optimizer = optimizer
         self.device = device
@@ -33,6 +33,7 @@ class Trainer(BaseTrainer):
         self.vis_dir = vis_dir
         self.threshold = threshold
         self.eval_sample = eval_sample
+        self.loss_type = loss_type
 
         if vis_dir is not None and not os.path.exists(vis_dir):
             os.makedirs(vis_dir)
@@ -166,8 +167,11 @@ class Trainer(BaseTrainer):
 
         # General points
         logits = self.model.decode(p, z, c, **kwargs).logits
-        loss_i = F.binary_cross_entropy_with_logits(
-            logits, occ, reduction='none')
+        if self.loss_type == 'cross_entropy':
+            loss_i = F.binary_cross_entropy_with_logits(
+                logits, occ, reduction='none')
+        else:
+            loss_i = torch.pow((logits - occ), 2)
         loss = loss + loss_i.sum(-1).mean()
 
         return loss

@@ -89,6 +89,7 @@ class DecoderCBatchNorm(nn.Module):
     def __init__(self, dim=3, z_dim=128, c_dim=128,
                  hidden_size=256, leaky=False, legacy=False):
         super().__init__()
+        print('using sigmoid')
         self.z_dim = z_dim
         if not z_dim == 0:
             self.fc_z = nn.Linear(z_dim, hidden_size)
@@ -128,6 +129,8 @@ class DecoderCBatchNorm(nn.Module):
         net = self.block4(net, c)
 
         out = self.fc_out(self.actvn(self.bn(net, c)))
+        #sigmoid
+        out = F.sigmoid(out)
         out = out.squeeze(1)
 
         return out
