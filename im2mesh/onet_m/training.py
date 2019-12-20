@@ -218,8 +218,12 @@ class Trainer(BaseTrainer):
 
         # General points
         logits = self.model.decode(p, z, c, **kwargs).logits
-        loss_i = F.binary_cross_entropy_with_logits(
-            logits, occ, reduction='none')
+        if self.loss_type == 'cross_entropy':
+            loss_i = F.binary_cross_entropy_with_logits(
+                logits, occ, reduction='none')
+        else:
+            logits = F.sigmoid(logits)
+            loss_i = torch.pow((logits - occ), 2)
         loss = loss + loss_i.sum(-1).mean()
 
         return loss, force_loss
