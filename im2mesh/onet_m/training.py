@@ -26,7 +26,7 @@ class Trainer(BaseTrainer):
 
     def __init__(self, model, optimizer, device=None, input_type='img',
                  vis_dir=None, threshold=0.5, eval_sample=False, calc_feature_category_loss=False,
-                 record_feature_category=True, attractive_p=1e-3, repulsive_p=1e-1,feature_k=1e-1):
+                 record_feature_category=True, attractive_p=1e-3, repulsive_p=1e-1,feature_k=1e-1, loss_type='cross_entropy'):
         self.model = model
         self.optimizer = optimizer
         self.device = device
@@ -40,6 +40,7 @@ class Trainer(BaseTrainer):
         self.attractive_p = attractive_p
         self.repulsive_p = repulsive_p
         self.feature_k = feature_k
+        self.loss_type = loss_type
 
         if vis_dir is not None and not os.path.exists(vis_dir):
             os.makedirs(vis_dir)
@@ -187,6 +188,7 @@ class Trainer(BaseTrainer):
             c_idx = data.get('category')
             a_current_category_center = self.model.pre_category_centers[c_idx].detach().to(device) # batch_size * c_dim
             a_d = F.pairwise_distance(a_current_category_center, c, p=2) 
+            #print('c to center:',a_d.mean())
 
             #compensate
             #a_c_d = F.relu(self.feature_k - a_d)
@@ -199,7 +201,7 @@ class Trainer(BaseTrainer):
             #attractive_loss = (self.attractive_p * a_d * a_d / (2.0 * self.feature_k)).sum()
 
             # f_a(x) = alpha * (x - k / 3) (x >= k / 3)
-            attractive_loss = (self.attractive_p * a_d * a_d / (2.0)).sum()
+            attractive_loss = (self.attractive_p * torch.pow(a_d, 2) / (2.0)).sum()
 
             #repulsive
             # f_r(x) = alpha * k / x
@@ -209,13 +211,15 @@ class Trainer(BaseTrainer):
             #d = torch.sqrt( torch.pow(current_category_center - current_c, 2).sum(2) )
             #repulsive_loss = (-self.repulsive_p * self.feature_k * torch.log(d + 1e-8)).sum()
 
-            a_current_category_center = a_current_category_center[:,None,:].repeat(1, self.model.category_count, 1)
+            a_current_category_center = self.model.pre_category_centers[c_idx].detach().to(device)[:,None,:].repeat(1, self.model.category_count, 1)
             repulsive_direction = a_current_category_center - current_category_center
-            d = torch.max(torch.sqrt( torch.pow(repulsive_direction, 2).sum(2) ), 1e-8)
+            d = torch.sqrt( torch.pow(repulsive_direction, 2).sum(2) )
             repulsive_direction = repulsive_direction / d[:,:,None]
+            repulsive_direction[d <= 1e-5] = 0
+            #print('between centers:',d.mean())
             d = F.relu(self.feature_k - d)
             repulsive_direction = self.repulsive_p * repulsive_direction * d[:,:,None]
-            repulsive_loss = (c * repulsive_direction.sum(1)).sum()
+            repulsive_loss = (c[:,None,:] * repulsive_direction).mean(1).sum()
             
             #f_r(x) = alpha * (k - x) (x <= k)
             #d = F.relu(self.feature_k - d)
@@ -225,7 +229,6 @@ class Trainer(BaseTrainer):
             force_loss = attractive_loss + repulsive_loss 
             print('attractive_loss:', attractive_loss.item())
             print('repulsive_loss:', repulsive_loss.item())
-            #loss = loss + force_loss
 
         # KL-divergence
         kl = dist.kl_divergence(q_z, self.model.p0_z).sum(dim=-1)
