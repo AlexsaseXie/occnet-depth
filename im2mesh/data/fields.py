@@ -6,6 +6,7 @@ import numpy as np
 import trimesh
 from im2mesh.data.core import Field
 from im2mesh.utils import binvox_rw
+import torch
 
 
 class IndexField(Field):
@@ -101,6 +102,84 @@ class ImagesField(Field):
             K = camera_dict['camera_mat_%d' % idx_img].astype(np.float32)
             data['world_mat'] = Rt
             data['camera_mat'] = K
+
+        return data
+
+    def check_complete(self, files):
+        ''' Check if field is complete.
+        
+        Args:
+            files: files
+        '''
+        complete = (self.folder_name in files)
+        # TODO: check camera
+        return complete
+
+class MultiImageField(Field):
+    ''' MultiImage Field.
+
+    It is the field used for loading images.
+
+    Args:
+        folder_name (str): folder name
+        transform (list): list of transformations applied to loaded images
+        extension (str): image extension
+        random_view (bool): whether a random view should be used
+        with_camera (bool): whether camera data should be provided
+    '''
+    def __init__(self, folder_name, n_views=3, transform=None,
+                 extension='jpg', random_view=True, with_camera=False):
+        self.folder_name = folder_name
+        self.transform = transform
+        self.extension = extension
+        self.random_view = random_view
+        self.with_camera = with_camera
+        self.n_views = n_views
+
+    def load(self, model_path, idx, category):
+        ''' Loads the data point.
+
+        Args:
+            model_path (str): path to model
+            idx (int): ID of data point
+            category (int): index of category
+        '''
+        folder = os.path.join(model_path, self.folder_name)
+        files = glob.glob(os.path.join(folder, '*.%s' % self.extension))
+        if self.random_view:
+            choices = range(len(files) - 1)
+            idx_img = random.sample(choices, self.n_views)
+        else:
+            idx_img = list(range(self.n_views))
+
+        img_set = []
+        for idx in idx_img:
+            filename = files[int(idx)]
+
+            image = Image.open(filename).convert('RGB')
+            if self.transform is not None:
+                image = self.transform(image)
+
+            img_set.append(image)
+
+        data = {
+            None: torch.stack(img_set)
+        }
+
+        if self.with_camera:
+            camera_file = os.path.join(folder, 'cameras.npz')
+            camera_dict = np.load(camera_file)
+
+            Rts = []
+            Ks = []
+            for idx in idx_img:
+                Rt = camera_dict['world_mat_%d' % int(idx)].astype(np.float32)
+                Rts.append(Rt)
+                K = camera_dict['camera_mat_%d' % int(idx)].astype(np.float32)
+                Ks.append(Rt)
+
+            data['world_mat'] = np.array(Rts)
+            data['camera_mat'] = np.array(Ks)
 
         return data
 
