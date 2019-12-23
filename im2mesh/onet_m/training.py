@@ -212,23 +212,42 @@ class Trainer(BaseTrainer):
             #repulsive_loss = (-self.repulsive_p * self.feature_k * torch.log(d + 1e-8)).sum()
 
             a_current_category_center = self.model.pre_category_centers[c_idx].detach().to(device)[:,None,:].repeat(1, self.model.category_count, 1)
-            repulsive_direction = a_current_category_center - current_category_center
-            d = torch.sqrt( torch.pow(repulsive_direction, 2).sum(2) )
+            repulsive_direction = current_category_center - a_current_category_center
+            d = torch.sqrt( torch.pow(repulsive_direction, 2).sum(2) )           
+            print('between centers:',d.mean() * 13. / 12.)
+
+            '''
+            #all
             repulsive_direction = repulsive_direction / d[:,:,None]
             repulsive_direction[d <= 1e-5] = 0
-            #print('between centers:',d.mean())
             d = F.relu(self.feature_k - d)
             repulsive_direction = self.repulsive_p * repulsive_direction * d[:,:,None]
-            repulsive_loss = (c[:,None,:] * repulsive_direction).mean(1).sum()
+            repulsive_loss = (c * repulsive_direction.mean(1)).sum()
+            '''
             
+            
+            # only nearest
+            d[d <= 1e-5] = 1e7
+            d_val, d_idx = d.min(1)
+            current_category_center = self.model.pre_category_centers[d_idx].detach().to(device)       
+            a_current_category_center = self.model.pre_category_centers[c_idx].detach().to(device)
+            repulsive_direction = current_category_center - a_current_category_center
+            repulsive_direction = repulsive_direction / d_val[:,None]
+            print('nearest centers:',d_val.mean())
+            d_val = F.relu(self.feature_k - d_val)
+            repulsive_direction = self.repulsive_p * repulsive_direction * d_val[:,None]
+            repulsive_loss = (c * repulsive_direction).sum()
+            
+
+            '''
             #f_r(x) = alpha * (k - x) (x <= k)
-            #d = F.relu(self.feature_k - d)
-            #repulsive_loss = (self.repulsive_p * d * d / 2.0).sum()
-            
+            d = F.relu(self.feature_k - d)
+            repulsive_loss = (self.repulsive_p * d * d / 2.0).sum()
+            '''
+
             #repulsive_loss = repulsive_loss + compensate_loss
             force_loss = attractive_loss + repulsive_loss 
             print('attractive_loss:', attractive_loss.item())
-            print('repulsive_loss:', repulsive_loss.item())
 
         # KL-divergence
         kl = dist.kl_divergence(q_z, self.model.p0_z).sum(dim=-1)
