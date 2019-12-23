@@ -210,6 +210,28 @@ def get_inputs_field(mode, cfg):
             cfg['data']['img_folder'], transform,
             with_camera=with_camera, random_view=random_view
         )
+    elif input_type == 'multi_img':
+        if mode == 'train' and cfg['data']['img_augment']:
+            resize_op = transforms.RandomResizedCrop(
+                cfg['data']['img_size'], (0.75, 1.), (1., 1.))
+        else:
+            resize_op = transforms.Resize((cfg['data']['img_size']))
+
+        transform = transforms.Compose([
+            resize_op, transforms.ToTensor(),
+        ])
+
+        with_camera = cfg['data']['img_with_camera']
+
+        if mode == 'train':
+            random_view = True
+        else:
+            random_view = False
+
+        inputs_field = data.ImagesField(
+            cfg['data']['img_folder'], transform,
+            with_camera=with_camera, random_view=random_view
+        )
     elif input_type == 'pointcloud':
         transform = transforms.Compose([
             data.SubsamplePointcloud(cfg['data']['pointcloud_n']),
