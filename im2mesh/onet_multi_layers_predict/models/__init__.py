@@ -1,7 +1,7 @@
 import torch
 import torch.nn as nn
 from torch import distributions as dist
-from im2mesh.onet_m.models import encoder_latent, decoder
+from im2mesh.onet_multi_layers_predict.models import encoder_latent, decoder
 
 # Encoder latent dictionary
 encoder_latent_dict = {

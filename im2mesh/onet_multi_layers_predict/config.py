@@ -2,8 +2,8 @@ import torch
 import torch.distributions as dist
 from torch import nn
 import os
-from im2mesh.encoder import encoder_dict
-from im2mesh.onet_m import models, training, generation
+from im2mesh.onet_multi_layers_predict.models import feature_extractor
+from im2mesh.onet_multi_layers_predict import models, training, generation
 from im2mesh import data
 from im2mesh import config
 
@@ -39,10 +39,8 @@ def get_model(cfg, device=None, dataset=None, **kwargs):
     else:
         encoder_latent = None
 
-    if encoder == 'idx':
-        encoder = nn.Embedding(len(dataset), c_dim)
-    elif encoder is not None:
-        encoder = encoder_dict[encoder](
+    if encoder is not None:
+        encoder = feature_extractor.Resnet18(
             c_dim=c_dim,
             **encoder_kwargs
         )

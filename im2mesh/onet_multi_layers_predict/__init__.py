@@ -1,4 +1,4 @@
-from im2mesh.onet_m import (
+from im2mesh.onet_multi_layers_predict import (
     config, generation, training, models
 )
 
