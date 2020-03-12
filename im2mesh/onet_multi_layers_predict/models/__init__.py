@@ -29,13 +29,15 @@ class OccupancyNetwork(nn.Module):
         device (device): torch device
     '''
 
-    def __init__(self, dataset, decoder, encoder=None, encoder_latent=None, p0_z=None,
+    def __init__(self, dataset, decoder1, decoder2, decoder3, encoder=None, encoder_latent=None, p0_z=None,
                  device=None):
         super().__init__()
         if p0_z is None:
             p0_z = dist.Normal(torch.tensor([]), torch.tensor([]))
 
-        self.decoder = decoder.to(device)
+        self.decoder1 = decoder1.to(device)
+        self.decoder2 = decoder2.to(device)
+        self.decoder3 = decoder3.to(device)
 
         if encoder_latent is not None:
             self.encoder_latent = encoder_latent.to(device)
@@ -50,9 +52,6 @@ class OccupancyNetwork(nn.Module):
         # init category_center
         category_count = len(dataset.metadata)
         self.category_count = category_count
-        self.category_centers = torch.zeros(category_count,decoder.c_dim).to(device) 
-        self.pre_category_centers = torch.rand(category_count,decoder.c_dim).to(device)
-
 
         self._device = device
         self.p0_z = p0_z
@@ -66,9 +65,9 @@ class OccupancyNetwork(nn.Module):
             sample (bool): whether to sample for z
         '''
         batch_size = p.size(0)
-        c = self.encode_inputs(inputs)
+        f3,f2,f1 = self.encode_inputs(inputs)
         z = self.get_z_from_prior((batch_size,), sample=sample)
-        p_r = self.decode(p, z, c, **kwargs)
+        p_r = self.decode(p, z, f3, f2, f1, **kwargs)
         return p_r
 
     def compute_elbo(self, p, occ, inputs, **kwargs):
@@ -79,10 +78,10 @@ class OccupancyNetwork(nn.Module):
             occ (tensor): occupancy values for p
             inputs (tensor): conditioning input
         '''
-        c = self.encode_inputs(inputs)
-        q_z = self.infer_z(p, occ, c, **kwargs)
+        f3, f2, f1 = self.encode_inputs(inputs)
+        q_z = self.infer_z(p, occ, f3, **kwargs)
         z = q_z.rsample()
-        p_r = self.decode(p, z, c, **kwargs)
+        p_r = self.decode(p, z, f3, f2, f1, **kwargs)
 
         rec_error = -p_r.log_prob(occ).sum(dim=-1)
         kl = dist.kl_divergence(q_z, self.p0_z).sum(dim=-1)
@@ -98,14 +97,16 @@ class OccupancyNetwork(nn.Module):
         '''
 
         if self.encoder is not None:
-            c = self.encoder(inputs)
+            f3,f2,f1 = self.encoder(inputs)
         else:
             # Return inputs?
-            c = torch.empty(inputs.size(0), 0)
+            f3 = torch.empty(inputs.size(0), 0)
+            f2 = torch.empty(inputs.size(0), 0)
+            f1 = torch.empty(inputs.size(0), 0)
 
-        return c
+        return f3,f2,f1
 
-    def decode(self, p, z, c, **kwargs):
+    def decode(self, p, z, f3, f2, f1, **kwargs):
         ''' Returns occupancy probabilities for the sampled points.
 
         Args:
@@ -114,7 +115,10 @@ class OccupancyNetwork(nn.Module):
             c (tensor): latent conditioned code c
         '''
 
-        logits = self.decoder(p, z, c, **kwargs)
+        logits3 = self.decoder3(p, z, f3, **kwargs)
+        logits2 = self.decoder2(p, z, f2, **kwargs)
+        logtis1 = self.decoder1(p, z, f1, **kwargs)
+        logits = (logits3 + logits2 + logtis1) / 3.
         p_r = dist.Bernoulli(logits=logits)
         return p_r
 

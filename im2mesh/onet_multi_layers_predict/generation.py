@@ -148,7 +148,7 @@ class Generator3D(object):
         for pi in p_split:
             pi = pi.unsqueeze(0).to(self.device)
             with torch.no_grad():
-                occ_hat = self.model.decode(pi, z, c, **kwargs).logits
+                occ_hat = self.model.decode(pi, z, c[0],c[1],c[2], **kwargs).logits
 
             occ_hats.append(occ_hat.squeeze(0).detach().cpu())
 
@@ -236,7 +236,7 @@ class Generator3D(object):
         for vi in vertices_split:
             vi = vi.unsqueeze(0).to(device)
             vi.requires_grad_()
-            occ_hat = self.model.decode(vi, z, c).logits
+            occ_hat = self.model.decode(vi, z, c[0],c[1],c[2]).logits
             out = occ_hat.sum()
             out.backward()
             ni = -vi.grad
@@ -290,7 +290,7 @@ class Generator3D(object):
             face_normal = face_normal / \
                 (face_normal.norm(dim=1, keepdim=True) + 1e-10)
             face_value = torch.sigmoid(
-                self.model.decode(face_point.unsqueeze(0), z, c).logits
+                self.model.decode(face_point.unsqueeze(0), z, c[0],c[1],c[2]).logits
             )
             normal_target = -autograd.grad(
                 [face_value.sum()], [face_point], create_graph=True)[0]

@@ -23,6 +23,9 @@ def conv3x3(in_planes, out_planes, stride=1):
     return nn.Conv2d(in_planes, out_planes, kernel_size=3, stride=stride,
                      padding=1, bias=False)
 
+def kmax_pooling(x, dim, k):
+    index = x.topk(k, dim=dim)[1].sort(dim=dim)[0]
+    return x.gather(dim, index)
 
 class BasicBlock(nn.Module):
     expansion = 1
@@ -109,10 +112,11 @@ class ResNet(nn.Module):
         self.layer2 = self._make_layer(block, 128, layers[1], stride=2)
         self.layer3 = self._make_layer(block, 256, layers[2], stride=2)
         self.layer4 = self._make_layer(block, 512, layers[3], stride=2)
-        #self.avgpool = nn.AvgPool2d(7, stride=1) 
+        self.avgpool = nn.AvgPool2d(7, stride=1) 
         #modified
-        self.avgpool = nn.AvgPool2d(7, stride=7) 
-        self.fc = nn.Linear(512 * block.expansion, num_classes)
+        #self.fc = nn.Linear(512 * block.expansion, num_classes)
+        self.f1_fc = nn.Linear(1568,512)
+        self.f2_fc = nn.Linear(1568,512)
 
         for m in self.modules():
             if isinstance(m, nn.Conv2d):
@@ -155,18 +159,25 @@ class ResNet(nn.Module):
         f2 = self.layer3(f1)
         x = self.layer4(f2)
 
+        #f1 : 128 * 28 * 28
+        #f2 : 256 * 14 * 14
+        #x : 512 * 7 * 7
+
         x = self.avgpool(x)
         x = x.view(x.size(0), -1)
 
         #modified
-        f1 = self.avgpool(f1)
+        f1 = kmax_pooling(f1,1,8)
         f1 = f1.view(f1.size(0), -1)
+        f1 = self.f1_fc(f1)
 
-        f2 = self.avgpool(f2)
+        f2 = kmax_pooling(f1,1,2)
         f2 = f2.view(f2.size(0), -1)
+        f2 = self.f2_fc(f2)
+
         #x = self.fc(x)
 
-        # x: 512 f2: 1024 f1: 2048
+        # x: 512 f2: 512 f1: 512
         return x, f2, f1
 
 
@@ -178,7 +189,11 @@ def resnet18(pretrained=False, **kwargs):
     """
     model = ResNet(BasicBlock, [2, 2, 2, 2], **kwargs)
     if pretrained:
-        model.load_state_dict(model_zoo.load_url(model_urls['resnet18']))
+        pretrained_dict = model_zoo.load_url(model_urls['resnet18'])
+        model_dict = model.state_dict()
+        pretrained_dict = {k: v for k, v in pretrained_dict.items() if k in model_dict}
+        model_dict.update(pretrained_dict)
+        model.load_state_dict(model_dict)
     return model
 
 
@@ -190,7 +205,11 @@ def resnet34(pretrained=False, **kwargs):
     """
     model = ResNet(BasicBlock, [3, 4, 6, 3], **kwargs)
     if pretrained:
-        model.load_state_dict(model_zoo.load_url(model_urls['resnet34']))
+        pretrained_dict = model_zoo.load_url(model_urls['resnet34'])
+        model_dict = model.state_dict()
+        pretrained_dict = {k: v for k, v in pretrained_dict.items() if k in model_dict}
+        model_dict.update(pretrained_dict)
+        model.load_state_dict(model_dict)
     return model
 
 
@@ -202,7 +221,11 @@ def resnet50(pretrained=False, **kwargs):
     """
     model = ResNet(Bottleneck, [3, 4, 6, 3], **kwargs)
     if pretrained:
-        model.load_state_dict(model_zoo.load_url(model_urls['resnet50']))
+        pretrained_dict = model_zoo.load_url(model_urls['resnet50'])
+        model_dict = model.state_dict()
+        pretrained_dict = {k: v for k, v in pretrained_dict.items() if k in model_dict}
+        model_dict.update(pretrained_dict)
+        model.load_state_dict(model_dict)
     return model
 
 
@@ -214,7 +237,11 @@ def resnet101(pretrained=False, **kwargs):
     """
     model = ResNet(Bottleneck, [3, 4, 23, 3], **kwargs)
     if pretrained:
-        model.load_state_dict(model_zoo.load_url(model_urls['resnet101']))
+        pretrained_dict = model_zoo.load_url(model_urls['resnet101'])
+        model_dict = model.state_dict()
+        pretrained_dict = {k: v for k, v in pretrained_dict.items() if k in model_dict}
+        model_dict.update(pretrained_dict)
+        model.load_state_dict(model_dict)
     return model
 
 
@@ -226,7 +253,11 @@ def resnet152(pretrained=False, **kwargs):
     """
     model = ResNet(Bottleneck, [3, 8, 36, 3], **kwargs)
     if pretrained:
-        model.load_state_dict(model_zoo.load_url(model_urls['resnet152']))
+        pretrained_dict = model_zoo.load_url(model_urls['resnet152'])
+        model_dict = model.state_dict()
+        pretrained_dict = {k: v for k, v in pretrained_dict.items() if k in model_dict}
+        model_dict.update(pretrained_dict)
+        model.load_state_dict(model_dict)
     return model
 
 

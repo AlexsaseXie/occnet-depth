@@ -25,8 +25,7 @@ class Trainer(BaseTrainer):
     '''
 
     def __init__(self, model, optimizer, device=None, input_type='img',
-                 vis_dir=None, threshold=0.5, eval_sample=False, calc_feature_category_loss=False,
-                 record_feature_category=True, attractive_p=1e-3, repulsive_p=1e-1,feature_k=1e-1, loss_type='cross_entropy'):
+                 vis_dir=None, threshold=0.5, eval_sample=False, loss_type='cross_entropy'):
         self.model = model
         self.optimizer = optimizer
         self.device = device
@@ -34,12 +33,6 @@ class Trainer(BaseTrainer):
         self.vis_dir = vis_dir
         self.threshold = threshold
         self.eval_sample = eval_sample
-
-        self.calc_feature_category_loss = calc_feature_category_loss
-        self.record_feature_category = record_feature_category
-        self.attractive_p = attractive_p
-        self.repulsive_p = repulsive_p
-        self.feature_k = feature_k
         self.loss_type = loss_type
 
         if vis_dir is not None and not os.path.exists(vis_dir):
@@ -53,15 +46,10 @@ class Trainer(BaseTrainer):
         '''
         self.model.train()
         self.optimizer.zero_grad()
-        loss,force_loss = self.compute_loss(data)
-        if self.calc_feature_category_loss:
-            force_loss.backward(retain_graph=True)
+        loss = self.compute_loss(data)
         loss.backward()
         self.optimizer.step()
-        if self.calc_feature_category_loss:
-            return loss.item(), force_loss.item()
-        else:
-            return loss.item(), force_loss
+        return loss.item()
 
     def eval_step(self, data):
         ''' Performs an evaluation step.
@@ -169,79 +157,25 @@ class Trainer(BaseTrainer):
 
         kwargs = {}
 
-        c = self.model.encode_inputs(inputs)
-        # batch_size * points_count  
-        q_z = self.model.infer_z(p, occ, c, **kwargs)
+        f3,f2,f1 = self.model.encode_inputs(inputs)
+        q_z = self.model.infer_z(p, occ, f3, **kwargs)
         z = q_z.rsample()
-
-        #record c
-        if self.record_feature_category:
-            c_idx = data.get('category')  # batch_size tensor
-            for batch_id, single_c in enumerate(c):
-                self.model.category_centers[c_idx[batch_id],:] = self.model.category_centers[c_idx[batch_id],:] + single_c.detach()
-
-        loss = 0
-        force_loss = 0
-
-        # Category loss
-        if self.calc_feature_category_loss:
-            c_idx = data.get('category')
-            a_current_category_center = self.model.pre_category_centers[c_idx].detach().to(device) # batch_size * c_dim
-            a_d = F.pairwise_distance(a_current_category_center, c, p=2) 
-            #print('c to center:',a_d.mean())
-
-            #compensate
-            #a_c_d = F.relu(self.feature_k - a_d)
-            #compensate_loss = - ((self.repulsive_p * a_c_d * a_c_d / (2.0)).sum())
-
-            a_d = F.relu(a_d - self.feature_k / 3.)
-
-            #attractive
-            # f_a(x) = alpha * x / k
-            #attractive_loss = (self.attractive_p * a_d * a_d / (2.0 * self.feature_k)).sum()
-
-            # f_a(x) = alpha * (x - k / 3) (x >= k / 3)
-            attractive_loss = (self.attractive_p * torch.pow(a_d, 2) / (2.0)).sum()
-
-            #repulsive
-            # f_r(x) = alpha * k / x
-            tmp_i = torch.LongTensor(range(self.model.category_count)).repeat(c_idx.shape[0],1)
-            current_category_center = self.model.pre_category_centers[tmp_i].detach().to(device)
-            #current_c = c[:,None,:].repeat(1,self.model.category_count,1)
-            #d = torch.sqrt( torch.pow(current_category_center - current_c, 2).sum(2) )
-            #repulsive_loss = (-self.repulsive_p * self.feature_k * torch.log(d + 1e-8)).sum()
-
-            a_current_category_center = self.model.pre_category_centers[c_idx].detach().to(device)[:,None,:].repeat(1, self.model.category_count, 1)
-            repulsive_direction = a_current_category_center - current_category_center
-            d = torch.sqrt( torch.pow(repulsive_direction, 2).sum(2) )
-            repulsive_direction = repulsive_direction / d[:,:,None]
-            repulsive_direction[d <= 1e-5] = 0
-            #print('between centers:',d.mean())
-            d = F.relu(self.feature_k - d)
-            repulsive_direction = self.repulsive_p * repulsive_direction * d[:,:,None]
-            repulsive_loss = (c[:,None,:] * repulsive_direction).mean(1).sum()
-            
-            #f_r(x) = alpha * (k - x) (x <= k)
-            #d = F.relu(self.feature_k - d)
-            #repulsive_loss = (self.repulsive_p * d * d / 2.0).sum()
-            
-            #repulsive_loss = repulsive_loss + compensate_loss
-            force_loss = attractive_loss + repulsive_loss 
-            print('attractive_loss:', attractive_loss.item())
-            print('repulsive_loss:', repulsive_loss.item())
 
         # KL-divergence
         kl = dist.kl_divergence(q_z, self.model.p0_z).sum(dim=-1)
-        loss = loss + kl.mean()
+        loss = kl.mean()
 
         # General points
-        logits = self.model.decode(p, z, c, **kwargs).logits
+        logits = self.model.decode(p, z, f3, f2, f1, **kwargs).logits
         if self.loss_type == 'cross_entropy':
             loss_i = F.binary_cross_entropy_with_logits(
                 logits, occ, reduction='none')
-        else:
+        elif self.loss_type == 'l2':
             logits = F.sigmoid(logits)
             loss_i = torch.pow((logits - occ), 2)
+        else:
+            logits = F.sigmoid(logits)
+            loss_i = F.binary_cross_entropy(logits, occ, reduction='none')
         loss = loss + loss_i.sum(-1).mean()
 
-        return loss, force_loss
+        return loss

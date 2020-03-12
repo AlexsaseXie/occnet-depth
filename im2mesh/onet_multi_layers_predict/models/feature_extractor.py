@@ -16,11 +16,15 @@ class Resnet18(nn.Module):
         super().__init__()
         self.normalize = normalize
         self.features = resnet.resnet18(pretrained=True)
-        self.features.fc = nn.Sequential()
 
-        self.fc3 = nn.Linear(512, c_dim)
-        self.fc2 = nn.Linear(1024, c_dim)
-        self.fc1 = nn.Linear(2048, c_dim)
+        if c_dim != 512:
+            self.fc3 = nn.Linear(512, c_dim)
+            self.fc2 = nn.Linear(512, c_dim)
+            self.fc1 = nn.Linear(512, c_dim)
+        else:
+            self.fc3 = nn.Sequential()
+            self.fc2 = nn.Sequential()
+            self.fc1 = nn.Sequential()
 
     def forward(self, x):
         if self.normalize:

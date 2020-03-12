@@ -26,7 +26,15 @@ def get_model(cfg, device=None, dataset=None, **kwargs):
     encoder_kwargs = cfg['model']['encoder_kwargs']
     encoder_latent_kwargs = cfg['model']['encoder_latent_kwargs']
 
-    decoder = models.decoder_dict[decoder](
+    decoder1 = models.decoder_dict[decoder](
+        dim=dim, z_dim=z_dim, c_dim=c_dim,
+        **decoder_kwargs
+    )
+    decoder2 = models.decoder_dict[decoder](
+        dim=dim, z_dim=z_dim, c_dim=c_dim,
+        **decoder_kwargs
+    )
+    decoder3 = models.decoder_dict[decoder](
         dim=dim, z_dim=z_dim, c_dim=c_dim,
         **decoder_kwargs
     )
@@ -49,7 +57,7 @@ def get_model(cfg, device=None, dataset=None, **kwargs):
 
     p0_z = get_prior_z(cfg, device)
     model = models.OccupancyNetwork(
-        dataset, decoder, encoder, encoder_latent, p0_z, device=device
+        dataset, decoder1, decoder2, decoder3, encoder, encoder_latent, p0_z, device=device
     )
 
     return model
@@ -74,11 +82,6 @@ def get_trainer(model, optimizer, cfg, device, **kwargs):
         device=device, input_type=input_type,
         vis_dir=vis_dir, threshold=threshold,
         eval_sample=cfg['training']['eval_sample'],
-        calc_feature_category_loss=False,
-        record_feature_category=False, 
-        attractive_p=cfg['training']['attractive_p'], 
-        repulsive_p=cfg['training']['repulsive_p'],
-        feature_k=cfg['training']['feature_k']
     )
 
     if 'loss_type' in cfg['training']:
