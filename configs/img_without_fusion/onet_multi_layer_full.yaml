@@ -1,4 +1,4 @@
-method: onet
+method: onet_multi_layers
 data:
   path: data/ShapeNet
   img_folder: img_choy2016
@@ -9,18 +9,18 @@ model:
   decoder: cbatchnorm2
   decoder_kwargs:
     n_blocks: 2
-  encoder: resnet18
+  encoder: full
   c_dim: 256
   z_dim: 0
 training:
-  out_dir:  out/img/onet
+  out_dir:  out/img/onet_multi_layer_full
   batch_size: 64
   model_selection_metric: iou
   model_selection_mode: maximize
   visualize_every: 20000
   validate_every: 20000
 test:
-  threshold: 0.2
+  threshold: 0.5
   eval_mesh: true
   eval_pointcloud: false
 generation:

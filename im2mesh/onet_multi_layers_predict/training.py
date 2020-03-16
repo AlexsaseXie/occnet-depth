@@ -4,7 +4,7 @@ import torch
 from torch.nn import functional as F
 from torch import distributions as dist
 from im2mesh.common import (
-    compute_iou, make_3d_grid
+    compute_iou, make_3d_grid, fix_K_camera
 )
 from im2mesh.utils import visualize as vis
 from im2mesh.training import BaseTrainer
@@ -25,7 +25,7 @@ class Trainer(BaseTrainer):
     '''
 
     def __init__(self, model, optimizer, device=None, input_type='img',
-                 vis_dir=None, threshold=0.5, eval_sample=False, loss_type='cross_entropy'):
+                 vis_dir=None, threshold=0.5, eval_sample=False, loss_type='cross_entropy', use_local_feature=False,img_size=224):
         self.model = model
         self.optimizer = optimizer
         self.device = device
@@ -34,6 +34,8 @@ class Trainer(BaseTrainer):
         self.threshold = threshold
         self.eval_sample = eval_sample
         self.loss_type = loss_type
+        self.use_local_feature = use_local_feature
+        self.img_size = img_size
 
         if vis_dir is not None and not os.path.exists(vis_dir):
             os.makedirs(vis_dir)
@@ -75,9 +77,18 @@ class Trainer(BaseTrainer):
 
         kwargs = {}
 
+        if self.use_local_feature:
+            Rt = data.get('inputs.world_mat').to(device)
+            K = data.get('inputs.camera_mat').to(device)
+            K = fix_K_camera(K, self.img_size)
+
         with torch.no_grad():
-            elbo, rec_error, kl = self.model.compute_elbo(
-                points, occ, inputs, **kwargs)
+            if self.use_local_feature:
+                elbo, rec_error, kl = self.model.compute_elbo(
+                    points, occ, inputs, Rt, K **kwargs)
+            else:
+                elbo, rec_error, kl = self.model.compute_elbo(
+                    points, occ, inputs, **kwargs)
 
         eval_dict['loss'] = -elbo.mean().item()
         eval_dict['rec_error'] = rec_error.mean().item()
@@ -87,8 +98,12 @@ class Trainer(BaseTrainer):
         batch_size = points.size(0)
 
         with torch.no_grad():
-            p_out = self.model(points_iou, inputs,
-                               sample=self.eval_sample, **kwargs)
+            if self.use_local_feature:
+                p_out = self.model(points_iou, inputs, Rt, K,
+                                sample=self.eval_sample, **kwargs)
+            else:
+                p_out = self.model(points_iou, inputs,
+                                sample=self.eval_sample, **kwargs)
 
         occ_iou_np = (occ_iou >= 0.5).cpu().numpy()
         occ_iou_hat_np = (p_out.probs >= threshold).cpu().numpy()
@@ -104,8 +119,12 @@ class Trainer(BaseTrainer):
                 batch_size, *points_voxels.size())
             points_voxels = points_voxels.to(device)
             with torch.no_grad():
-                p_out = self.model(points_voxels, inputs,
-                                   sample=self.eval_sample, **kwargs)
+                if self.use_local_feature:
+                    p_out = self.model(points_voxels, inputs, Rt, K,
+                                    sample=self.eval_sample, **kwargs)
+                else:   
+                    p_out = self.model(points_voxels, inputs,
+                                    sample=self.eval_sample, **kwargs)
 
             voxels_occ_np = (voxels_occ >= 0.5).cpu().numpy()
             occ_hat_np = (p_out.probs >= threshold).cpu().numpy()
@@ -126,13 +145,21 @@ class Trainer(BaseTrainer):
         batch_size = data['points'].size(0)
         inputs = data.get('inputs', torch.empty(batch_size, 0)).to(device)
 
+        if self.use_local_feature:
+            Rt = data.get('inputs.world_mat').to(device)
+            K = data.get('inputs.camera_mat').to(device)
+            K = fix_K_camera(K, self.img_size)
+
         shape = (32, 32, 32)
         p = make_3d_grid([-0.5] * 3, [0.5] * 3, shape).to(device)
         p = p.expand(batch_size, *p.size())
 
         kwargs = {}
         with torch.no_grad():
-            p_r = self.model(p, inputs, sample=self.eval_sample, **kwargs)
+            if self.use_local_feature:
+                p_r = self.model(p, inputs, Rt, K, sample=self.eval_sample, **kwargs)
+            else:
+                p_r = self.model(p, inputs, sample=self.eval_sample, **kwargs)
 
         occ_hat = p_r.probs.view(batch_size, *shape)
         voxels_out = (occ_hat >= self.threshold).cpu().numpy()
@@ -154,10 +181,16 @@ class Trainer(BaseTrainer):
         p = data.get('points').to(device)
         occ = data.get('points.occ').to(device)
         inputs = data.get('inputs', torch.empty(p.size(0), 0)).to(device)
-
         kwargs = {}
 
-        f3,f2,f1 = self.model.encode_inputs(inputs)
+        if self.use_local_feature:
+            Rt = data.get('inputs.world_mat').to(device)
+            K = data.get('inputs.camera_mat').to(device)
+            K = fix_K_camera(K, self.img_size)
+            f3,f2,f1 = self.model.encode_inputs(inputs,p,Rt,K)
+        else:
+            f3,f2,f1 = self.model.encode_inputs(inputs)
+        
         q_z = self.model.infer_z(p, occ, f3, **kwargs)
         z = q_z.rsample()
 

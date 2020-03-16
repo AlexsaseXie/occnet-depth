@@ -3,6 +3,7 @@ from torchvision import transforms
 from im2mesh import data
 from im2mesh import onet, r2n2, psgn, pix2mesh, dmc
 from im2mesh import onet_m
+from im2mesh import onet_multi_layers_predict
 from im2mesh import preprocess
 
 
@@ -13,6 +14,7 @@ method_dict = {
     'pix2mesh': pix2mesh,
     'dmc': dmc,
     'onet_m': onet_m,
+    'onet_multi_layers': onet_multi_layers_predict,
 }
 
 

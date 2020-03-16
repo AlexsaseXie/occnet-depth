@@ -15,6 +15,7 @@ decoder_dict = {
     'cbatchnorm2': decoder.DecoderCBatchNorm2,
     'batchnorm': decoder.DecoderBatchNorm,
     'cbatchnorm_noresnet': decoder.DecoderCBatchNormNoResnet,
+    'batchnorm_localfeature': decoder.DecoderBatchNorm_LocalFeature,
 }
 
 
@@ -30,7 +31,7 @@ class OccupancyNetwork(nn.Module):
     '''
 
     def __init__(self, dataset, decoder1, decoder2, decoder3, encoder=None, encoder_latent=None, p0_z=None,
-                 device=None):
+                 device=None, use_local_feature=False):
         super().__init__()
         if p0_z is None:
             p0_z = dist.Normal(torch.tensor([]), torch.tensor([]))
@@ -38,6 +39,7 @@ class OccupancyNetwork(nn.Module):
         self.decoder1 = decoder1.to(device)
         self.decoder2 = decoder2.to(device)
         self.decoder3 = decoder3.to(device)
+        self.use_local_feature = use_local_feature
 
         if encoder_latent is not None:
             self.encoder_latent = encoder_latent.to(device)
@@ -56,7 +58,7 @@ class OccupancyNetwork(nn.Module):
         self._device = device
         self.p0_z = p0_z
 
-    def forward(self, p, inputs, sample=True, **kwargs):
+    def forward(self, p, inputs, Rt=None, K=None, sample=True, **kwargs):
         ''' Performs a forward pass through the network.
 
         Args:
@@ -65,12 +67,15 @@ class OccupancyNetwork(nn.Module):
             sample (bool): whether to sample for z
         '''
         batch_size = p.size(0)
-        f3,f2,f1 = self.encode_inputs(inputs)
+        if self.use_local_feature:
+            f3,f2,f1 = self.encode_inputs(inputs,p,Rt,K)
+        else:
+            f3,f2,f1 = self.encode_inputs(inputs)
         z = self.get_z_from_prior((batch_size,), sample=sample)
         p_r = self.decode(p, z, f3, f2, f1, **kwargs)
         return p_r
 
-    def compute_elbo(self, p, occ, inputs, **kwargs):
+    def compute_elbo(self, p, occ, inputs, Rt=None, K=None, **kwargs):
         ''' Computes the expectation lower bound.
 
         Args:
@@ -78,7 +83,11 @@ class OccupancyNetwork(nn.Module):
             occ (tensor): occupancy values for p
             inputs (tensor): conditioning input
         '''
-        f3, f2, f1 = self.encode_inputs(inputs)
+
+        if self.use_local_feature:
+            f3, f2, f1 = self.encode_inputs(inputs, p, Rt, K)
+        else:
+            f3, f2, f1 = self.encode_inputs(inputs)
         q_z = self.infer_z(p, occ, f3, **kwargs)
         z = q_z.rsample()
         p_r = self.decode(p, z, f3, f2, f1, **kwargs)
@@ -89,7 +98,7 @@ class OccupancyNetwork(nn.Module):
 
         return elbo, rec_error, kl
 
-    def encode_inputs(self, inputs):
+    def encode_inputs(self, inputs, p=None, Rt=None, K=None):
         ''' Encodes the input.
 
         Args:
@@ -97,7 +106,10 @@ class OccupancyNetwork(nn.Module):
         '''
 
         if self.encoder is not None:
-            f3,f2,f1 = self.encoder(inputs)
+            if self.use_local_feature:
+                f3, f2, f1 = self.encoder(inputs, p, Rt, K)
+            else:
+                f3, f2, f1 = self.encoder(inputs)
         else:
             # Return inputs?
             f3 = torch.empty(inputs.size(0), 0)

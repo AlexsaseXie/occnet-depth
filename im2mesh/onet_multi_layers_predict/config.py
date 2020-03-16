@@ -30,14 +30,25 @@ def get_model(cfg, device=None, dataset=None, **kwargs):
         dim=dim, z_dim=z_dim, c_dim=c_dim,
         **decoder_kwargs
     )
-    decoder2 = models.decoder_dict[decoder](
-        dim=dim, z_dim=z_dim, c_dim=c_dim,
-        **decoder_kwargs
-    )
-    decoder3 = models.decoder_dict[decoder](
-        dim=dim, z_dim=z_dim, c_dim=c_dim,
-        **decoder_kwargs
-    )
+
+    if encoder =='local':
+        decoder2 = models.decoder_dict['batchnorm_localfeature'](
+            dim=dim, z_dim=z_dim, c_dim=cfg['model']['local_feature_dim'],
+            **decoder_kwargs
+        )
+        decoder3 = models.decoder_dict['batchnorm_localfeature'](
+            dim=dim, z_dim=z_dim, c_dim=cfg['model']['local_feature_dim'],
+            **decoder_kwargs
+        )
+    else:
+        decoder2 = models.decoder_dict[decoder](
+            dim=dim, z_dim=z_dim, c_dim=c_dim,
+            **decoder_kwargs
+        )
+        decoder3 = models.decoder_dict[decoder](
+            dim=dim, z_dim=z_dim, c_dim=c_dim,
+            **decoder_kwargs
+        )
 
     if z_dim != 0:
         encoder_latent = models.encoder_latent_dict[encoder_latent](
@@ -48,16 +59,23 @@ def get_model(cfg, device=None, dataset=None, **kwargs):
         encoder_latent = None
 
     if encoder is not None:
-        encoder = feature_extractor.Resnet18(
-            c_dim=c_dim,
-            **encoder_kwargs
-        )
+        if encoder == 'local':
+            encoder = feature_extractor.Resnet18_Local(
+                c_dim=c_dim,
+                **encoder_kwargs
+            )
+        else:
+            # encoder == 'full'
+            encoder = feature_extractor.Resnet18_Full(
+                c_dim=c_dim,
+                **encoder_kwargs
+            )
     else:
         encoder = None
 
     p0_z = get_prior_z(cfg, device)
     model = models.OccupancyNetwork(
-        dataset, decoder1, decoder2, decoder3, encoder, encoder_latent, p0_z, device=device
+        dataset, decoder1, decoder2, decoder3, encoder, encoder_latent, p0_z, device=device, use_local_feature=(cfg['model']['encoder'] == 'local')
     )
 
     return model
@@ -82,6 +100,8 @@ def get_trainer(model, optimizer, cfg, device, **kwargs):
         device=device, input_type=input_type,
         vis_dir=vis_dir, threshold=threshold,
         eval_sample=cfg['training']['eval_sample'],
+        use_local_feature=(cfg['model']['encoder']=='local'),
+        img_size=cfg['data']['img_size'],
     )
 
     if 'loss_type' in cfg['training']:

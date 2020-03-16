@@ -115,8 +115,7 @@ class ResNet(nn.Module):
         self.avgpool = nn.AvgPool2d(7, stride=1) 
         #modified
         #self.fc = nn.Linear(512 * block.expansion, num_classes)
-        self.f1_fc = nn.Linear(1568,512)
-        self.f2_fc = nn.Linear(1568,512)
+
 
         for m in self.modules():
             if isinstance(m, nn.Conv2d):
@@ -165,19 +164,9 @@ class ResNet(nn.Module):
 
         x = self.avgpool(x)
         x = x.view(x.size(0), -1)
-
-        #modified
-        f1 = kmax_pooling(f1,1,8)
-        f1 = f1.view(f1.size(0), -1)
-        f1 = self.f1_fc(f1)
-
-        f2 = kmax_pooling(f1,1,2)
-        f2 = f2.view(f2.size(0), -1)
-        f2 = self.f2_fc(f2)
-
         #x = self.fc(x)
 
-        # x: 512 f2: 512 f1: 512
+        # x: 512 f2: 128 * 28 * 28 f1: 256 * 14 * 14
         return x, f2, f1
 
 
