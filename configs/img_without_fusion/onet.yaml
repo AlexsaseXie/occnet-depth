@@ -1,0 +1,34 @@
+method: onet
+data:
+  path: /home3/data/xieyunwei/occnet_data/ShapeNet.without_fusion
+  img_folder: img_choy2016
+  img_size: 224 
+  points_subsample: 2048 
+  points_unpackbits: false
+model:
+  encoder_latent: null
+  decoder: cbatchnorm
+  encoder: resnet18
+  c_dim: 256
+  z_dim: 0
+training:
+  out_dir:  out/img_without_fusion/onet
+  batch_size: 64
+  model_selection_metric: iou
+  model_selection_mode: maximize
+  #loss_type: cross_entropy_with_sigmoid
+  visualize_every: 20000
+  validate_every: 20000
+test:
+  threshold: 0.4
+  eval_mesh: true
+  eval_pointcloud: false
+  model_file: model_400000.pt
+generation:
+  batch_size: 100000
+  refine: false
+  n_x: 128
+  n_z: 1
+  resolution_0: 32 
+  upsampling_steps: 2
+
