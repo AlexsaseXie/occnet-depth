@@ -166,7 +166,7 @@ class ResNet(nn.Module):
         x = x.view(x.size(0), -1)
         #x = self.fc(x)
 
-        # x: 512 f2: 128 * 28 * 28 f1: 256 * 14 * 14
+        # x: 512 f2: 256 * 14 * 14 f1: 128 * 28 * 28
         return x, f2, f1
 
 

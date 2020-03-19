@@ -38,14 +38,14 @@ class Resnet18_Full(nn.Module):
         if self.normalize:
             x = normalize_imagenet(x)
         f3,f2,f1 = self.features(x)
-        # f3: 512 f2: 128 * 28 * 28 f1: 256 * 14 * 14
-
+        # f3: 512 f2: 256 * 14 * 14 f1: 128 * 28 * 28
+  
         # full kmax pooling
-        f1 = kmax_pooling(f1,1,8)
+        f1 = kmax_pooling(f1,1,2)
         f1 = f1.view(f1.size(0), -1)
         f1 = self.f1_fc(f1)
 
-        f2 = kmax_pooling(f1,1,2)
+        f2 = kmax_pooling(f2,1,8)
         f2 = f2.view(f2.size(0), -1)
         f2 = self.f2_fc(f2)
 
@@ -74,15 +74,15 @@ class Resnet18_Local(nn.Module):
             self.fc3 = nn.Sequential()
 
         self.feature_map_dim = feature_map_dim
-        self.f2_conv = nn.Conv1d(128, self.feature_map_dim ,1)
-        self.f1_conv = nn.Conv1d(256, self.feature_map_dim ,1)
+        self.f2_conv = nn.Conv1d(256, self.feature_map_dim ,1)
+        self.f1_conv = nn.Conv1d(128, self.feature_map_dim ,1)
 
 
     def forward(self, x, pts, world_mat, camera_mat):
         if self.normalize:
             x = normalize_imagenet(x)
         f3,f2,f1 = self.features(x)
-        # f3: 512 f2: 128 * 28 * 28 f1: 256 * 14 * 14
+        # f3: 512 f2: 256 * 14 * 14 f1: 128 * 28 * 28
 
         # position
         pts = common.transform_points(pts, world_mat)

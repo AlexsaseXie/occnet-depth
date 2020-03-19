@@ -26,7 +26,7 @@ def get_model(cfg, device=None, dataset=None, **kwargs):
     encoder_kwargs = cfg['model']['encoder_kwargs']
     encoder_latent_kwargs = cfg['model']['encoder_latent_kwargs']
 
-    decoder1 = models.decoder_dict[decoder](
+    decoder3 = models.decoder_dict[decoder](
         dim=dim, z_dim=z_dim, c_dim=c_dim,
         **decoder_kwargs
     )
@@ -34,18 +34,16 @@ def get_model(cfg, device=None, dataset=None, **kwargs):
     if encoder =='local':
         decoder2 = models.decoder_dict['batchnorm_localfeature'](
             dim=dim, z_dim=z_dim, c_dim=cfg['model']['local_feature_dim'],
-            **decoder_kwargs
         )
-        decoder3 = models.decoder_dict['batchnorm_localfeature'](
+        decoder1 = models.decoder_dict['batchnorm_localfeature'](
             dim=dim, z_dim=z_dim, c_dim=cfg['model']['local_feature_dim'],
-            **decoder_kwargs
         )
     else:
         decoder2 = models.decoder_dict[decoder](
             dim=dim, z_dim=z_dim, c_dim=c_dim,
             **decoder_kwargs
         )
-        decoder3 = models.decoder_dict[decoder](
+        decoder1 = models.decoder_dict[decoder](
             dim=dim, z_dim=z_dim, c_dim=c_dim,
             **decoder_kwargs
         )
@@ -61,7 +59,7 @@ def get_model(cfg, device=None, dataset=None, **kwargs):
     if encoder is not None:
         if encoder == 'local':
             encoder = feature_extractor.Resnet18_Local(
-                c_dim=c_dim,
+                c_dim=c_dim, feature_map_dim=cfg['model']['local_feature_dim'],
                 **encoder_kwargs
             )
         else:

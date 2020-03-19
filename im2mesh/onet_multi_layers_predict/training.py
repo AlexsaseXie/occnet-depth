@@ -85,7 +85,7 @@ class Trainer(BaseTrainer):
         with torch.no_grad():
             if self.use_local_feature:
                 elbo, rec_error, kl = self.model.compute_elbo(
-                    points, occ, inputs, Rt, K **kwargs)
+                    points, occ, inputs, Rt, K, **kwargs)
             else:
                 elbo, rec_error, kl = self.model.compute_elbo(
                     points, occ, inputs, **kwargs)

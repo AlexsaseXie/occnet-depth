@@ -363,7 +363,7 @@ class DecoderBatchNorm_LocalFeature(nn.Module):
             net_z = self.fc_z(z).unsqueeze(2)
             net = net + net_z
 
-        net_c = self.fc_c(c).unsqueeze(2)
+        net_c = self.fc_c(c)
         net = torch.cat((net, net_c), dim=1)
 
         net = self.block0(net)

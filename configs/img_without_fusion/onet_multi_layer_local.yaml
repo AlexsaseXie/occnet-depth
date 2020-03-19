@@ -1,10 +1,11 @@
 method: onet_multi_layers
 data:
-  path: data/ShapeNet
+  path: /home3/data/xieyunwei/occnet_data/ShapeNet.without_fusion
   img_folder: img_choy2016
   img_size: 224 
   img_with_camera: true
-  points_subsample: 2048 
+  points_subsample: 2048
+  points_unpackbits: false
 model:
   encoder_latent: null
   decoder: cbatchnorm2
@@ -13,15 +14,16 @@ model:
   encoder: local
   c_dim: 256
   z_dim: 0
+  local_feature_dim: 256
 training:
-  out_dir:  out/img/onet_multi_layer_local
-  batch_size: 64
+  out_dir:  out/img_without_fusion/onet_multi_layer_local
+  batch_size: 40
   model_selection_metric: iou
   model_selection_mode: maximize
   visualize_every: 20000
   validate_every: 20000
 test:
-  threshold: 0.5
+  threshold: 0.4
   eval_mesh: true
   eval_pointcloud: false
 generation:
