@@ -74,20 +74,20 @@ class Generator3D_Local(object):
             stats_dict['time (preprocess)'] = time.time() - t0
 
         # Encode inputs
-        #t0 = time.time()
-        #with torch.no_grad():
-        #    c = self.model.encode_inputs(inputs)
-        #stats_dict['time (encode inputs)'] = time.time() - t0
+        t0 = time.time()
+        with torch.no_grad():
+            c_first = self.model.encoder.encode_first_step(inputs)
+        stats_dict['time (encode inputs first)'] = time.time() - t0
 
         z = self.model.get_z_from_prior((1,), sample=self.sample).to(device)
-        mesh = self.generate_from_latent(z, inputs, Rt, K, stats_dict=stats_dict, **kwargs)
+        mesh = self.generate_from_latent(z, c_first, Rt, K, stats_dict=stats_dict, **kwargs)
 
         if return_stats:
             return mesh, stats_dict
         else:
             return mesh
 
-    def generate_from_latent(self, z, inputs=None, Rt=None, K=None, stats_dict={}, **kwargs):
+    def generate_from_latent(self, z, c_first=None, Rt=None, K=None, stats_dict={}, **kwargs):
         ''' Generates mesh from latent.
 
         Args:
@@ -107,8 +107,7 @@ class Generator3D_Local(object):
             pointsf = box_size * make_3d_grid(
                 (-0.5,)*3, (0.5,)*3, (nx,)*3
             )
-            c = self.model.encode_inputs(inputs,pointsf,Rt,K)
-            values = self.eval_points(pointsf, z, c, **kwargs).cpu().numpy()
+            values = self.eval_points(pointsf, z, c_first, **kwargs).cpu().numpy()
             value_grid = values.reshape(nx, nx, nx)
         else:
             mesh_extractor = MISE(
@@ -123,9 +122,8 @@ class Generator3D_Local(object):
                 pointsf = pointsf / mesh_extractor.resolution
                 pointsf = box_size * (pointsf - 0.5)
                 # Evaluate model and update
-                c = self.model.encode_inputs(inputs,pointsf,Rt,K)
                 values = self.eval_points(
-                    pointsf, z, c, **kwargs).cpu().numpy()
+                    pointsf, z, c_first, **kwargs).cpu().numpy()
                 values = values.astype(np.float64)
                 mesh_extractor.update(points, values)
                 points = mesh_extractor.query()
@@ -135,10 +133,10 @@ class Generator3D_Local(object):
         # Extract mesh
         stats_dict['time (eval points)'] = time.time() - t0
 
-        mesh = self.extract_mesh(value_grid, z, c, stats_dict=stats_dict)
+        mesh = self.extract_mesh(value_grid, z, c_first, Rt, K, stats_dict=stats_dict)
         return mesh
 
-    def eval_points(self, p, z, c=None, **kwargs):
+    def eval_points(self, p, z, c_first=None, Rt=None, K=None, **kwargs):
         ''' Evaluates the occupancy values for the points.
 
         Args:
@@ -152,6 +150,7 @@ class Generator3D_Local(object):
         for pi in p_split:
             pi = pi.unsqueeze(0).to(self.device)
             with torch.no_grad():
+                c = self.model.encoder.encode_second_step(c_first[0],c_first[1],c_first[2], pi, Rt, K)
                 occ_hat = self.model.decode(pi, z, c[0],c[1],c[2], **kwargs).logits
 
             occ_hats.append(occ_hat.squeeze(0).detach().cpu())
@@ -160,7 +159,7 @@ class Generator3D_Local(object):
 
         return occ_hat
 
-    def extract_mesh(self, occ_hat, z, inputs=None, Rt=None, K=None, stats_dict=dict()):
+    def extract_mesh(self, occ_hat, z, c_first=None, Rt=None, K=None, stats_dict=dict()):
         ''' Extracts the mesh from the predicted occupancy grid.
 
         Args:
@@ -194,7 +193,7 @@ class Generator3D_Local(object):
         # Estimate normals if needed
         if self.with_normals and not vertices.shape[0] == 0:
             t0 = time.time()
-            normals = self.estimate_normals(vertices, z, c)
+            normals = self.estimate_normals(vertices, z, c_first, Rt, K)
             stats_dict['time (normals)'] = time.time() - t0
 
         else:
@@ -218,12 +217,12 @@ class Generator3D_Local(object):
         # Refine mesh
         if self.refinement_step > 0:
             t0 = time.time()
-            self.refine_mesh(mesh, occ_hat, z, c)
+            self.refine_mesh(mesh, occ_hat, z, c_first, Rt, K)
             stats_dict['time (refine)'] = time.time() - t0
 
         return mesh
 
-    def estimate_normals(self, vertices, z, c=None):
+    def estimate_normals(self, vertices, z, c_first=None, Rt=None, K=None):
         ''' Estimates the normals by computing the gradient of the objective.
 
         Args:
@@ -236,10 +235,14 @@ class Generator3D_Local(object):
         vertices_split = torch.split(vertices, self.points_batch_size)
 
         normals = []
-        z, c = z.unsqueeze(0), c.unsqueeze(0)
+        z = z.unsqueeze(0)
+        c_first_3 = c_first[0].unsqueeze(0)
+        c_first_2 = c_first[1].unsqueeze(0)
+        c_first_1 = c_first[2].unsqueeze(0)
         for vi in vertices_split:
             vi = vi.unsqueeze(0).to(device)
             vi.requires_grad_()
+            c = self.model.encoder.encode_second_step(c_first_3, c_first_2, c_first_1, vi, Rt, K)
             occ_hat = self.model.decode(vi, z, c[0],c[1],c[2]).logits
             out = occ_hat.sum()
             out.backward()
@@ -251,7 +254,7 @@ class Generator3D_Local(object):
         normals = np.concatenate(normals, axis=0)
         return normals
 
-    def refine_mesh(self, mesh, occ_hat, z, c=None):
+    def refine_mesh(self, mesh, occ_hat, z, c_first=None, Rt=None, K=None):
         ''' Refines the predicted mesh.
 
         Args:   
@@ -293,9 +296,12 @@ class Generator3D_Local(object):
             face_normal = torch.cross(face_v1, face_v2)
             face_normal = face_normal / \
                 (face_normal.norm(dim=1, keepdim=True) + 1e-10)
+            
+            c = self.model.encoder.encode_second_step(c_first[0], c_first[1], c_first[2], face_point.unsqueeze(0), Rt, K)
             face_value = torch.sigmoid(
                 self.model.decode(face_point.unsqueeze(0), z, c[0],c[1],c[2]).logits
             )
+
             normal_target = -autograd.grad(
                 [face_value.sum()], [face_point], create_graph=True)[0]
 

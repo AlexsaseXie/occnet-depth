@@ -3,7 +3,7 @@ import torch.distributions as dist
 from torch import nn
 import os
 from im2mesh.onet_multi_layers_predict.models import feature_extractor
-from im2mesh.onet_multi_layers_predict import models, training, generation
+from im2mesh.onet_multi_layers_predict import models, training, generation, generation_local
 from im2mesh import data
 from im2mesh import config
 
@@ -127,18 +127,32 @@ def get_generator(model, cfg, device, **kwargs):
         device (device): pytorch device
     '''
     preprocessor = config.get_preprocessor(cfg, device=device)
+    use_local_feature = cfg['model']['use_local_feature']
 
-    generator = generation.Generator3D(
-        model,
-        device=device,
-        threshold=cfg['test']['threshold'],
-        resolution0=cfg['generation']['resolution_0'],
-        upsampling_steps=cfg['generation']['upsampling_steps'],
-        sample=cfg['generation']['use_sampling'],
-        refinement_step=cfg['generation']['refinement_step'],
-        simplify_nfaces=cfg['generation']['simplify_nfaces'],
-        preprocessor=preprocessor,
-    )
+    if not use_local_feature:
+        generator = generation.Generator3D(
+            model,
+            device=device,
+            threshold=cfg['test']['threshold'],
+            resolution0=cfg['generation']['resolution_0'],
+            upsampling_steps=cfg['generation']['upsampling_steps'],
+            sample=cfg['generation']['use_sampling'],
+            refinement_step=cfg['generation']['refinement_step'],
+            simplify_nfaces=cfg['generation']['simplify_nfaces'],
+            preprocessor=preprocessor,
+        )
+    else:
+        generator = generation_local.Generator3D_Local(
+            model,
+            device=device,
+            threshold=cfg['test']['threshold'],
+            resolution0=cfg['generation']['resolution_0'],
+            upsampling_steps=cfg['generation']['upsampling_steps'],
+            sample=cfg['generation']['use_sampling'],
+            refinement_step=cfg['generation']['refinement_step'],
+            simplify_nfaces=cfg['generation']['simplify_nfaces'],
+            preprocessor=preprocessor,
+        )
     return generator
 
 

@@ -105,3 +105,32 @@ class Resnet18_Local(nn.Module):
 
         f3 = self.fc3(f3)
         return f3, f2, f1
+
+    def encode_first_step(self, x):
+        if self.normalize:
+            x = normalize_imagenet(x)
+        f3,f2,f1 = self.features(x)
+
+        return f3, f2, f1
+    
+    def encode_second_step(self, f3, f2, f1, pts, world_mat, camera_mat):
+        pts = common.transform_points(pts, world_mat)
+        points_img = common.project_to_camera(pts, camera_mat)
+        points_img = points_img.unsqueeze(1)
+
+        f2 = F.relu(f2)
+        f2 = F.grid_sample(f2, points_img)
+        f2 = f2.squeeze(2)
+        f2 = self.f2_conv(f2)
+        f2 = f2.transpose(1, 2)
+        # f2 : batch * n_pts * fmap_dim
+
+        f1 = F.relu(f1)
+        f1 = F.grid_sample(f1, points_img)
+        f1 = f1.squeeze(2)
+        f1 = self.f1_conv(f1)
+        f1 = f1.transpose(1, 2)
+        # f1 : batch * n_pts * fmap_dim
+
+        f3 = self.fc3(f3)
+        return f3, f2, f1
