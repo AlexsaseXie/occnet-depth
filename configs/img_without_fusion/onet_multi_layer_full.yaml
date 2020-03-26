@@ -6,6 +6,7 @@ data:
   points_subsample: 2048 
   points_unpackbits: false
 model:
+  use_local_feature: false
   encoder_latent: null
   decoder: cbatchnorm2
   decoder_kwargs:

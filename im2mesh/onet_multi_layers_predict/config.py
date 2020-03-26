@@ -26,17 +26,25 @@ def get_model(cfg, device=None, dataset=None, **kwargs):
     encoder_kwargs = cfg['model']['encoder_kwargs']
     encoder_latent_kwargs = cfg['model']['encoder_latent_kwargs']
 
+    # model_type
+    use_local_feature = cfg['model']['use_local_feature']
+    if use_local_feature:
+        decoder_local = cfg['model']['decoder_local']
+        decoder_local_kwargs = cfg['model']['decoder_local_kwargs']
+
     decoder3 = models.decoder_dict[decoder](
         dim=dim, z_dim=z_dim, c_dim=c_dim,
         **decoder_kwargs
     )
 
-    if encoder =='local':
-        decoder2 = models.decoder_dict['batchnorm_localfeature'](
+    if use_local_feature:
+        decoder2 = models.decoder_local_dict[decoder_local](
             dim=dim, z_dim=z_dim, c_dim=cfg['model']['local_feature_dim'],
+            **decoder_local_kwargs
         )
-        decoder1 = models.decoder_dict['batchnorm_localfeature'](
+        decoder1 = models.decoder_local_dict[decoder_local](
             dim=dim, z_dim=z_dim, c_dim=cfg['model']['local_feature_dim'],
+            **decoder_local_kwargs
         )
     else:
         decoder2 = models.decoder_dict[decoder](
@@ -57,7 +65,7 @@ def get_model(cfg, device=None, dataset=None, **kwargs):
         encoder_latent = None
 
     if encoder is not None:
-        if encoder == 'local':
+        if use_local_feature:
             encoder = feature_extractor.Resnet18_Local(
                 c_dim=c_dim, feature_map_dim=cfg['model']['local_feature_dim'],
                 **encoder_kwargs
@@ -73,7 +81,7 @@ def get_model(cfg, device=None, dataset=None, **kwargs):
 
     p0_z = get_prior_z(cfg, device)
     model = models.OccupancyNetwork(
-        dataset, decoder1, decoder2, decoder3, encoder, encoder_latent, p0_z, device=device, use_local_feature=(cfg['model']['encoder'] == 'local')
+        dataset, decoder1, decoder2, decoder3, encoder, encoder_latent, p0_z, device=device, use_local_feature=use_local_feature
     )
 
     return model
@@ -92,13 +100,14 @@ def get_trainer(model, optimizer, cfg, device, **kwargs):
     out_dir = cfg['training']['out_dir']
     vis_dir = os.path.join(out_dir, 'vis')
     input_type = cfg['data']['input_type']
+    use_local_feature = cfg['model']['use_local_feature']
 
     trainer = training.Trainer(
         model, optimizer,
         device=device, input_type=input_type,
         vis_dir=vis_dir, threshold=threshold,
         eval_sample=cfg['training']['eval_sample'],
-        use_local_feature=(cfg['model']['encoder']=='local'),
+        use_local_feature=use_local_feature,
         img_size=cfg['data']['img_size'],
     )
 

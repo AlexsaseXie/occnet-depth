@@ -9,18 +9,17 @@ data:
 model:
   use_local_feature: true
   encoder_latent: null
-  decoder: cbatchnorm2
-  decoder_kwargs:
-    n_blocks: 2
+  decoder: cbatchnorm3
+  decoder_kwargs: {}
   encoder: local
   c_dim: 256
   z_dim: 0
-  decoder_local: batchnorm_localfeature
+  decoder_local: batchnormhighhidden_localfeature
   decoder_local_kwargs: {}
   local_feature_dim: 256
 training:
-  out_dir:  out/img_without_fusion/onet_multi_layer_local
-  batch_size: 40
+  out_dir:  out/img_without_fusion/onet_multi_layer_local_high_dim
+  batch_size: 32
   model_selection_metric: iou
   model_selection_mode: maximize
   visualize_every: 20000

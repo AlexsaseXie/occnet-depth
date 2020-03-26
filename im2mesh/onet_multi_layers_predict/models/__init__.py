@@ -15,7 +15,12 @@ decoder_dict = {
     'cbatchnorm2': decoder.DecoderCBatchNorm2,
     'batchnorm': decoder.DecoderBatchNorm,
     'cbatchnorm_noresnet': decoder.DecoderCBatchNormNoResnet,
+    'cbatchnorm3': decoder.DecoderCBatchNorm3,
+}
+
+decoder_local_dict = {
     'batchnorm_localfeature': decoder.DecoderBatchNorm_LocalFeature,
+    'batchnormhighhidden_localfeature': decoder.DecoderBatchNormHighHidden_LocalFeature,
 }
 
 
