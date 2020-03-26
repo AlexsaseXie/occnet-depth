@@ -122,8 +122,7 @@ class Generator3D_Local(object):
                 pointsf = pointsf / mesh_extractor.resolution
                 pointsf = box_size * (pointsf - 0.5)
                 # Evaluate model and update
-                values = self.eval_points(
-                    pointsf, z, c_first, **kwargs).cpu().numpy()
+                values = self.eval_points(pointsf, z, c_first, Rt, K, **kwargs).cpu().numpy()
                 values = values.astype(np.float64)
                 mesh_extractor.update(points, values)
                 points = mesh_extractor.query()
