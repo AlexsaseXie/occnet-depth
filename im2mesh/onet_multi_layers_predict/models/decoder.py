@@ -207,8 +207,8 @@ class DecoderCBatchNorm3(nn.Module):
             self.fc_z = nn.Linear(z_dim, p_hidden_size)
 
         self.fc_p = nn.Conv1d(dim, p_hidden_size, 1)
-        self.block0 = CResnetBlockConv1d(c_dim, hidden_size, size_out = hidden_size * 8, legacy=legacy)
-        self.block1 = CResnetBlockConv1d(c_dim, hidden_size * 8 + p_hidden_size, size_out= hidden_size * 4, legacy=legacy)
+        self.block0 = CResnetBlockConv1d(c_dim, p_hidden_size, size_out = hidden_size * 4, legacy=legacy)
+        self.block1 = CResnetBlockConv1d(c_dim, hidden_size * 4 + p_hidden_size, size_out= hidden_size * 4, legacy=legacy)
         self.block2 = CResnetBlockConv1d(c_dim, hidden_size * 4 + p_hidden_size, size_out= hidden_size * 2, legacy=legacy)
         self.block3 = CResnetBlockConv1d(c_dim, hidden_size * 2 + p_hidden_size, size_out= hidden_size, legacy=legacy)
 
@@ -467,8 +467,8 @@ class DecoderBatchNormHighHidden_LocalFeature(nn.Module):
         assert hidden_size % 2 == 0
         self.fc_c = nn.Conv1d(c_dim, hidden_size, 1)
         self.fc_p = nn.Conv1d(dim, hidden_size, 1)
-        self.block0 = ResnetBlockConv1d(hidden_size * 2, size_out=hidden_size * 8)
-        self.block1 = ResnetBlockConv1d(hidden_size * 8 + hidden_size * 2, size_out=hidden_size * 4)
+        self.block0 = ResnetBlockConv1d(hidden_size * 2, size_out=hidden_size * 4)
+        self.block1 = ResnetBlockConv1d(hidden_size * 4 + hidden_size * 2, size_out=hidden_size * 4)
         self.block2 = ResnetBlockConv1d(hidden_size * 4 + hidden_size * 2, size_out=hidden_size * 2)
         self.block3 = ResnetBlockConv1d(hidden_size * 2 + hidden_size * 2, size_out=hidden_size)
 
