@@ -4,7 +4,7 @@ import torch
 from torch.nn import functional as F
 from torch import distributions as dist
 from im2mesh.common import (
-    compute_iou, make_3d_grid, fix_K_camera
+    compute_iou, make_3d_grid, fix_K_camera, get_camera_args
 )
 from im2mesh.utils import visualize as vis
 from im2mesh.training import BaseTrainer
@@ -78,9 +78,9 @@ class Trainer(BaseTrainer):
         kwargs = {}
 
         if self.use_local_feature:
-            Rt = data.get('inputs.world_mat').to(device)
-            K = data.get('inputs.camera_mat').to(device)
-            K = fix_K_camera(K, self.img_size)
+            camera_args = get_camera_args(data, device=device)
+            Rt = camera_args['Rt']
+            K = camera_args['K']
 
         with torch.no_grad():
             if self.use_local_feature:
@@ -146,9 +146,9 @@ class Trainer(BaseTrainer):
         inputs = data.get('inputs', torch.empty(batch_size, 0)).to(device)
 
         if self.use_local_feature:
-            Rt = data.get('inputs.world_mat').to(device)
-            K = data.get('inputs.camera_mat').to(device)
-            K = fix_K_camera(K, self.img_size)
+            camera_args = get_camera_args(data, device=device)
+            Rt = camera_args['Rt']
+            K = camera_args['K']
 
         shape = (32, 32, 32)
         p = make_3d_grid([-0.5] * 3, [0.5] * 3, shape).to(device)
@@ -184,9 +184,9 @@ class Trainer(BaseTrainer):
         kwargs = {}
 
         if self.use_local_feature:
-            Rt = data.get('inputs.world_mat').to(device)
-            K = data.get('inputs.camera_mat').to(device)
-            K = fix_K_camera(K, self.img_size)
+            camera_args = get_camera_args(data, device=device)
+            Rt = camera_args['Rt']
+            K = camera_args['K']
             f3,f2,f1 = self.model.encode_inputs(inputs,p,Rt,K)
         else:
             f3,f2,f1 = self.model.encode_inputs(inputs)

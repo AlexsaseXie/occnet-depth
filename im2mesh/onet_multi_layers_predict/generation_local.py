@@ -5,7 +5,7 @@ import numpy as np
 from tqdm import trange
 import trimesh
 from im2mesh.utils import libmcubes
-from im2mesh.common import make_3d_grid
+from im2mesh.common import make_3d_grid, get_camera_args
 from im2mesh.utils.libsimplify import simplify_mesh
 from im2mesh.utils.libmise import MISE
 import time
@@ -62,8 +62,9 @@ class Generator3D_Local(object):
         stats_dict = {}
 
         inputs = data.get('inputs', torch.empty(1, 0)).to(device)
-        Rt = data.get('inputs.world_mat').to(device)
-        K = data.get('inputs.camera_mat').to(device)
+        camera_args = get_camera_args(data, device=device)
+        Rt = camera_args['Rt']
+        K = camera_args['K']
         kwargs = {}
 
         # Preprocess if requires
