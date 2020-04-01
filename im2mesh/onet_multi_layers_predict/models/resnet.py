@@ -1,6 +1,7 @@
 # copy from torchvision.models.resnet.py
 
 import torch.nn as nn
+import torch
 import math
 import torch.utils.model_zoo as model_zoo
 
@@ -178,7 +179,10 @@ def resnet18(pretrained=False, **kwargs):
     """
     model = ResNet(BasicBlock, [2, 2, 2, 2], **kwargs)
     if pretrained:
-        pretrained_dict = model_zoo.load_url(model_urls['resnet18'])
+        if (not 'pretrained_path' in kwargs) or (kwargs['pretrained_path'] == None):
+            pretrained_dict = model_zoo.load_url(model_urls['resnet18'])
+        else:
+            pretrained_dict = torch.load(kwargs['pretrained_path'])
         model_dict = model.state_dict()
         pretrained_dict = {k: v for k, v in pretrained_dict.items() if k in model_dict}
         model_dict.update(pretrained_dict)
@@ -194,7 +198,10 @@ def resnet34(pretrained=False, **kwargs):
     """
     model = ResNet(BasicBlock, [3, 4, 6, 3], **kwargs)
     if pretrained:
-        pretrained_dict = model_zoo.load_url(model_urls['resnet34'])
+        if (not 'pretrained_path' in kwargs) or (kwargs['pretrained_path'] == None):
+            pretrained_dict = model_zoo.load_url(model_urls['resnet34'])
+        else:
+            pretrained_dict = torch.load(kwargs['pretrained_path'])
         model_dict = model.state_dict()
         pretrained_dict = {k: v for k, v in pretrained_dict.items() if k in model_dict}
         model_dict.update(pretrained_dict)
@@ -210,7 +217,10 @@ def resnet50(pretrained=False, **kwargs):
     """
     model = ResNet(Bottleneck, [3, 4, 6, 3], **kwargs)
     if pretrained:
-        pretrained_dict = model_zoo.load_url(model_urls['resnet50'])
+        if (not 'pretrained_path' in kwargs) or (kwargs['pretrained_path'] == None):
+            pretrained_dict = model_zoo.load_url(model_urls['resnet50'])
+        else:
+            pretrained_dict = torch.load(kwargs['pretrained_path'])
         model_dict = model.state_dict()
         pretrained_dict = {k: v for k, v in pretrained_dict.items() if k in model_dict}
         model_dict.update(pretrained_dict)
@@ -226,7 +236,10 @@ def resnet101(pretrained=False, **kwargs):
     """
     model = ResNet(Bottleneck, [3, 4, 23, 3], **kwargs)
     if pretrained:
-        pretrained_dict = model_zoo.load_url(model_urls['resnet101'])
+        if (not 'pretrained_path' in kwargs) or (kwargs['pretrained_path'] == None):
+            pretrained_dict = model_zoo.load_url(model_urls['resnet101'])
+        else:
+            pretrained_dict = torch.load(kwargs['pretrained_path'])
         model_dict = model.state_dict()
         pretrained_dict = {k: v for k, v in pretrained_dict.items() if k in model_dict}
         model_dict.update(pretrained_dict)
@@ -242,7 +255,10 @@ def resnet152(pretrained=False, **kwargs):
     """
     model = ResNet(Bottleneck, [3, 8, 36, 3], **kwargs)
     if pretrained:
-        pretrained_dict = model_zoo.load_url(model_urls['resnet152'])
+        if (not 'pretrained_path' in kwargs) or (kwargs['pretrained_path'] == None):
+            pretrained_dict = model_zoo.load_url(model_urls['resnet152'])
+        else:
+            pretrained_dict = torch.load(kwargs['pretrained_path'])
         model_dict = model.state_dict()
         pretrained_dict = {k: v for k, v in pretrained_dict.items() if k in model_dict}
         model_dict.update(pretrained_dict)

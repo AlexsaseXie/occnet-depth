@@ -17,10 +17,10 @@ class Resnet18_Full(nn.Module):
         use_linear (bool): whether a final linear layer should be used
     '''
 
-    def __init__(self, c_dim, normalize=True, batch_norm=False):
+    def __init__(self, c_dim, normalize=True, batch_norm=False, pretrained=True, pretrained_path=None):
         super().__init__()
         self.normalize = normalize
-        self.features = resnet.resnet18(pretrained=True)
+        self.features = resnet.resnet18(pretrained=pretrained, pretrained_path=pretrained_path)
 
         if c_dim != 512:
             self.fc3 = nn.Linear(512, c_dim)
@@ -75,10 +75,10 @@ class Resnet18_Local(nn.Module):
         use_linear (bool): whether a final linear layer should be used
     '''
 
-    def __init__(self, c_dim, feature_map_dim=64 ,normalize=True, batch_norm=False):
+    def __init__(self, c_dim, feature_map_dim=64 ,normalize=True, batch_norm=False, pretrained=True, pretrained_path=None):
         super().__init__()
         self.normalize = normalize
-        self.features = resnet.resnet18(pretrained=True)
+        self.features = resnet.resnet18(pretrained=pretrained, pretrained_path=pretrained_path)
 
         if c_dim != 512:
             self.fc3 = nn.Linear(512, c_dim)
