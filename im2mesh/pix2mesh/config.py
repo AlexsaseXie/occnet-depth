@@ -80,7 +80,7 @@ def get_data_fields(mode, cfg):
     '''
     with_transforms = cfg['data']['with_transforms']
     pointcloud_transform = data.SubsamplePointcloud(
-        cfg['data']['pointcloud_n'])
+        cfg['data']['pointcloud_target_n'])
     fields = {}
     fields['pointcloud'] = data.PointCloudField(
         cfg['data']['pointcloud_file'], pointcloud_transform,
