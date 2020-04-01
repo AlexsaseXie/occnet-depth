@@ -171,7 +171,7 @@ class ResNet(nn.Module):
         return x, f2, f1
 
 
-def resnet18(pretrained=False, **kwargs):
+def resnet18(pretrained=False, pretrained_path=None, **kwargs):
     """Constructs a ResNet-18 model.
 
     Args:
@@ -179,18 +179,20 @@ def resnet18(pretrained=False, **kwargs):
     """
     model = ResNet(BasicBlock, [2, 2, 2, 2], **kwargs)
     if pretrained:
-        if (not 'pretrained_path' in kwargs) or (kwargs['pretrained_path'] == None):
+        if pretrained_path == None:
             pretrained_dict = model_zoo.load_url(model_urls['resnet18'])
         else:
-            pretrained_dict = torch.load(kwargs['pretrained_path'])
+            pretrained_dict = torch.load(pretrained_path)
         model_dict = model.state_dict()
         pretrained_dict = {k: v for k, v in pretrained_dict.items() if k in model_dict}
         model_dict.update(pretrained_dict)
         model.load_state_dict(model_dict)
+    else:
+        print('No pretrain')
     return model
 
 
-def resnet34(pretrained=False, **kwargs):
+def resnet34(pretrained=False, pretrained_path=None, **kwargs):
     """Constructs a ResNet-34 model.
 
     Args:
@@ -198,10 +200,10 @@ def resnet34(pretrained=False, **kwargs):
     """
     model = ResNet(BasicBlock, [3, 4, 6, 3], **kwargs)
     if pretrained:
-        if (not 'pretrained_path' in kwargs) or (kwargs['pretrained_path'] == None):
+        if pretrained_path == None:
             pretrained_dict = model_zoo.load_url(model_urls['resnet34'])
         else:
-            pretrained_dict = torch.load(kwargs['pretrained_path'])
+            pretrained_dict = torch.load(pretrained_path)
         model_dict = model.state_dict()
         pretrained_dict = {k: v for k, v in pretrained_dict.items() if k in model_dict}
         model_dict.update(pretrained_dict)
@@ -209,7 +211,7 @@ def resnet34(pretrained=False, **kwargs):
     return model
 
 
-def resnet50(pretrained=False, **kwargs):
+def resnet50(pretrained=False, pretrained_path=None, **kwargs):
     """Constructs a ResNet-50 model.
 
     Args:
@@ -217,10 +219,10 @@ def resnet50(pretrained=False, **kwargs):
     """
     model = ResNet(Bottleneck, [3, 4, 6, 3], **kwargs)
     if pretrained:
-        if (not 'pretrained_path' in kwargs) or (kwargs['pretrained_path'] == None):
+        if pretrained_path == None:
             pretrained_dict = model_zoo.load_url(model_urls['resnet50'])
         else:
-            pretrained_dict = torch.load(kwargs['pretrained_path'])
+            pretrained_dict = torch.load(pretrained_path)
         model_dict = model.state_dict()
         pretrained_dict = {k: v for k, v in pretrained_dict.items() if k in model_dict}
         model_dict.update(pretrained_dict)
@@ -228,7 +230,7 @@ def resnet50(pretrained=False, **kwargs):
     return model
 
 
-def resnet101(pretrained=False, **kwargs):
+def resnet101(pretrained=False, pretrained_path=None, **kwargs):
     """Constructs a ResNet-101 model.
 
     Args:
@@ -236,10 +238,10 @@ def resnet101(pretrained=False, **kwargs):
     """
     model = ResNet(Bottleneck, [3, 4, 23, 3], **kwargs)
     if pretrained:
-        if (not 'pretrained_path' in kwargs) or (kwargs['pretrained_path'] == None):
+        if pretrained_path == None:
             pretrained_dict = model_zoo.load_url(model_urls['resnet101'])
         else:
-            pretrained_dict = torch.load(kwargs['pretrained_path'])
+            pretrained_dict = torch.load(pretrained_path)
         model_dict = model.state_dict()
         pretrained_dict = {k: v for k, v in pretrained_dict.items() if k in model_dict}
         model_dict.update(pretrained_dict)
@@ -247,7 +249,7 @@ def resnet101(pretrained=False, **kwargs):
     return model
 
 
-def resnet152(pretrained=False, **kwargs):
+def resnet152(pretrained=False, pretrained_path=None, **kwargs):
     """Constructs a ResNet-152 model.
 
     Args:
@@ -255,10 +257,10 @@ def resnet152(pretrained=False, **kwargs):
     """
     model = ResNet(Bottleneck, [3, 8, 36, 3], **kwargs)
     if pretrained:
-        if (not 'pretrained_path' in kwargs) or (kwargs['pretrained_path'] == None):
+        if pretrained_path == None:
             pretrained_dict = model_zoo.load_url(model_urls['resnet152'])
         else:
-            pretrained_dict = torch.load(kwargs['pretrained_path'])
+            pretrained_dict = torch.load(pretrained_path)
         model_dict = model.state_dict()
         pretrained_dict = {k: v for k, v in pretrained_dict.items() if k in model_dict}
         model_dict.update(pretrained_dict)
