@@ -19,6 +19,11 @@ parser.add_argument('--no-cuda', action='store_true', help='Do not use cuda.')
 parser.add_argument('--exit-after', type=int, default=-1,
                     help='Checkpoint and exit after specified number of seconds'
                          'with exit code 2.')
+parser.add_argument('--val_batch_size', type=int, default=10,
+                    help='Val batch_size.')
+parser.add_argument('--learning_rate',type=float,default=1e-4,
+                    help='Learning Rate.')
+
 
 args = parser.parse_args()
 cfg = config.load_config(args.config, 'configs/default.yaml')
@@ -57,7 +62,7 @@ train_loader = torch.utils.data.DataLoader(
     worker_init_fn=data.worker_init_fn)
 
 val_loader = torch.utils.data.DataLoader(
-    val_dataset, batch_size=10, num_workers=4, shuffle=False,
+    val_dataset, batch_size=args.val_batch_size, num_workers=4, shuffle=False,
     collate_fn=data.collate_remove_none,
     worker_init_fn=data.worker_init_fn)
 
@@ -74,7 +79,7 @@ model = config.get_model(cfg, device=device, dataset=train_dataset)
 
 # Intialize training
 npoints = 1000
-optimizer = optim.Adam(model.parameters(), lr=1e-4)
+optimizer = optim.Adam(model.parameters(), lr=args.learning_rate)
 # optimizer = optim.SGD(model.parameters(), lr=1e-4, momentum=0.9)
 trainer = config.get_trainer(model, optimizer, cfg, device=device)
 
