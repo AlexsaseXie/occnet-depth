@@ -38,6 +38,11 @@ model:
   z_dim: 64
   use_camera: false
   dmc_weight_prior: 10.
+  decoder_local: batchnorm_localfeature
+  decoder_local_kwargs: {}
+  local_feature_dim: 256
+  logits2_ratio: 1.
+  logits1_ratio: 1.
 training:
   out_dir:  out/default
   batch_size: 64

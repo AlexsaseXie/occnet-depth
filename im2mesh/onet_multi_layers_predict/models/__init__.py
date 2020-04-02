@@ -36,7 +36,7 @@ class OccupancyNetwork(nn.Module):
     '''
 
     def __init__(self, dataset, decoder1, decoder2, decoder3, encoder=None, encoder_latent=None, p0_z=None,
-                 device=None, use_local_feature=False):
+                 device=None, use_local_feature=False, logits2_ratio=1., logits1_ratio=1.):
         super().__init__()
         if p0_z is None:
             p0_z = dist.Normal(torch.tensor([]), torch.tensor([]))
@@ -62,6 +62,8 @@ class OccupancyNetwork(nn.Module):
 
         self._device = device
         self.p0_z = p0_z
+        self.logits2_ratio = logits2_ratio
+        self.logits1_ratio = logits1_ratio
 
     def forward(self, p, inputs, Rt=None, K=None, sample=True, **kwargs):
         ''' Performs a forward pass through the network.
@@ -134,8 +136,8 @@ class OccupancyNetwork(nn.Module):
 
         logits3 = self.decoder3(p, z, f3, **kwargs)
         logits2 = self.decoder2(p, z, f2, **kwargs)
-        logtis1 = self.decoder1(p, z, f1, **kwargs)
-        logits = (logits3 + logits2 + logtis1) / 3.
+        logits1 = self.decoder1(p, z, f1, **kwargs)
+        logits = (logits3 + self.logits2_ratio * logits2 + self.logits1_ratio * logits1 ) / 3.
         p_r = dist.Bernoulli(logits=logits)
         return p_r
 
