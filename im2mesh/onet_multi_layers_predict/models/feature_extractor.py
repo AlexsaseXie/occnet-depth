@@ -212,8 +212,8 @@ class Resnet18_Local_1(nn.Module):
             fs2 = self.f2_bn(fs2)
             fs1 = self.f1_bn(fs1)
 
-        fs2 = f2.transpose(1, 2)
-        fs1 = f1.transpose(1, 2)
+        fs2 = fs2.transpose(1, 2)
+        fs1 = fs1.transpose(1, 2)
         # f2 : batch * n_pts * fmap_dim
         # f1 : batch * n_pts * fmap_dim
         return f3, fs2, fs1
