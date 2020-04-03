@@ -66,10 +66,17 @@ def get_model(cfg, device=None, dataset=None, **kwargs):
 
     if encoder is not None:
         if use_local_feature:
-            encoder = feature_extractor.Resnet18_Local(
-                c_dim=c_dim, feature_map_dim=cfg['model']['local_feature_dim'],
-                **encoder_kwargs
-            )
+            print('Using encoder:', encoder)
+            if encoder == 'local_1':
+                encoder = feature_extractor.Resnet18_Local_1(
+                    c_dim=c_dim, feature_map_dim=cfg['model']['local_feature_dim'],
+                    **encoder_kwargs
+                )
+            else:
+                encoder = feature_extractor.Resnet18_Local(
+                    c_dim=c_dim, feature_map_dim=cfg['model']['local_feature_dim'],
+                    **encoder_kwargs
+                )
         else:
             # encoder == 'full'
             encoder = feature_extractor.Resnet18_Full(

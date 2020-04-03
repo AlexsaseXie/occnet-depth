@@ -170,6 +170,35 @@ class ResNet(nn.Module):
         # x: 512 f2: 256 * 14 * 14 f1: 128 * 28 * 28
         return x, f2, f1
 
+    def calc_feature_maps(self, x):
+        fs1 = []
+        fs2 = []
+        fs1.append(x)
+        x = self.conv1(x)
+        x = self.bn1(x)
+        x = self.relu(x)
+        fs1.append(x)
+        x = self.maxpool(x)
+
+        x = self.layer1(x)
+        fs1.append(x)
+        x = self.layer2(x)
+        fs2.append(x)
+        x = self.layer3(x)
+        fs2.append(x)
+        x = self.layer4(x)
+        #f-2 : 3 * 224 * 224
+        #f-1 : 64 * 112 * 112
+        #f0 : 64 * 56 * 56
+        #f1 : 128 * 28 * 28
+        #f2 : 256 * 14 * 14
+        #f3 : 512 * 7 * 7
+
+        x = self.avgpool(x)
+        x = x.view(x.size(0), -1)
+        # x: 512 fs2: 256 + 128 fs1: 64 + 64 + 3
+        return x, fs2, fs1
+
 
 def resnet18(pretrained=False, pretrained_path=None, **kwargs):
     """Constructs a ResNet-18 model.
