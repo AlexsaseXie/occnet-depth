@@ -137,7 +137,7 @@ class OccupancyNetwork(nn.Module):
         logits3 = self.decoder3(p, z, f3, **kwargs)
         logits2 = self.decoder2(p, z, f2, **kwargs)
         logits1 = self.decoder1(p, z, f1, **kwargs)
-        logits = (logits3 + self.logits2_ratio * logits2 + self.logits1_ratio * logits1 ) / 3.
+        logits = logits3 + self.logits2_ratio * logits2 + self.logits1_ratio * logits1 
         p_r = dist.Bernoulli(logits=logits)
         return p_r
 
