@@ -25,7 +25,8 @@ class Trainer(BaseTrainer):
     '''
 
     def __init__(self, model, optimizer, device=None, input_type='img',
-                 vis_dir=None, threshold=0.5, eval_sample=False, loss_type='cross_entropy', use_local_feature=False,img_size=224):
+                 vis_dir=None, threshold=0.5, eval_sample=False, loss_type='cross_entropy', 
+                 use_local_feature=False, img_size=224, surface_loss_weight=1.):
         self.model = model
         self.optimizer = optimizer
         self.device = device
@@ -36,6 +37,9 @@ class Trainer(BaseTrainer):
         self.loss_type = loss_type
         self.use_local_feature = use_local_feature
         self.img_size = img_size
+        self.surface_loss_weight = surface_loss_weight
+        if self.surface_loss_weight != 1.:
+            print('Surface loss weight:', self.surface_loss_weight)
 
         if vis_dir is not None and not os.path.exists(vis_dir):
             os.makedirs(vis_dir)
@@ -209,6 +213,12 @@ class Trainer(BaseTrainer):
         else:
             logits = F.sigmoid(logits)
             loss_i = F.binary_cross_entropy(logits, occ, reduction='none')
+
+        if self.surface_loss_weight != 1.:
+            w = ((occ > 0.) & (occ < 1.))
+            w = w.float()
+            w = w * (self.surface_loss_weight - 1) + 1
+            loss_i = loss_i * w
         loss = loss + loss_i.sum(-1).mean()
 
         return loss

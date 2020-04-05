@@ -110,6 +110,11 @@ def get_trainer(model, optimizer, cfg, device, **kwargs):
     input_type = cfg['data']['input_type']
     use_local_feature = cfg['model']['use_local_feature']
 
+    if 'surface_loss_weight' in cfg['model']:
+        surface_loss_weight = cfg['model']['surface_loss_weight']
+    else:
+        surface_loss_weight = 1.
+
     trainer = training.Trainer(
         model, optimizer,
         device=device, input_type=input_type,
@@ -117,6 +122,7 @@ def get_trainer(model, optimizer, cfg, device, **kwargs):
         eval_sample=cfg['training']['eval_sample'],
         use_local_feature=use_local_feature,
         img_size=cfg['data']['img_size'],
+        surface_loss_weight=surface_loss_weight
     )
 
     if 'loss_type' in cfg['training']:
