@@ -48,10 +48,12 @@ class Resnet18_Full(nn.Module):
         # f3: 512 f2: 256 * 14 * 14 f1: 128 * 28 * 28
   
         # full kmax pooling
+        f1 = f1.detach()
         f1 = kmax_pooling(f1,1,2)
         f1 = f1.view(f1.size(0), -1)
         f1 = self.f1_fc(f1)
 
+        f2 = f2.detach()
         f2 = kmax_pooling(f2,1,8)
         f2 = f2.view(f2.size(0), -1)
         f2 = self.f2_fc(f2)
