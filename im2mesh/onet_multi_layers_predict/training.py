@@ -82,7 +82,7 @@ class Trainer(BaseTrainer):
         kwargs = {}
 
         if self.use_local_feature:
-            camera_args = get_camera_args(data, device=device)
+            camera_args = get_camera_args(data, 'points.loc', 'points.scale', device=device)
             Rt = camera_args['Rt']
             K = camera_args['K']
 
@@ -150,7 +150,7 @@ class Trainer(BaseTrainer):
         inputs = data.get('inputs', torch.empty(batch_size, 0)).to(device)
 
         if self.use_local_feature:
-            camera_args = get_camera_args(data, device=device)
+            camera_args = get_camera_args(data, 'points.loc', 'points.scale', device=device)
             Rt = camera_args['Rt']
             K = camera_args['K']
 
@@ -188,7 +188,7 @@ class Trainer(BaseTrainer):
         kwargs = {}
 
         if self.use_local_feature:
-            camera_args = get_camera_args(data, device=device)
+            camera_args = get_camera_args(data, 'points.loc', 'points.scale', device=device)
             Rt = camera_args['Rt']
             K = camera_args['K']
             f3,f2,f1 = self.model.encode_inputs(inputs,p,Rt,K)

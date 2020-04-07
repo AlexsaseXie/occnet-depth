@@ -62,7 +62,7 @@ class Generator3D_Local(object):
         stats_dict = {}
 
         inputs = data.get('inputs', torch.empty(1, 0)).to(device)
-        camera_args = get_camera_args(data, device=device)
+        camera_args = get_camera_args(data, 'points.loc', 'points.scale', device=device)
         Rt = camera_args['Rt']
         K = camera_args['K']
         kwargs = {}
