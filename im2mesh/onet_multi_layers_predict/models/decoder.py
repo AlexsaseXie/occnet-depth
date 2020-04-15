@@ -425,7 +425,7 @@ class DecoderBatchNormConcat(nn.Module):
             net = net + net_z
 
         net_c = self.fc_c(c).unsqueeze(2).repeat(1,1,T)
-        net = torch.cat(net, net_c)
+        net = torch.cat((net, net_c),dim=1)
 
         net = self.block0(net)
         net = self.block1(net)
