@@ -17,10 +17,12 @@ decoder_dict = {
     'cbatchnorm_noresnet': decoder.DecoderCBatchNormNoResnet,
     'cbatchnorm3': decoder.DecoderCBatchNorm3,
     'batchnorm_concat': decoder.DecoderBatchNormConcat,
+    'concat': decoder.DecoderConcat,
 }
 
 decoder_local_dict = {
     'batchnorm_localfeature': decoder.DecoderBatchNorm_LocalFeature,
+    'nobn_localfeature': decoder.Decoder_LocalFeature,
     'batchnormhighhidden_localfeature': decoder.DecoderBatchNormHighHidden_LocalFeature,
 }
 
