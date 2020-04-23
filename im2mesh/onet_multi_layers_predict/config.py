@@ -89,7 +89,7 @@ def get_model(cfg, device=None, dataset=None, **kwargs):
     p0_z = get_prior_z(cfg, device)
     model = models.OccupancyNetwork(
         dataset, decoder1, decoder2, decoder3, encoder, encoder_latent, p0_z, device=device, use_local_feature=use_local_feature,
-        logits2_ratio=cfg['model']['logits2_ratio'], logits1_ratio=cfg['model']['logits1_ratio']
+        logits2_ratio=cfg['model']['logits2_ratio'], logits1_ratio=cfg['model']['logits1_ratio'], local_feature_mask=cfg['model']['local_feature_mask']
     )
 
     return model

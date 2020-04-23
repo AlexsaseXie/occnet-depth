@@ -40,7 +40,7 @@ class OccupancyNetwork(nn.Module):
     '''
 
     def __init__(self, dataset, decoder1, decoder2, decoder3, encoder=None, encoder_latent=None, p0_z=None,
-                 device=None, use_local_feature=False, logits2_ratio=1., logits1_ratio=1.):
+                 device=None, use_local_feature=False, logits2_ratio=1., logits1_ratio=1., local_feature_mask=False):
         super().__init__()
         if p0_z is None:
             p0_z = dist.Normal(torch.tensor([]), torch.tensor([]))
@@ -49,6 +49,7 @@ class OccupancyNetwork(nn.Module):
         self.decoder2 = decoder2.to(device)
         self.decoder3 = decoder3.to(device)
         self.use_local_feature = use_local_feature
+        self.local_feature_mask = local_feature_mask
 
         if encoder_latent is not None:
             self.encoder_latent = encoder_latent.to(device)
@@ -141,6 +142,11 @@ class OccupancyNetwork(nn.Module):
         logits3 = self.decoder3(p, z, f3, **kwargs)
         logits2 = self.decoder2(p, z, f2, **kwargs)
         logits1 = self.decoder1(p, z, f1, **kwargs)
+        if self.local_feature_mask:
+            w = (torch.abs(logits3) < 2).float().detach()
+            logits2 = logits2 * w
+            logits1 = logits1 * w
+
         logits = logits3 + self.logits2_ratio * logits2 + self.logits1_ratio * logits1 
         p_r = dist.Bernoulli(logits=logits)
         return p_r
