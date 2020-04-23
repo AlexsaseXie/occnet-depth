@@ -23,6 +23,7 @@ decoder_dict = {
 decoder_local_dict = {
     'batchnorm_localfeature': decoder.DecoderBatchNorm_LocalFeature,
     'nobn_localfeature': decoder.Decoder_LocalFeature,
+    'nobnsimple_localfeature': decoder.DecoderSimple_LocalFeature,
     'batchnormhighhidden_localfeature': decoder.DecoderBatchNormHighHidden_LocalFeature,
 }
 
