@@ -50,6 +50,8 @@ class OccupancyNetwork(nn.Module):
         self.decoder3 = decoder3.to(device)
         self.use_local_feature = use_local_feature
         self.local_feature_mask = local_feature_mask
+        if self.local_feature_mask:
+            print('using local feature predict mask')
 
         if encoder_latent is not None:
             self.encoder_latent = encoder_latent.to(device)
@@ -138,16 +140,19 @@ class OccupancyNetwork(nn.Module):
             z (tensor): latent code z
             c (tensor): latent conditioned code c
         '''
-
         logits3 = self.decoder3(p, z, f3, **kwargs)
         logits2 = self.decoder2(p, z, f2, **kwargs)
         logits1 = self.decoder1(p, z, f1, **kwargs)
-        if self.local_feature_mask:
-            w = (torch.abs(logits3) < 2).float().detach()
-            logits2 = logits2 * w
-            logits1 = logits1 * w
 
-        logits = logits3 + self.logits2_ratio * logits2 + self.logits1_ratio * logits1 
+        if self.local_feature_mask:
+            logits = logits3
+            w = (torch.abs(logits) < 1.5).detach().float()
+            logits = logits + self.logits2_ratio * logits2 * w
+            w = (torch.abs(logits) < 1).detach().float()
+            logits = logits + self.logits1_ratio * logits1 * w
+        else:
+            logits = logits3 + self.logits2_ratio * logits2 + self.logits1_ratio * logits1 
+        
         p_r = dist.Bernoulli(logits=logits)
         return p_r
 
