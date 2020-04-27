@@ -563,6 +563,66 @@ class DecoderBatchNorm_LocalFeature(nn.Module):
 
         return out
 
+class DecoderBatchNormSimple_LocalFeature(nn.Module):
+    ''' Decoder with batch normalization class using local feature c.
+
+    Args:
+        dim (int): input dimension
+        z_dim (int): dimension of latent code z
+        c_dim (int): dimension of latent conditioned code c
+        hidden_size (int): hidden size of Decoder network
+        leaky (bool): whether to use leaky ReLUs
+    '''
+
+    def __init__(self, dim=3, z_dim=0, c_dim=64,
+                 hidden_size=256, leaky=False):
+        super().__init__()
+        self.z_dim = z_dim
+        self.c_dim = c_dim
+
+        # Submodules
+        if not z_dim == 0:
+            self.fc_z = nn.Linear(z_dim, hidden_size)
+
+        assert c_dim != 0
+        assert hidden_size % 2 == 0
+        self.fc_c = nn.Conv1d(c_dim, hidden_size // 2, 1)
+        self.fc_p = nn.Conv1d(dim, hidden_size // 2, 1)
+        self.block0 = ResnetBlockConv1d(hidden_size, size_out=hidden_size)
+        self.block1 = ResnetBlockConv1d(hidden_size)
+        self.block2 = ResnetBlockConv1d(hidden_size)
+
+        self.bn = nn.BatchNorm1d(hidden_size)
+
+        self.fc_out = nn.Conv1d(hidden_size, 1, 1)
+
+        if not leaky:
+            self.actvn = F.relu
+        else:
+            self.actvn = lambda x: F.leaky_relu(x, 0.2)
+
+    def forward(self, p, z, c, **kwargs):
+        p = p.transpose(1, 2)
+        c = c.transpose(1, 2)
+        batch_size, D, T = p.size()
+        net = self.fc_p(p)
+
+        if self.z_dim != 0:
+            net_z = self.fc_z(z).unsqueeze(2)
+            net = net + net_z
+
+        net_c = self.fc_c(c)
+        net = torch.cat((net, net_c), dim=1)
+
+        net = self.block0(net)
+        net = self.block1(net)
+        net = self.block2(net)
+
+        out = self.fc_out(self.actvn(self.bn(net)))
+        out = out.squeeze(1)
+
+        return out
+
 class Decoder_LocalFeature(nn.Module):
     ''' Decoder with batch normalization class using local feature c.
 
