@@ -46,9 +46,9 @@ class Decoder(nn.Module):
         self.fc_out = nn.Linear(hidden_size, 1)
 
         if not leaky:
-            self.actvn = F.relu
+            self.actvn = nn.ReLU(inplace=True)
         else:
-            self.actvn = lambda x: F.leaky_relu(x, 0.2)
+            self.actvn = lambda x: F.leaky_relu(x, 0.2, True)
 
     def forward(self, p, z, c=None, **kwargs):
         batch_size, T, D = p.size()
@@ -110,9 +110,9 @@ class DecoderCBatchNorm(nn.Module):
         self.fc_out = nn.Conv1d(hidden_size, 1, 1)
 
         if not leaky:
-            self.actvn = F.relu
+            self.actvn = nn.ReLU(inplace=True)
         else:
-            self.actvn = lambda x: F.leaky_relu(x, 0.2)
+            self.actvn = lambda x: F.leaky_relu(x, 0.2, True)
 
     def forward(self, p, z, c, **kwargs):
         p = p.transpose(1, 2)
@@ -218,9 +218,9 @@ class DecoderCBatchNorm3(nn.Module):
         self.fc_out = nn.Conv1d(hidden_size, 1, 1)
 
         if not leaky:
-            self.actvn = F.relu
+            self.actvn = nn.ReLU(inplace=True)
         else:
-            self.actvn = lambda x: F.leaky_relu(x, 0.2)
+            self.actvn = lambda x: F.leaky_relu(x, 0.2, True)
 
     def forward(self, p, z, c, **kwargs):
         p = p.transpose(1, 2)
@@ -279,9 +279,9 @@ class DecoderCBatchNormNoResnet(nn.Module):
         self.fc_out = nn.Conv1d(hidden_size, 1, 1)
 
         if not leaky:
-            self.actvn = F.relu
+            self.actvn = nn.ReLU(inplace=True)
         else:
-            self.actvn = lambda x: F.leaky_relu(x, 0.2)
+            self.actvn = lambda x: F.leaky_relu(x, 0.2, True)
 
     def forward(self, p, z, c, **kwargs):
         p = p.transpose(1, 2)
@@ -343,9 +343,9 @@ class DecoderBatchNorm(nn.Module):
         self.fc_out = nn.Conv1d(hidden_size, 1, 1)
 
         if not leaky:
-            self.actvn = F.relu
+            self.actvn = nn.ReLU(inplace=True)
         else:
-            self.actvn = lambda x: F.leaky_relu(x, 0.2)
+            self.actvn = lambda x: F.leaky_relu(x, 0.2, True)
 
     def forward(self, p, z, c, **kwargs):
         p = p.transpose(1, 2)
@@ -407,9 +407,9 @@ class DecoderBatchNormConcat(nn.Module):
         self.fc_out = nn.Conv1d(hidden_size, 1, 1)
 
         if not leaky:
-            self.actvn = F.relu
+            self.actvn = nn.ReLU(inplace=True)
         else:
-            self.actvn = lambda x: F.leaky_relu(x, 0.2)
+            self.actvn = lambda x: F.leaky_relu(x, 0.2, True)
 
     def forward(self, p, z, c, **kwargs):
         p = p.transpose(1, 2)
@@ -471,9 +471,9 @@ class DecoderConcat(nn.Module):
         self.fc_out = nn.Conv1d(hidden_size, 1, 1)
 
         if not leaky:
-            self.actvn = F.relu
+            self.actvn = nn.ReLU(inplace=True)
         else:
-            self.actvn = lambda x: F.leaky_relu(x, 0.2)
+            self.actvn = lambda x: F.leaky_relu(x, 0.2, True)
 
     def forward(self, p, z, c, **kwargs):
         p = p.transpose(1, 2)
@@ -535,9 +535,9 @@ class DecoderBatchNorm_LocalFeature(nn.Module):
         self.fc_out = nn.Conv1d(hidden_size, 1, 1)
 
         if not leaky:
-            self.actvn = F.relu
+            self.actvn = nn.ReLU(inplace=True)
         else:
-            self.actvn = lambda x: F.leaky_relu(x, 0.2)
+            self.actvn = lambda x: F.leaky_relu(x, 0.2, True)
 
     def forward(self, p, z, c, **kwargs):
         p = p.transpose(1, 2)
@@ -597,9 +597,9 @@ class DecoderBatchNormSimple_LocalFeature(nn.Module):
         self.fc_out = nn.Conv1d(hidden_size, 1, 1)
 
         if not leaky:
-            self.actvn = F.relu
+            self.actvn = nn.ReLU(inplace=True)
         else:
-            self.actvn = lambda x: F.leaky_relu(x, 0.2)
+            self.actvn = lambda x: F.leaky_relu(x, 0.2, True)
 
     def forward(self, p, z, c, **kwargs):
         p = p.transpose(1, 2)
@@ -659,9 +659,9 @@ class Decoder_LocalFeature(nn.Module):
         self.fc_out = nn.Conv1d(hidden_size, 1, 1)
 
         if not leaky:
-            self.actvn = F.relu
+            self.actvn = nn.ReLU(inplace=True)
         else:
-            self.actvn = lambda x: F.leaky_relu(x, 0.2)
+            self.actvn = lambda x: F.leaky_relu(x, 0.2, True)
 
     def forward(self, p, z, c, **kwargs):
         p = p.transpose(1, 2)
@@ -722,9 +722,9 @@ class DecoderSimple_LocalFeature(nn.Module):
         self.fc_out = nn.Conv1d(hidden_size, 1, 1)
 
         if not leaky:
-            self.actvn = F.relu
+            self.actvn = nn.ReLU(inplace=True)
         else:
-            self.actvn = lambda x: F.leaky_relu(x, 0.2)
+            self.actvn = lambda x: F.leaky_relu(x, 0.2, True)
 
     def forward(self, p, z, c, **kwargs):
         p = p.transpose(1, 2)
@@ -784,9 +784,9 @@ class DecoderBatchNormHighHidden_LocalFeature(nn.Module):
         self.fc_out = nn.Conv1d(hidden_size, 1, 1)
 
         if not leaky:
-            self.actvn = F.relu
+            self.actvn = nn.ReLU(inplace=True)
         else:
-            self.actvn = lambda x: F.leaky_relu(x, 0.2)
+            self.actvn = lambda x: F.leaky_relu(x, 0.2, True)
 
     def forward(self, p, z, c, **kwargs):
         p = p.transpose(1, 2)

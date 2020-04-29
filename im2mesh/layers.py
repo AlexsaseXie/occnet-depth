@@ -27,7 +27,7 @@ class ResnetBlockFC(nn.Module):
         # Submodules
         self.fc_0 = nn.Linear(size_in, size_h)
         self.fc_1 = nn.Linear(size_h, size_out)
-        self.actvn = nn.ReLU()
+        self.actvn = nn.ReLU(inplace=True)
 
         if size_in == size_out:
             self.shortcut = None
@@ -86,7 +86,7 @@ class CResnetBlockConv1d(nn.Module):
 
         self.fc_0 = nn.Conv1d(size_in, size_h, 1)
         self.fc_1 = nn.Conv1d(size_h, size_out, 1)
-        self.actvn = nn.ReLU()
+        self.actvn = nn.ReLU(inplace=True)
 
         if size_in == size_out:
             self.shortcut = None
@@ -133,7 +133,7 @@ class ResnetBlockConv1d(nn.Module):
 
         self.fc_0 = nn.Conv1d(size_in, size_h, 1)
         self.fc_1 = nn.Conv1d(size_h, size_out, 1)
-        self.actvn = nn.ReLU()
+        self.actvn = nn.ReLU(inplace=True)
 
         if size_in == size_out:
             self.shortcut = None
