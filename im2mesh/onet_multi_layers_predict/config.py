@@ -125,6 +125,11 @@ def get_trainer(model, optimizer, cfg, device, **kwargs):
     else:
         loss_tolerance_episolon = None
 
+    if 'binary_occ' in cfg['training']:
+        binary_occ = cfg['data']['binary_occ']
+    else:
+        binary_occ = False
+
     trainer = training.Trainer(
         model, optimizer,
         device=device, input_type=input_type,
@@ -134,6 +139,7 @@ def get_trainer(model, optimizer, cfg, device, **kwargs):
         surface_loss_weight=surface_loss_weight,
         loss_tolerance=loss_tolerance,
         loss_tolerance_episolon=loss_tolerance_episolon,
+        binary_occ=binary_occ
     )
 
     if 'loss_type' in cfg['training']:

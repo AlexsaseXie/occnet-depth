@@ -28,6 +28,7 @@ class Trainer(BaseTrainer):
                  vis_dir=None, threshold=0.5, eval_sample=False, loss_type='cross_entropy', 
                  use_local_feature=False, surface_loss_weight=1.,
                  loss_tolerance=False, loss_tolerance_episolon=None,
+                 binary_occ=False
                 ):
         self.model = model
         self.optimizer = optimizer
@@ -41,6 +42,8 @@ class Trainer(BaseTrainer):
         self.surface_loss_weight = surface_loss_weight
         self.loss_tolerance = loss_tolerance
         self.loss_tolerance_episolon = loss_tolerance_episolon
+
+        self.binary_occ = binary_occ
 
         if self.surface_loss_weight != 1.:
             print('Surface loss weight:', self.surface_loss_weight)
@@ -75,13 +78,19 @@ class Trainer(BaseTrainer):
 
         # Compute elbo
         points = data.get('points').to(device)
-        occ = data.get('points.occ').to(device)
+        if self.binary_occ:
+            occ = (data.get('points.occ') >= 0.5).float().to(device)
+        else:
+            occ = data.get('points.occ').to(device)
 
         inputs = data.get('inputs', torch.empty(points.size(0), 0)).to(device)
         voxels_occ = data.get('voxels')
 
         points_iou = data.get('points_iou').to(device)
-        occ_iou = data.get('points_iou.occ').to(device)
+        if self.binary_occ:
+            occ_iou = (data.get('points_iou.occ') >= 0.5).float().to(device)
+        else:
+            occ_iou = data.get('points_iou.occ').to(device)
 
         kwargs = {}
 
@@ -189,7 +198,10 @@ class Trainer(BaseTrainer):
         '''
         device = self.device
         p = data.get('points').to(device)
-        occ = data.get('points.occ').to(device)
+        if self.binary_occ:
+            occ = (data.get('points.occ') >= 0.5).float().to(device)
+        else:
+            occ = data.get('points.occ').to(device)
         inputs = data.get('inputs', torch.empty(p.size(0), 0)).to(device)
         kwargs = {}
 

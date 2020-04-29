@@ -26,6 +26,7 @@ data:
   pointcloud_noise: 0.05
   voxels_file: 'model.binvox'
   with_transforms: false
+  binary_occ: false
 model:
   decoder: simple
   encoder: resnet18
@@ -55,6 +56,7 @@ training:
   eval_sample: false
   model_selection_metric: loss
   model_selection_mode: minimize
+  loss_type: cross_entropy
   loss_tolerance: false
   loss_tolerance_episolon: {}
 test:
