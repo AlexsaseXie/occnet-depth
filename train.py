@@ -105,8 +105,7 @@ print('Current best validation metric (%s): %.8f'
       % (model_selection_metric, metric_val_best))
 
 # TODO: reintroduce or remove scheduler?
-# scheduler = optim.lr_scheduler.StepLR(optimizer, step_size=4000,
-#                                       gamma=0.1, last_epoch=epoch_it)
+scheduler = optim.lr_scheduler.MultiStepLR(optimizer, milestones=[200000, 300000], gamma=0.1)
 logger = SummaryWriter(os.path.join(out_dir, 'logs'))
 
 # Shorthands
@@ -122,9 +121,15 @@ print('Total number of parameters: %d' % nparameters)
 
 while True:
     epoch_it += 1
-#     scheduler.step()
 
     for batch in train_loader:
+        # scheduler & loss_episolon
+        scheduler.step()
+
+        if ('loss_tolerance' in cfg['training']) and cfg['training']['loss_tolerance']:
+            if ('%d' % it) in cfg['training']['loss_tolerance_episolon']:
+                trainer.loss_tolerance_episolon = cfg['training']['loss_tolerance_episolon']['%d' % it]
+
         it += 1
         loss = trainer.train_step(batch)
         logger.add_scalar('train/loss', loss, it)

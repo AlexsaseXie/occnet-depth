@@ -40,8 +40,11 @@ class OccupancyNetwork(nn.Module):
         device (device): torch device
     '''
 
-    def __init__(self, dataset, decoder1, decoder2, decoder3, encoder=None, encoder_latent=None, p0_z=None,
-                 device=None, use_local_feature=False, logits2_ratio=1., logits1_ratio=1., local_feature_mask=False):
+    def __init__(self, dataset, decoder1, decoder2, decoder3, encoder=None, 
+                 encoder_latent=None, p0_z=None,
+                 device=None, use_local_feature=False, 
+                 logits2_ratio=1., logits1_ratio=1., local_feature_mask=False,
+                ):
         super().__init__()
         if p0_z is None:
             p0_z = dist.Normal(torch.tensor([]), torch.tensor([]))

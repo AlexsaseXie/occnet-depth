@@ -115,14 +115,25 @@ def get_trainer(model, optimizer, cfg, device, **kwargs):
     else:
         surface_loss_weight = 1.
 
+    if 'loss_tolerance' in cfg['training']:
+        loss_tolerance = cfg['training']['loss_tolerance']
+    else:
+        loss_tolerance = False
+
+    if 'loss_tolerance_episolon' in cfg['training']:
+        loss_tolerance_episolon = cfg['training']['loss_tolerance_episolon']['episolon_0']
+    else:
+        loss_tolerance_episolon = None
+
     trainer = training.Trainer(
         model, optimizer,
         device=device, input_type=input_type,
         vis_dir=vis_dir, threshold=threshold,
         eval_sample=cfg['training']['eval_sample'],
         use_local_feature=use_local_feature,
-        img_size=cfg['data']['img_size'],
-        surface_loss_weight=surface_loss_weight
+        surface_loss_weight=surface_loss_weight,
+        loss_tolerance=loss_tolerance,
+        loss_tolerance_episolon=loss_tolerance_episolon,
     )
 
     if 'loss_type' in cfg['training']:
