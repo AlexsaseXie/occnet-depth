@@ -44,8 +44,6 @@ model:
   logits2_ratio: 1.
   logits1_ratio: 1.
   local_feature_mask: false
-  loss_tolerance: false
-  loss_tolerance_episolon: {}
 training:
   out_dir:  out/default
   batch_size: 64
@@ -57,6 +55,8 @@ training:
   eval_sample: false
   model_selection_metric: loss
   model_selection_mode: minimize
+  loss_tolerance: false
+  loss_tolerance_episolon: {}
 test:
   threshold: 0.5
   eval_mesh: true
