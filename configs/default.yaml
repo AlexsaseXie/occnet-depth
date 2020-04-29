@@ -44,6 +44,8 @@ model:
   logits2_ratio: 1.
   logits1_ratio: 1.
   local_feature_mask: false
+  loss_tolerance: false
+  loss_tolerance_episolon: {}
 training:
   out_dir:  out/default
   batch_size: 64
