@@ -82,7 +82,7 @@ def get_trainer(model, optimizer, cfg, device, **kwargs):
         loss_tolerance = False
 
     if 'loss_tolerance_episolon' in cfg['training']:
-        loss_tolerance_episolon = cfg['training']['loss_tolerance_episolon']['episolon_0']
+        loss_tolerance_episolon = cfg['training']['loss_tolerance_episolon'][0]
     else:
         loss_tolerance_episolon = None
 

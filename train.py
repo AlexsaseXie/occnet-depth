@@ -127,8 +127,9 @@ while True:
         scheduler.step()
 
         if ('loss_tolerance' in cfg['training']) and cfg['training']['loss_tolerance']:
-            if ('%d' % it) in cfg['training']['loss_tolerance_episolon']:
-                trainer.loss_tolerance_episolon = cfg['training']['loss_tolerance_episolon']['%d' % it]
+            if it in cfg['training']['loss_tolerance_episolon']:
+                print('using loss tolerance:', cfg['training']['loss_tolerance_episolon'][it])
+                trainer.loss_tolerance_episolon = cfg['training']['loss_tolerance_episolon'][it]
 
         it += 1
         loss = trainer.train_step(batch)
