@@ -117,13 +117,13 @@ class Resnet18_Local(nn.Module):
         points_img = points_img.unsqueeze(1)
 
         f2 = f2.detach()
-        f2 = F.relu(f2)
+        f2 = F.relu(f2, inplace=True)
         f2 = F.grid_sample(f2, points_img)
         f2 = f2.squeeze(2)
         f2 = self.f2_conv(f2)
 
         f1 = f1.detach()
-        f1 = F.relu(f1)
+        f1 = F.relu(f1, inplace=True)
         f1 = F.grid_sample(f1, points_img)
         f1 = f1.squeeze(2)
         f1 = self.f1_conv(f1)
@@ -192,7 +192,7 @@ class Resnet18_Local_1(nn.Module):
         fs2_sampled = []
         for f2 in fs2:
             f2 = f2.detach()
-            f2 = F.relu(f2)
+            f2 = F.relu(f2, inplace=True)
             f2 = F.grid_sample(f2, points_img)
             f2 = f2.squeeze(2)
             fs2_sampled.append(f2)
@@ -202,7 +202,7 @@ class Resnet18_Local_1(nn.Module):
         fs1_sampled = []
         for f1 in fs1:
             f1 = f1.detach()
-            f1 = F.relu(f1)
+            f1 = F.relu(f1, inplace=True)
             f1 = F.grid_sample(f1, points_img)
             f1 = f1.squeeze(2)
             fs1_sampled.append(f1)

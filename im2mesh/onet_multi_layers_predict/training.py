@@ -144,6 +144,8 @@ class Trainer(BaseTrainer):
         Args:
             data (dict): data dictionary
         '''
+        self.model.eval()
+
         device = self.device
 
         batch_size = data['points'].size(0)
