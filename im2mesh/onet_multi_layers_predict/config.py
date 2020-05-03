@@ -120,7 +120,7 @@ def get_trainer(model, optimizer, cfg, device, **kwargs):
     else:
         loss_tolerance_episolon = 0.
 
-    if 'binary_occ' in cfg['training']:
+    if 'binary_occ' in cfg['data']:
         binary_occ = cfg['data']['binary_occ']
     else:
         binary_occ = False
