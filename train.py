@@ -123,6 +123,7 @@ while True:
     epoch_it += 1
 
     for batch in train_loader:
+        it += 1
         # scheduler & loss_episolon
         scheduler.step()
 
@@ -136,7 +137,6 @@ while True:
                 print('using sign lambda:', cfg['training']['sign_lambda'][it])
                 trainer.sign_lambda = cfg['training']['sign_lambda'][it]
 
-        it += 1
         loss = trainer.train_step(batch)
         logger.add_scalar('train/loss', loss, it)
 
