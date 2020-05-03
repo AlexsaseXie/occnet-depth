@@ -57,8 +57,8 @@ training:
   model_selection_metric: loss
   model_selection_mode: minimize
   loss_type: cross_entropy
-  loss_tolerance: false
   loss_tolerance_episolon: {}
+  sign_lambda: {}
 test:
   threshold: 0.5
   eval_mesh: true

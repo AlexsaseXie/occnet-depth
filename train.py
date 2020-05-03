@@ -126,10 +126,15 @@ while True:
         # scheduler & loss_episolon
         scheduler.step()
 
-        if ('loss_tolerance' in cfg['training']) and cfg['training']['loss_tolerance']:
+        if 'loss_tolerance_episolon' in cfg['training']:
             if it in cfg['training']['loss_tolerance_episolon']:
                 print('using loss tolerance:', cfg['training']['loss_tolerance_episolon'][it])
                 trainer.loss_tolerance_episolon = cfg['training']['loss_tolerance_episolon'][it]
+
+        if 'sign_lambda' in cfg['training']:
+            if it in cfg['training']['sign_lambda']:
+                print('using sign lambda:', cfg['training']['sign_lambda'][it])
+                trainer.sign_lambda = cfg['training']['sign_lambda'][it]
 
         it += 1
         loss = trainer.train_step(batch)

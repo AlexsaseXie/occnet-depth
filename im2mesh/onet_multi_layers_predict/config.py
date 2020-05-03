@@ -115,20 +115,20 @@ def get_trainer(model, optimizer, cfg, device, **kwargs):
     else:
         surface_loss_weight = 1.
 
-    if 'loss_tolerance' in cfg['training']:
-        loss_tolerance = cfg['training']['loss_tolerance']
-    else:
-        loss_tolerance = False
-
-    if 'loss_tolerance_episolon' in cfg['training']:
+    if ('loss_tolerance_episolon' in cfg['training']) and (0 in cfg['training']['loss_tolerance_episolon']):
         loss_tolerance_episolon = cfg['training']['loss_tolerance_episolon'][0]
     else:
-        loss_tolerance_episolon = None
+        loss_tolerance_episolon = 0.
 
     if 'binary_occ' in cfg['training']:
         binary_occ = cfg['data']['binary_occ']
     else:
         binary_occ = False
+
+    if ('sign_lambda' in cfg['training']) and (0 in cfg['training']['sign_lambda']):
+        sign_lambda = cfg['training']['sign_lambda'][0]
+    else:
+        sign_lambda = 0.
 
     trainer = training.Trainer(
         model, optimizer,
@@ -137,9 +137,9 @@ def get_trainer(model, optimizer, cfg, device, **kwargs):
         eval_sample=cfg['training']['eval_sample'],
         use_local_feature=use_local_feature,
         surface_loss_weight=surface_loss_weight,
-        loss_tolerance=loss_tolerance,
+        binary_occ=binary_occ,
         loss_tolerance_episolon=loss_tolerance_episolon,
-        binary_occ=binary_occ
+        sign_lambda=sign_lambda
     )
 
     if 'loss_type' in cfg['training']:

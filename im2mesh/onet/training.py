@@ -27,7 +27,8 @@ class Trainer(BaseTrainer):
     def __init__(self, model, optimizer, device=None, input_type='img',
                  vis_dir=None, threshold=0.5, eval_sample=False, loss_type='cross_entropy',
                  surface_loss_weight=1.,
-                 loss_tolerance=False, loss_tolerance_episolon=None,
+                 loss_tolerance_episolon=0.,
+                 sign_lambda=0.
                 ):
         self.model = model
         self.optimizer = optimizer
@@ -38,8 +39,8 @@ class Trainer(BaseTrainer):
         self.eval_sample = eval_sample
         self.loss_type = loss_type
         self.surface_loss_weight = surface_loss_weight
-        self.loss_tolerance = loss_tolerance
         self.loss_tolerance_episolon = loss_tolerance_episolon
+        self.sign_lambda = sign_lambda
 
         if vis_dir is not None and not os.path.exists(vis_dir):
             os.makedirs(vis_dir)
@@ -172,7 +173,9 @@ class Trainer(BaseTrainer):
         loss = kl.mean()
 
         # General points
-        logits = self.model.decode(p, z, c, **kwargs).logits
+        p_r = self.model.decode(p, z, c, **kwargs)
+        logits = p_r.logits
+        probs = p_r.probs
         if self.loss_type == 'cross_entropy':
             loss_i = F.binary_cross_entropy_with_logits(
                 logits, occ, reduction='none')
@@ -186,9 +189,13 @@ class Trainer(BaseTrainer):
             logits = F.sigmoid(logits)
             loss_i = F.binary_cross_entropy(logits, occ, reduction='none')
 
-        if self.loss_tolerance:
+        if self.loss_tolerance_episolon != 0.:
             loss_i = torch.clamp(loss_i, min=self.loss_tolerance_episolon, max=100)
         
+        if self.sign_lambda != 0.:
+            w = 1. - self.sign_lambda * torch.sign(occ - 0.5) * torch.sign(probs - self.threshold)
+            loss_i = loss_i * w
+
         if self.surface_loss_weight != 1.:
             w = ((occ > 0.) & (occ < 1.)).float()
             w = w * (self.surface_loss_weight - 1) + 1
