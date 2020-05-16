@@ -5,11 +5,14 @@ import os
 import sys
 import contextlib
 from math import radians
-import numpy as np
 from PIL import Image
 from tempfile import TemporaryFile
-from config import cfg
+import random
 import bpy
+
+DIR_RENDERING_PATH = '/home2/xieyunwei/occupancy_networks/data/render'
+RENDERING_MAX_CAMERA_DIST = 1.75
+RENDERING_BLENDER_TMP_DIR = '/tmp/blender'
 
 def stdout_redirected(new_stdout):
     save_stdout = sys.stdout
@@ -119,70 +122,13 @@ class BaseRenderer:
         world.horizon_color = (1, 1, 1)  # set background color to be white
 
         # set file name for storing rendering result
-        self.result_fn = '%s/render_result_%d.png' % (cfg.DIR.RENDERING_PATH, os.getpid())
+        self.result_fn = '%s/render_result_%d.png' % (DIR_RENDERING_PATH, os.getpid())
         bpy.context.scene.render.filepath = self.result_fn
 
-        # new for depth & normal & albedo
-        bpy.context.scene.use_nodes = True
-        tree = bpy.context.scene.node_tree
-        links = tree.links
-
-        # Add passes for additionally dumping albedo and normals.
-        bpy.context.scene.render.layers["RenderLayer"].use_pass_normal = True
-        bpy.context.scene.render.layers["RenderLayer"].use_pass_color = True
-        bpy.context.scene.render.image_settings.file_format = 'PNG'
-        bpy.context.scene.render.image_settings.color_depth = 8
-
-        # Clear default nodes
-        for n in tree.nodes:
-            tree.nodes.remove(n)
-
-        # Create input render layer node.
-        render_layers = tree.nodes.new('CompositorNodeRLayers')
-
-        depth_file_output = tree.nodes.new(type="CompositorNodeOutputFile")
-        depth_file_output.label = 'Depth Output'
-
-        # Remap as other types can not represent the full range of depth.
-        map = tree.nodes.new(type="CompositorNodeMapValue")
-        # Size is chosen kind of arbitrarily, try out until you're satisfied with resulting depth map.
-        map.offset = [-0.7]
-        map.size = [1]
-        map.use_min = True
-        map.min = [0]
-        links.new(render_layers.outputs['Z'], map.inputs[0])
-        links.new(map.outputs[0], depth_file_output.inputs[0])
-
-        scale_normal = tree.nodes.new(type="CompositorNodeMixRGB")
-        scale_normal.blend_type = 'MULTIPLY'
-        # scale_normal.use_alpha = True
-        scale_normal.inputs[2].default_value = (0.5, 0.5, 0.5, 1)
-        links.new(render_layers.outputs['Normal'], scale_normal.inputs[1])
-
-        bias_normal = tree.nodes.new(type="CompositorNodeMixRGB")
-        bias_normal.blend_type = 'ADD'
-        # bias_normal.use_alpha = True
-        bias_normal.inputs[2].default_value = (0.5, 0.5, 0.5, 0)
-        links.new(scale_normal.outputs[0], bias_normal.inputs[1])
-
-        normal_file_output = tree.nodes.new(type="CompositorNodeOutputFile")
-        normal_file_output.label = 'Normal Output'
-        links.new(bias_normal.outputs[0], normal_file_output.inputs[0])
-
-        albedo_file_output = tree.nodes.new(type="CompositorNodeOutputFile")
-        albedo_file_output.label = 'Albedo Output'
-        links.new(render_layers.outputs['Color'], albedo_file_output.inputs[0])
-
-        # Delete default cube
-        bpy.data.objects['Cube'].select = True
-        bpy.ops.object.delete()
-
-        self.depth_file_output = depth_file_output
-        self.albedo_file_output = albedo_file_output
-        self.normal_file_output = normal_file_output
-        for output_node in [self.depth_file_output, self.normal_file_output, self.albedo_file_output]:
-            output_node.base_path = ''
-        # new end
+        # new settings
+        bpy.context.scene.render.image_settings.file_format = 'OPEN_EXR'
+        bpy.context.scene.render.image_settings.color_mode = 'RGBA'
+        bpy.context.scene.render.image_settings.use_zbuffer = True
         
         self.render_context = render_context
         self.org_obj = org_obj
@@ -201,9 +147,9 @@ class BaseRenderer:
     def setViewpoint(self, azimuth, altitude, yaw, distance_ratio, fov):
         self.org_obj.rotation_euler = (0, 0, 0)
         self.light.location = (distance_ratio *
-                               (cfg.RENDERING.MAX_CAMERA_DIST + 2), 0, 0)
+                               (RENDERING_MAX_CAMERA_DIST + 2), 0, 0)
         self.camera.location = (distance_ratio *
-                                cfg.RENDERING.MAX_CAMERA_DIST, 0, 0)
+                                RENDERING_MAX_CAMERA_DIST, 0, 0)
         self.org_obj.rotation_euler = (radians(-yaw),
                                        radians(-altitude),
                                        radians(-azimuth))
@@ -252,7 +198,7 @@ class BaseRenderer:
                             (file_path, file_path[-4:]))
 
     def render(self, load_model=True, clear_model=True, resize_ratio=None,
-               return_image=True, image_path=os.path.join(cfg.RENDERING.BLENDER_TMP_DIR, 'tmp.png')):
+               return_image=True, image_path=os.path.join(RENDERING_BLENDER_TMP_DIR, 'tmp.png')):
         """ Render the object """
         if load_model:
             self.loadModel()
@@ -264,9 +210,6 @@ class BaseRenderer:
 
         self.result_fn = image_path
         bpy.context.scene.render.filepath = image_path
-        self.depth_file_output.file_slots[0].path = bpy.context.scene.render.filepath[:-4] + "_depth.png"
-        self.normal_file_output.file_slots[0].path = bpy.context.scene.render.filepath[:-4] + "_normal.png"
-        self.albedo_file_output.file_slots[0].path = bpy.context.scene.render.filepath[:-4] + "_albedo.png"
         bpy.ops.render.render(write_still=True)  # save straight to file
 
         if resize_ratio:
@@ -275,12 +218,6 @@ class BaseRenderer:
 
         if clear_model:
             self.clearModel()
-
-        if return_image:
-            im = np.array(Image.open(self.result_fn))  # read the image
-
-            # Last channel is the alpha channel (transparency)
-            return im[:, :, :3], im[:, :, 3]
 
 
 class ShapeNetRenderer(BaseRenderer):
@@ -334,10 +271,10 @@ class VoxelRenderer(BaseRenderer):
         light_2.data.energy = 0.7
 
     def render_voxel(self, pred, thresh=0.4,
-                     image_path=os.path.join(cfg.RENDERING.BLENDER_TMP_DIR, 'tmp.png')):
+                     image_path=os.path.join(RENDERING_BLENDER_TMP_DIR, 'tmp.png')):
         # Cleanup the scene
         self.clearModel()
-        out_f = os.path.join(cfg.RENDERING.BLENDER_TMP_DIR, 'tmp.obj')
+        out_f = os.path.join(RENDERING_BLENDER_TMP_DIR, 'tmp.obj')
         occupancy = pred > thresh
         vertices, faces = voxel2mesh(occupancy)
         with contextlib.suppress(IOError):
@@ -349,33 +286,27 @@ class VoxelRenderer(BaseRenderer):
         bpy.context.scene.render.filepath = image_path
         bpy.ops.render.render(write_still=True)  # save straight to file
 
-        im = np.array(Image.open(image_path))  # read the image
-
-        # Last channel is the alpha channel (transparency)
-        return im[:, :, :3], im[:, :, 3]
-
 
 def main():
     """Test function"""
     # Modify the following file to visualize the model
-    dn = '/ShapeNet/ShapeNetCore.v1/02958343/'
-    model_id = [line.strip('\n') for line in open(dn + 'models.txt')]
-    file_paths = [os.path.join(dn, line, 'model.obj') for line in model_id]
+    dn = '/home2/xieyunwei/occupancy_networks/external/ShapeNetCore.v1/02958343/'
+    model_id = ['2c981b96364b1baa21a66e8dfcce514a']
+    file_paths = [os.path.join(dn, m_id, 'model.obj') for m_id in model_id]
     sum_time = 0
     renderer = ShapeNetRenderer()
-    renderer.initialize(file_paths, 500, 500)
+    renderer.initialize(file_paths, 224, 224)
     for i, curr_model_id in enumerate(model_id):
         start = time.time()
-        image_path = '%s/%s.png' % ('/tmp', curr_model_id[:-4])
+        image_path = '%s/%s.exr' % (DIR_RENDERING_PATH, curr_model_id)
 
-        az, el, depth_ratio = list(
-            *([360, 5, 0.3] * np.random.rand(1, 3) + [0, 25, 0.65]))
-
+        az, el, depth_ratio = [360 * random.random(), 5 * random.random() + 25, 0.3 * random.random() + 0.65]
+    
         renderer.setModelIndex(i)
         renderer.setViewpoint(30, 30, 0, 0.7, 25)
 
-        with TemporaryFile() as f, stdout_redirected(f):
-            rendering, alpha = renderer.render(load_model=True,
+        #with TemporaryFile() as f, stdout_redirected(f):
+        renderer.render(load_model=True, return_image=False,
                 clear_model=True, image_path=image_path)
 
         print('Saved at %s' % image_path)
