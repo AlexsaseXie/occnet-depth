@@ -6,22 +6,14 @@ import sys
 import contextlib
 from math import radians
 from PIL import Image
-from tempfile import TemporaryFile
 import random
 import bpy
 
+SHAPENET_ROOT = '/home2/xieyunwei/occupancy_networks/external/ShapeNetCore.v1/'
 DIR_RENDERING_PATH = '/home2/xieyunwei/occupancy_networks/data/render'
 RENDERING_MAX_CAMERA_DIST = 1.75
+N_VIEWS = 24
 RENDERING_BLENDER_TMP_DIR = '/tmp/blender'
-
-def stdout_redirected(new_stdout):
-    save_stdout = sys.stdout
-    sys.stdout = new_stdout
-    try:
-        yield None
-    finally:
-        sys.stdout = save_stdout
-
 
 def voxel2mesh(voxels):
     cube_verts = [[0, 0, 0],
@@ -287,7 +279,82 @@ class VoxelRenderer(BaseRenderer):
         bpy.ops.render.render(write_still=True)  # save straight to file
 
 
+import argparse
 def main():
+    parser = argparse.ArgumentParser(description='Render according to a task_split_file')
+    parser.add_argument('--task_file', type=str, help='task split file')
+
+    argv = sys.argv[sys.argv.index("--") + 1:]
+    args = parser.parse_args(argv)
+
+    file_paths = []
+    all_model_class = []
+    all_model_ids = []
+
+    with open(args.task_file, 'r') as f:
+        lines = f.readlines()
+        for line in lines:
+            if line == '': 
+                continue
+
+            tmp = line.rstrip('\n').split(' ')
+            all_model_class.append(tmp[0])
+            all_model_ids.append(tmp[1])
+            file_paths.append(os.path.join(SHAPENET_ROOT, tmp[0], tmp[1], 'model.obj'))
+    
+    sum_time = 0
+    renderer = ShapeNetRenderer()
+    renderer.initialize(file_paths, 224, 224)
+    for i, curr_model_id in enumerate(all_model_ids):
+        start = time.time()
+        rendering_curr_model_root = os.path.join(DIR_RENDERING_PATH, all_model_class[i], all_model_ids[i])
+
+        if not os.path.exists(rendering_curr_model_root):
+            os.mkdir(rendering_curr_model_root)
+
+        if os.path.exists(os.path.join(rendering_curr_model_root, 'rendering_metadata.txt')):
+            continue
+
+        with open( os.path.join(rendering_curr_model_root, 'renderings.txt'), 'w' ) as f:
+            for view_id in range(N_VIEWS):
+                print('%.2d' % view_id, file = f)
+
+        camera_file_f = open(os.path.join(rendering_curr_model_root, 'rendering_metadata.txt'), 'w')
+        
+        for view_id in range(N_VIEWS):
+            image_path = os.path.join(rendering_curr_model_root, 'rendering_exr', '%.2d.exr' % view_id)
+
+            az, el, depth_ratio = [360 * random.random(), 5 * random.random() + 25, 0.3 * random.random() + 0.65]
+        
+            renderer.setModelIndex(i)
+            renderer.setViewpoint(az, el, 0, depth_ratio, 25)
+
+            if view_id == 0:
+                load_model_flag = True
+            else:
+                load_model_flag = False
+
+            if view_id == N_VIEWS - 1:
+                clear_model_flag = True
+            else:
+                clear_model_flag = False
+
+            renderer.render(load_model=load_model_flag, return_image=False,
+                    clear_model=clear_model_flag, image_path=image_path)
+
+            print(az, el, 0, depth_ratio, 25, file=camera_file_f)
+            print('Saved at %s' % image_path)
+
+        camera_file_f.close()
+
+        end = time.time()
+        sum_time += end - start
+
+        if i % 10 == 0:
+            print(sum_time/(10))
+            sum_time = 0
+
+def test():
     """Test function"""
     # Modify the following file to visualize the model
     dn = '/home2/xieyunwei/occupancy_networks/external/ShapeNetCore.v1/02958343/'
@@ -305,7 +372,6 @@ def main():
         renderer.setModelIndex(i)
         renderer.setViewpoint(30, 30, 0, 0.7, 25)
 
-        #with TemporaryFile() as f, stdout_redirected(f):
         renderer.render(load_model=True, return_image=False,
                 clear_model=True, image_path=image_path)
 
