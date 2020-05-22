@@ -24,6 +24,7 @@ TASK_SPLIT_ROOT = '/home2/xieyunwei/occupancy_networks/scripts/render_img_views/
 
 NPROC = 15
 
+import random
 def split_task():
     if not os.path.exists(DIR_RENDERING_PATH):
         os.mkdir(DIR_RENDERING_PATH)
@@ -32,28 +33,36 @@ def split_task():
         os.mkdir(TASK_SPLIT_ROOT)
         
     all_model_count = 0
-    all_model_classes = []
-    all_model_ids = []
+    #all_model_classes = []
+    #all_model_ids = []
+    all_model_info = []
 
     for model_class in CLASSES:
         class_root = os.path.join(SHAPENET_ROOT, model_class)
         current_class_ids = os.listdir(class_root)
         
         all_model_count += len(current_class_ids)
-        all_model_ids += current_class_ids
-        all_model_classes += [ model_class for model_id in current_class_ids]
+        #all_model_ids += current_class_ids
+        #all_model_classes += [ model_class for model_id in current_class_ids]
+        all_model_info += [ [model_class, model_id] for model_id in current_class_ids ]
 
+    # shuffle
+    random.shuffle(all_model_info)
     split_number = (int) (all_model_count / NPROC)
     for i in range(NPROC):
         if i != NPROC - 1:
-            i_task_model_classes = all_model_classes[i * split_number : (i+1) * split_number]
-            i_task_model_ids = all_model_ids[i * split_number : (i+1) * split_number]
+            #i_task_model_classes = all_model_classes[i * split_number : (i+1) * split_number]
+            #i_task_model_ids = all_model_ids[i * split_number : (i+1) * split_number]
+            i_task_model_info = all_model_info[i * split_number: (i+1) * split_number]
         else:
-            i_task_model_classes = all_model_classes[i * split_number :]
-            i_task_model_ids = all_model_ids[i * split_number :]
+            #i_task_model_classes = all_model_classes[i * split_number :]
+            #i_task_model_ids = all_model_ids[i * split_number :]
+            i_task_model_info = all_model_info[i * split_number:]
         with open(os.path.join(TASK_SPLIT_ROOT,'%d.txt' % (i)),'w') as f:
-            for i, model_class in enumerate(i_task_model_classes):
-                print('%s %s' % (i_task_model_classes[i], i_task_model_ids[i]), file = f)
+            #for i, model_class in enumerate(i_task_model_classes):
+            #    print('%s %s' % (i_task_model_classes[i], i_task_model_ids[i]), file = f)
+            for info in i_task_model_info:
+                print('%s %s' % (info[0], info[1]), file = f)
 
     print('All model count:', all_model_count)
     print('Split into:', NPROC, 'tasks')
