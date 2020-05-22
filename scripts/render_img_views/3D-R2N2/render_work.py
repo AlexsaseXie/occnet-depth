@@ -73,7 +73,6 @@ def render_obj(task_file, i):
     #print('Render start:', i)
     p = subprocess.Popen(['blender','-b','--python','r2n2_render_blender.py','--','--task_file', task_file], stdout=subprocess.PIPE, stderr=subprocess.PIPE)
     standard_out = p.stdout.readlines()
-    print(standard_out)
 
     end_time = time.time() 
     print('Render end:', i, ',cost:', end_time - start_time)

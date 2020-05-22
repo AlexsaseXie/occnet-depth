@@ -66,6 +66,9 @@ def main():
         if not os.path.exists(rendering_curr_model_save_png_root):
             os.mkdir(rendering_curr_model_save_png_root)
 
+        if os.path.exists(os.path.join(rendering_curr_model_save_png_root, '%.2d_rgb.png' % (N_VIEWS - 1))):
+            continue
+
         f = open(os.path.join(rendering_curr_model_save_png_root, 'depth_range.txt'), 'w')
         for view_id in range(N_VIEWS):
             image_path = os.path.join(rendering_curr_model_root, 'rendering_exr', '%.2d.exr' % view_id)

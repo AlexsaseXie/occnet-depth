@@ -312,7 +312,7 @@ def main():
         if not os.path.exists(rendering_curr_model_root):
             os.mkdir(rendering_curr_model_root)
 
-        if os.path.exists(os.path.join(rendering_curr_model_root, 'rendering_metadata.txt')):
+        if os.path.exists(os.path.join(rendering_curr_model_root, 'rendering_exr', '%.2d.exr' % (N_VIEWS - 1))):
             continue
 
         with open( os.path.join(rendering_curr_model_root, 'renderings.txt'), 'w' ) as f:
