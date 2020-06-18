@@ -10,7 +10,7 @@ import random
 import bpy
 
 SHAPENET_ROOT = '/home2/xieyunwei/occupancy_networks/external/ShapeNetCore.v1/'
-DIR_RENDERING_PATH = '/home2/xieyunwei/occupancy_networks/data/render'
+DIR_RENDERING_PATH = '/home2/xieyunwei/occupancy_networks/data/render_2'
 RENDERING_MAX_CAMERA_DIST = 1.75
 N_VIEWS = 24
 RENDERING_BLENDER_TMP_DIR = '/tmp/blender'
@@ -280,13 +280,7 @@ class VoxelRenderer(BaseRenderer):
 
 
 import argparse
-def main():
-    parser = argparse.ArgumentParser(description='Render according to a task_split_file')
-    parser.add_argument('--task_file', type=str, help='task split file')
-
-    argv = sys.argv[sys.argv.index("--") + 1:]
-    args = parser.parse_args(argv)
-
+def main(args):
     file_paths = []
     all_model_class = []
     all_model_ids = []
@@ -354,11 +348,58 @@ def main():
             print(sum_time/(10))
             sum_time = 0
 
+def main_single(args):
+    file_paths = [os.path.join(SHAPENET_ROOT, args.model_class, args.model_id, 'model.obj')]
+    renderer = ShapeNetRenderer()
+    renderer.initialize(file_paths, 224, 224)
+
+    rendering_curr_model_root = os.path.join(DIR_RENDERING_PATH, args.model_class, args.model_id)
+
+    if not os.path.exists(rendering_curr_model_root):
+        os.mkdir(rendering_curr_model_root)
+
+    if os.path.exists(os.path.join(rendering_curr_model_root, 'rendering_exr', '%.2d.exr' % (N_VIEWS - 1))):
+        return
+
+    with open( os.path.join(rendering_curr_model_root, 'renderings.txt'), 'w' ) as f:
+        for view_id in range(N_VIEWS):
+            print('%.2d' % view_id, file = f)
+
+    camera_file_f = open(os.path.join(rendering_curr_model_root, 'rendering_metadata.txt'), 'w')
+    
+    for view_id in range(N_VIEWS):
+        image_path = os.path.join(rendering_curr_model_root, 'rendering_exr', '%.2d.exr' % view_id)
+
+        az, el, depth_ratio = [360 * random.random(), 5 * random.random() + 25, 0.3 * random.random() + 0.65]
+    
+        renderer.setModelIndex(0)
+        renderer.setViewpoint(az, el, 0, depth_ratio, 25)
+
+        if view_id == 0:
+            load_model_flag = True
+        else:
+            load_model_flag = False
+
+        if view_id == N_VIEWS - 1:
+            clear_model_flag = True
+        else:
+            clear_model_flag = False
+
+        renderer.render(load_model=load_model_flag, return_image=False,
+                clear_model=clear_model_flag, image_path=image_path)
+
+        print(az, el, 0, depth_ratio, 25, file=camera_file_f)
+        print('Saved at %s' % image_path)
+
+    camera_file_f.close()
+
 def test():
     """Test function"""
     # Modify the following file to visualize the model
+    #dn = '/home2/xieyunwei/occupancy_networks/external/ShapeNetCore.v1/02958343/'
+    #model_id = ['2c981b96364b1baa21a66e8dfcce514a']
     dn = '/home2/xieyunwei/occupancy_networks/external/ShapeNetCore.v1/02958343/'
-    model_id = ['2c981b96364b1baa21a66e8dfcce514a']
+    model_id = ['f9c1d7748c15499c6f2bd1c4e9adb41']
     file_paths = [os.path.join(dn, m_id, 'model.obj') for m_id in model_id]
     sum_time = 0
     renderer = ShapeNetRenderer()
@@ -387,4 +428,21 @@ def test():
 
 
 if __name__ == "__main__":
-    main()
+    parser = argparse.ArgumentParser(description='Render according to a task_split_file')
+    parser.add_argument('--task_file', type=str, default='', help='task split file')
+    parser.add_argument('--single', action='store_true', help='use single')
+    parser.add_argument('--test', action='store_true', help='test')
+    parser.add_argument('--model_class', type=str, default='', help='model class')
+    parser.add_argument('--model_id', type=str, default='', help='model id')
+
+    argv = sys.argv[sys.argv.index("--") + 1:]
+    args = parser.parse_args(argv)
+
+    if args.test:
+        test()
+        exit(0)
+
+    if not args.single:
+        main(args)
+    else:
+        main_single(args)

@@ -1,8 +1,13 @@
 import os
 import sys
+import random
+import subprocess
+import multiprocessing
+import time
 
 SHAPENET_ROOT = '/home2/xieyunwei/occupancy_networks/external/ShapeNetCore.v1/'
-DIR_RENDERING_PATH = '/home2/xieyunwei/occupancy_networks/data/render'
+R2N2_ROOT = '/home2/xieyunwei/occupancy_networks/external/Choy2016/ShapeNetRendering/'
+DIR_RENDERING_PATH = '/home2/xieyunwei/occupancy_networks/data/render_2'
 
 CLASSES = [
     '03001627',
@@ -21,10 +26,9 @@ CLASSES = [
 ]
 
 TASK_SPLIT_ROOT = '/home2/xieyunwei/occupancy_networks/scripts/render_img_views/3D-R2N2/task_split'
+NPROC = 10
+N_VIEWS = 24
 
-NPROC = 15
-
-import random
 def split_task():
     if not os.path.exists(DIR_RENDERING_PATH):
         os.mkdir(DIR_RENDERING_PATH)
@@ -33,34 +37,35 @@ def split_task():
         os.mkdir(TASK_SPLIT_ROOT)
         
     all_model_count = 0
-    #all_model_classes = []
-    #all_model_ids = []
     all_model_info = []
 
     for model_class in CLASSES:
-        class_root = os.path.join(SHAPENET_ROOT, model_class)
+        #class_root = os.path.join(SHAPENET_ROOT, model_class)
+        class_root = os.path.join(R2N2_ROOT, model_class)
         current_class_ids = os.listdir(class_root)
-        
-        all_model_count += len(current_class_ids)
-        #all_model_ids += current_class_ids
-        #all_model_classes += [ model_class for model_id in current_class_ids]
-        all_model_info += [ [model_class, model_id] for model_id in current_class_ids ]
+
+        #check if model.obj exists
+        for model_id in current_class_ids:
+            obj_path = os.path.join(SHAPENET_ROOT, model_class, model_id, 'model.obj')
+            
+            if os.path.exists(obj_path):
+                all_model_count += 1
+                all_model_info.append( [model_class, model_id] )
+
+    # save all tasks
+    with open(os.path.join(TASK_SPLIT_ROOT,'all.txt'), 'w') as f:
+        for info in all_model_info:
+            print('%s %s' % (info[0], info[1]), file = f)
 
     # shuffle
     random.shuffle(all_model_info)
     split_number = (int) (all_model_count / NPROC)
     for i in range(NPROC):
         if i != NPROC - 1:
-            #i_task_model_classes = all_model_classes[i * split_number : (i+1) * split_number]
-            #i_task_model_ids = all_model_ids[i * split_number : (i+1) * split_number]
             i_task_model_info = all_model_info[i * split_number: (i+1) * split_number]
         else:
-            #i_task_model_classes = all_model_classes[i * split_number :]
-            #i_task_model_ids = all_model_ids[i * split_number :]
             i_task_model_info = all_model_info[i * split_number:]
         with open(os.path.join(TASK_SPLIT_ROOT,'%d.txt' % (i)),'w') as f:
-            #for i, model_class in enumerate(i_task_model_classes):
-            #    print('%s %s' % (i_task_model_classes[i], i_task_model_ids[i]), file = f)
             for info in i_task_model_info:
                 print('%s %s' % (info[0], info[1]), file = f)
 
@@ -73,53 +78,98 @@ def split_task():
             os.mkdir(class_root)
     print('Dirs created')
 
-import subprocess
-import multiprocessing
-import time
+    return all_model_info
+
+def render_all_obj(task_file, thread):
+    p = subprocess.Popen(['blender','-b','--python','r2n2_render_blender.py','-t %d' % thread,'--','--task_file', task_file], stdout=open('/dev/null','w'), stderr=subprocess.STDOUT)
+    p.wait()
+    print('finished')
+
 
 def render_obj(task_file, i):
     start_time = time.time()
-    #print('Render start:', i)
-    p = subprocess.Popen(['blender','-b','--python','r2n2_render_blender.py','--','--task_file', task_file], stdout=subprocess.PIPE, stderr=subprocess.PIPE)
-    standard_out = p.stdout.readlines()
+    print('Render start:', i)
+    p = subprocess.Popen(['blender','-b','--python','r2n2_render_blender.py','--','--task_file', task_file], stdout=open('/dev/null','w'), stderr=subprocess.STDOUT)
+    p.wait()
 
     end_time = time.time() 
     print('Render end:', i, ',cost:', end_time - start_time)
 
+def render_single_obj(model_class, model_id):
+    p = subprocess.Popen(['blender','-b','--python','r2n2_render_blender.py','--', '--single', '--model_class', model_class, '--model_id', model_id], stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+    out, err = p.communicate()
+
 def get_rgb_depth_images(task_file, i):
     start_time = time.time()
-    #print('Transfer start:', i)
+    print('Transfer start:', i)
 
-    p = subprocess.Popen(['python', 'openexr_to_png.py', '--task_file', task_file],stdout=subprocess.PIPE,stderr=subprocess.PIPE)
-    standard_out = p.stdout.readlines()
+    p = subprocess.Popen(['python', 'openexr_to_png.py', '--task_file', task_file],stdout=open('/dev/null','w'),stderr=subprocess.STDOUT)
+    p.wait()
 
     end_time = time.time() 
     print('Transfer end:', i, ',cost:', end_time - start_time)
 
-def main():
-    split_task()
+def get_single_rgb_depth_images(model_class, model_id):
+    p = subprocess.Popen(['python', 'openexr_to_png.py', '--single', '--model_class', model_class, '--model_id', model_id],stdout=subprocess.PIPE,stderr=subprocess.PIPE)
+    out, err = p.communicate()
 
-    pool = multiprocessing.Pool(processes = NPROC)
+if __name__ == '__main__':
+    all_model_info = split_task()    
 
+    render_start_time = time.time()
+
+    
+    process_array = []
     for i in range(NPROC):
         task_file = str(os.path.join(TASK_SPLIT_ROOT, '%d.txt' % i))
         print('render:', task_file)
-        pool.apply_async(render_obj, (task_file, i) )
-        
+        p = multiprocessing.Process(target=render_obj, args=(task_file,i))
+        p.start()
+        process_array.append(p)
+
+    for i in range(NPROC):
+        process_array[i].join()
+    
+
+    '''    
+    pool = multiprocessing.Pool(processes = NPROC)
+    for info in all_model_info:
+        rendering_curr_model_root = os.path.join(DIR_RENDERING_PATH, info[0], info[1])
+        if os.path.exists(os.path.join(rendering_curr_model_root, 'rendering_exr', '%.2d.exr' % (N_VIEWS - 1))):
+            continue
+        pool.apply_async(render_single_obj, (info[0], info[1]) )
     pool.close()
     pool.join()
+    '''
 
-    pool = multiprocessing.Pool(processes = NPROC)
+    
+    #render_all_obj(os.path.join(TASK_SPLIT_ROOT, 'all.txt'), 12)
+    
+    render_end_time = time.time()
+    print('Render all finished in %f sec' % (render_end_time - render_start_time))
 
+
+    process_array = []
+    transfer_start_time = time.time()
+    
     for i in range(NPROC):
         task_file = str(os.path.join(TASK_SPLIT_ROOT, '%d.txt' % i))
         print('transfer:', task_file)
-        pool.apply_async(get_rgb_depth_images, (task_file, i) )
+        p = multiprocessing.Process(target=get_rgb_depth_images, args=(task_file,i))
+        p.start()
+        process_array.append(p)
+
+    for i in range(NPROC):
+        process_array[i].join()
     
+    '''
+    pool = multiprocessing.Pool(processes = NPROC)
+    for info in all_model_info:
+        pool.apply_async(get_single_rgb_depth_images, (info[0], info[1]) )
     pool.close()
     pool.join()
-    print('finished!') 
+    '''
 
-
-if __name__ == '__main__':
-    main()   
+    transfer_end_time = time.time()
+    print('Transfer all finished in %f sec' % (transfer_end_time - transfer_start_time))
+    print('finished!')   

@@ -1,8 +1,8 @@
 import numpy
 import OpenEXR
 
-DIR_RENDERING_PATH = '/home2/xieyunwei/occupancy_networks/data/render'
-N_VIEWS =24
+DIR_RENDERING_PATH = '/home2/xieyunwei/occupancy_networks/data/render_2'
+N_VIEWS = 24
 
 def norm(val):
     return val * 12.92 if val <= 0.0031308 else 1.055 * val**(1.0/2.4) - 0.055
@@ -29,8 +29,8 @@ def convert_OpenEXR_to_sRGB(path):
     depth = numpy.zeros((x,y))
     depth[:,:] = numpy.frombuffer(image.channel('Z'), dtype=numpy.float32).reshape((x,y))
     depth_min = depth.min()
-    depth_max = depth[depth < 5].max()
-    depth[depth > 5] = depth_max
+    depth_max = depth[depth < 10].max()
+    depth[depth >= 10] = depth_max
     #depth[im[:,:,3] == 0.] = (depth_min + depth_max) / 2
     depth = (depth - depth_min) / (depth_max - depth_min)
     return x, y, im, depth, depth_min, depth_max
@@ -41,11 +41,8 @@ import sys
 import time
 from PIL import Image
 import argparse
-def main():
-    parser = argparse.ArgumentParser(description='Convert exr to pngs')
-    parser.add_argument('--task_file', type=str, help='task split file')
-    args = parser.parse_args()
 
+def main(args):
     all_model_class = []
     all_model_ids = []
 
@@ -73,7 +70,13 @@ def main():
         for view_id in range(N_VIEWS):
             image_path = os.path.join(rendering_curr_model_root, 'rendering_exr', '%.2d.exr' % view_id)
 
-            x, y, img, depth, depth_min, depth_max = convert_OpenEXR_to_sRGB(image_path)
+            try:
+                x, y, img, depth, depth_min, depth_max = convert_OpenEXR_to_sRGB(image_path)
+            except:
+                continue
+            finally:
+                pass
+
             img = (img * 255.0).astype(numpy.uint8)
             img = Image.fromarray(img)
             img.save(os.path.join(rendering_curr_model_save_png_root, '%.2d_rgba.png' % view_id))
@@ -95,8 +98,47 @@ def main():
         end_time = time.time()
         print('transfer model in', end_time - start_time, ' secs')
 
+def main_single(args):
+    rendering_curr_model_root = os.path.join(DIR_RENDERING_PATH, args.model_class, args.model_id)
+    rendering_curr_model_save_png_root = os.path.join(rendering_curr_model_root, 'rendering_png')
+    if not os.path.exists(rendering_curr_model_save_png_root):
+        os.mkdir(rendering_curr_model_save_png_root)
+
+    if os.path.exists(os.path.join(rendering_curr_model_save_png_root, '%.2d_rgb.png' % (N_VIEWS - 1))):
+        return
+
+    f = open(os.path.join(rendering_curr_model_save_png_root, 'depth_range.txt'), 'w')
+    for view_id in range(N_VIEWS):
+        image_path = os.path.join(rendering_curr_model_root, 'rendering_exr', '%.2d.exr' % view_id)
+        try:
+            x, y, img, depth, depth_min, depth_max = convert_OpenEXR_to_sRGB(image_path)
+        except:
+            continue
+        finally:
+            pass
+        
+        img = (img * 255.0).astype(numpy.uint8)
+        img = Image.fromarray(img)
+        img.save(os.path.join(rendering_curr_model_save_png_root, '%.2d_rgba.png' % view_id))
+
+        depth = (depth * 255.).astype(numpy.uint8)
+        depth = Image.fromarray(depth)
+        depth = depth.convert('L')
+        # save depth map & range
+        depth.save(os.path.join(rendering_curr_model_save_png_root, '%.2d_depth.png' % view_id))
+        print(depth_min, depth_max, file=f)
+
+        # convert to jpg, save jpg
+        background = Image.new('RGBA', (x,y), (255,255,255,255))
+        img_rgb = Image.alpha_composite(background, img)
+        img_rgb.convert('RGB').save(os.path.join(rendering_curr_model_save_png_root, '%.2d_rgb.png' % view_id))
+        #print('depth min:', depth_min, ',max:', depth_max)
+
+    f.close()
+
 def test():
-    model_id = ['2c981b96364b1baa21a66e8dfcce514a']
+    model_class = ['04090263']
+    model_id = ['4a32519f44dc84aabafe26e2eb69ebf4']
     for i, curr_model_id in enumerate(model_id):
         image_path = '%s/%s.exr' % (DIR_RENDERING_PATH, curr_model_id)
 
@@ -118,4 +160,19 @@ def test():
         print('depth min:', depth_min, ',max:', depth_max)
 
 if __name__ == "__main__":
-    main()
+    parser = argparse.ArgumentParser(description='Convert exr to pngs')
+    parser.add_argument('--task_file', type=str, help='task split file')
+    parser.add_argument('--single', action='store_true', help='use single')
+    parser.add_argument('--test', action='store_true', help='test')
+    parser.add_argument('--model_class', type=str, default='', help='model class')
+    parser.add_argument('--model_id', type=str, default='', help='model id')
+    args = parser.parse_args()
+
+    if args.test:
+        test()
+        exit(0)
+
+    if not args.single:
+        main(args)
+    else:
+        main_single(args)
