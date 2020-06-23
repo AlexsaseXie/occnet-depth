@@ -21,7 +21,7 @@ reorganize_img_with_depth() {
   img_out_dir="$output_path/img"
   depth_out_dir="$output_path/depth"
 
-  if [! -f "$img_dir/depth_range.txt"]; then
+  if [ ! -f "$img_dir/depth_range.txt" ]; then
     return
   fi
 
@@ -29,7 +29,7 @@ reorganize_img_with_depth() {
   camera_out_file="$output_path/img/cameras.npz"
 
   echo "Copying model $output_path"
-  mkdir -p $output_path $img_out_dir
+  mkdir -p $output_path $img_out_dir $depth_out_dir
 
   # points & pointcloud & voxel
   cp $points_file $points_out_file
