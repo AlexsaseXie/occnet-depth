@@ -3,6 +3,7 @@ import OpenEXR
 
 DIR_RENDERING_PATH = '/home2/xieyunwei/occupancy_networks/data/render_2'
 N_VIEWS = 24
+RENDERING_MAX_CAMERA_DIST = 1.75
 
 def norm(val):
     return val * 12.92 if val <= 0.0031308 else 1.055 * val**(1.0/2.4) - 0.055
@@ -63,20 +64,21 @@ def main(args):
         if not os.path.exists(rendering_curr_model_save_png_root):
             os.mkdir(rendering_curr_model_save_png_root)
 
-        if os.path.exists(os.path.join(rendering_curr_model_save_png_root, '%.2d_rgb.png' % (N_VIEWS - 1))):
-            continue
-
+        #if os.path.exists(os.path.join(rendering_curr_model_save_png_root, '%.2d_rgb.png' % (N_VIEWS - 1))):
+        #    continue
+        
+        rf = open(os.path.join(rendering_curr_model_root, 'rendering_metadata.txt'), 'r')
         f = open(os.path.join(rendering_curr_model_save_png_root, 'depth_range.txt'), 'w')
         for view_id in range(N_VIEWS):
             image_path = os.path.join(rendering_curr_model_root, 'rendering_exr', '%.2d.exr' % view_id)
-
+            
             try:
                 x, y, img, depth, depth_min, depth_max = convert_OpenEXR_to_sRGB(image_path)
             except:
                 continue
             finally:
                 pass
-
+            
             img = (img * 255.0).astype(numpy.uint8)
             img = Image.fromarray(img)
             img.save(os.path.join(rendering_curr_model_save_png_root, '%.2d_rgba.png' % view_id))
@@ -86,15 +88,18 @@ def main(args):
             depth = depth.convert('L')
             # save depth map & range
             depth.save(os.path.join(rendering_curr_model_save_png_root, '%.2d_depth.png' % view_id))
-            print(depth_min, depth_max, file=f)
-
+                     
+            depth_unit = RENDERING_MAX_CAMERA_DIST * float(rf.readline().split(' ')[3])
+            print(depth_min, depth_max, depth_unit, file=f)
+            
             # convert to jpg, save jpg
             background = Image.new('RGBA', (x,y), (255,255,255,255))
             img_rgb = Image.alpha_composite(background, img)
             img_rgb.convert('RGB').save(os.path.join(rendering_curr_model_save_png_root, '%.2d_rgb.png' % view_id))
             #print('depth min:', depth_min, ',max:', depth_max)
-
+            
         f.close()
+        rf.close()
         end_time = time.time()
         print('transfer model in', end_time - start_time, ' secs')
 
@@ -107,6 +112,7 @@ def main_single(args):
     if os.path.exists(os.path.join(rendering_curr_model_save_png_root, '%.2d_rgb.png' % (N_VIEWS - 1))):
         return
 
+    rf = open(os.path.join(rendering_curr_model_root, 'rendering_metadata.txt'), 'r')
     f = open(os.path.join(rendering_curr_model_save_png_root, 'depth_range.txt'), 'w')
     for view_id in range(N_VIEWS):
         image_path = os.path.join(rendering_curr_model_root, 'rendering_exr', '%.2d.exr' % view_id)
@@ -126,7 +132,8 @@ def main_single(args):
         depth = depth.convert('L')
         # save depth map & range
         depth.save(os.path.join(rendering_curr_model_save_png_root, '%.2d_depth.png' % view_id))
-        print(depth_min, depth_max, file=f)
+        depth_unit = RENDERING_MAX_CAMERA_DIST * float(rf.readline().split(' ')[3])
+        print(depth_min, depth_max, depth_unit, file=f)
 
         # convert to jpg, save jpg
         background = Image.new('RGBA', (x,y), (255,255,255,255))
@@ -135,6 +142,7 @@ def main_single(args):
         #print('depth min:', depth_min, ',max:', depth_max)
 
     f.close()
+    rf.close()
 
 def test():
     model_class = ['04090263']
