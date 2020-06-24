@@ -1,4 +1,4 @@
-method: onet
+method: onet_depth
 data:
   path: data/ShapeNet.depth
   img_folder: img
