@@ -7,6 +7,7 @@ import trimesh
 from im2mesh.data.core import Field
 from im2mesh.utils import binvox_rw
 import torch
+from torchvision import transforms
 
 
 class IndexField(Field):
@@ -397,4 +398,92 @@ class MeshField(Field):
             files: files
         '''
         complete = (self.file_name in files)
+        return complete
+
+
+class ImagesWithDepthField(Field):
+    ''' Image With Depth Field.
+
+    It is the field used for loading images.
+
+    Args:
+        folder_name (str): folder name
+        transform (list): list of transformations applied to loaded images
+        extension (str): image extension
+        random_view (bool): whether a random view should be used
+        with_camera (bool): whether camera data should be provided
+    '''
+    def __init__(self, img_folder_name='img', depth_folder_name='depth', transform=None,
+                 extension='png', random_view=True, with_camera=False):
+        self.img_folder_name = img_folder_name
+        self.depth_folder_name = depth_folder_name
+        self.transform = transform
+        self.extension = extension
+        self.random_view = random_view
+        self.with_camera = with_camera
+
+    def load(self, model_path, idx, category):
+        ''' Loads the data point.
+
+        Args:
+            model_path (str): path to model
+            idx (int): ID of data point
+            category (int): index of category
+        '''
+        img_folder = os.path.join(model_path, self.img_folder_name)
+        img_files = glob.glob(os.path.join(img_folder, '*.%s' % self.extension))
+        depth_folder = os.path.join(model_path, self.depth_folder_name)
+        depth_files = glob.glob(os.path.join(depth_folder, '*.%s' % self.extension))
+
+        if self.random_view:
+            idx_img = random.randint(0, len(img_files)-1)
+        else:
+            idx_img = 0
+
+        depth_range_file = os.path.join(depth_folder, 'depth_range.txt')
+        with open(depth_range_file,'r') as f:
+            txt = f.readlines()
+            depth_range = txt[idx_img].split(' ')
+        depth_min = float(depth_range[0])
+        depth_max = float(depth_range[1])
+        depth_unit = float(depth_range[2])
+
+        img_filename = img_files[idx_img]
+        depth_filename = depth_files[idx_img]
+
+        image = Image.open(img_filename).convert('RGB')
+        depth_image = Image.open(depth_filename).convert('L')
+        depth_mask = depth_image.point(lambda i: i == 255, '1')
+        if self.transform is not None:
+            image = self.transform(image)
+            depth_image = self.transform(depth_image)
+            depth_mask = self.transform(depth_mask)
+        #recover depth from png & normalize
+        depth_image = depth_image * (depth_max - depth_min) + depth_min
+        depth_image = depth_image / depth_unit
+
+        data = {
+            None: image,
+            'depth': depth_image,
+            'mask': depth_mask
+        }
+
+        if self.with_camera:
+            camera_file = os.path.join(img_folder, 'cameras.npz')
+            camera_dict = np.load(camera_file)
+            Rt = camera_dict['world_mat_%d' % idx_img].astype(np.float32)
+            K = camera_dict['camera_mat_%d' % idx_img].astype(np.float32)
+            data['world_mat'] = Rt
+            data['camera_mat'] = K
+
+        return data
+
+    def check_complete(self, files):
+        ''' Check if field is complete.
+        
+        Args:
+            files: files
+        '''
+        complete = (self.img_folder_name in files) & (self.depth_folder_name in files)
+        # TODO: check camera
         return complete

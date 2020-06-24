@@ -17,9 +17,8 @@ decoder_dict = {
     'cbatchnorm_noresnet': decoder.DecoderCBatchNormNoResnet,
 }
 
-
-class OccupancyNetwork(nn.Module):
-    ''' Occupancy Network class.
+class OccupancyWithDepthNetwork(nn.Module):
+    ''' OccupancyWithDepth Network class.
 
     Args:
         decoder (nn.Module): decoder network
@@ -29,13 +28,18 @@ class OccupancyNetwork(nn.Module):
         device (device): torch device
     '''
 
-    def __init__(self, decoder, encoder=None, encoder_latent=None, p0_z=None,
+    def __init__(self, depth_predictor, decoder=None, encoder=None, encoder_latent=None, detach=True, p0_z=None,
                  device=None):
         super().__init__()
         if p0_z is None:
             p0_z = dist.Normal(torch.tensor([]), torch.tensor([]))
 
-        self.decoder = decoder.to(device)
+        self.depth_predictor = depth_predictor.to(device)
+        
+        if decoder is not None: 
+            self.decoder = decoder.to(device)
+        else:
+            self.decoder = None
 
         if encoder_latent is not None:
             self.encoder_latent = encoder_latent.to(device)
@@ -48,7 +52,16 @@ class OccupancyNetwork(nn.Module):
             self.encoder = None
 
         self._device = device
+        self.detach = detach
         self.p0_z = p0_z
+
+    def predict_depth_maps(self, inputs):
+        #batch_size = inputs.size(0)
+        return self.depth_predictor(inputs)
+
+    def predict_depth_map(self, inputs):
+        #batch_size = inputs.size(0)
+        return self.depth_predictor.get_last_predict(inputs)
 
     def forward(self, p, inputs, sample=True, **kwargs):
         ''' Performs a forward pass through the network.
@@ -59,7 +72,12 @@ class OccupancyNetwork(nn.Module):
             sample (bool): whether to sample for z
         '''
         batch_size = p.size(0)
-        c = self.encode_inputs(inputs)
+        if self.detach:
+            with torch.no_grad():
+                depth_map = self.predict_depth_maps(inputs)[:,-1]
+        else:
+            depth_map = self.predict_depth_maps(inputs)[:,-1]
+        c = self.encode_depth_map(depth_map)
         z = self.get_z_from_prior((batch_size,), sample=sample)
         p_r = self.decode(p, z, c, **kwargs)
         return p_r
@@ -83,15 +101,15 @@ class OccupancyNetwork(nn.Module):
 
         return elbo, rec_error, kl
 
-    def encode_inputs(self, inputs):
-        ''' Encodes the input.
+    def encode_depth_map(self, depth_map):
+        ''' Encodes the depth map.
 
         Args:
-            input (tensor): the input
+             depth_map (tensor): the depth map
         '''
 
         if self.encoder is not None:
-            c = self.encoder(inputs)
+            c = self.encoder(depth_map)
         else:
             # Return inputs?
             c = torch.empty(inputs.size(0), 0)

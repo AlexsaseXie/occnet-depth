@@ -1,4 +1,4 @@
-from im2mesh.onet import (
+from im2mesh.onet_depth import (
     config, generation, training, models
 )
 

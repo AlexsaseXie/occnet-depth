@@ -4,6 +4,7 @@ from im2mesh import data
 from im2mesh import onet, r2n2, psgn, pix2mesh, dmc
 from im2mesh import onet_m
 from im2mesh import onet_multi_layers_predict
+from im2mesh import onet_depth
 from im2mesh import preprocess
 
 
@@ -15,6 +16,7 @@ method_dict = {
     'dmc': dmc,
     'onet_m': onet_m,
     'onet_multi_layers': onet_multi_layers_predict,
+    'onet_depth': onet_depth
 }
 
 
@@ -210,6 +212,23 @@ def get_inputs_field(mode, cfg):
 
         inputs_field = data.ImagesField(
             cfg['data']['img_folder'], transform,
+            with_camera=with_camera, random_view=random_view
+        )
+    elif input_type == 'img_with_depth':
+        # data augment not supported
+        transform = transforms.Compose([
+            transforms.Resize((cfg['data']['img_size'])), transforms.ToTensor(),
+        ])
+        
+        with_camera = cfg['data']['img_with_camera']
+
+        if mode == 'train':
+            random_view = True
+        else:
+            random_view = False
+
+        inputs_field = data.ImagesWithDepthField(
+            'img', 'depth', transform,
             with_camera=with_camera, random_view=random_view
         )
     elif input_type == 'multi_img':

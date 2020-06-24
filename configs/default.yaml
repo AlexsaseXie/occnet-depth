@@ -59,6 +59,8 @@ training:
   loss_type: cross_entropy
   loss_tolerance_episolon: {}
   sign_lambda: {}
+  phase: 1
+  detach: true
 test:
   threshold: 0.5
   eval_mesh: true
