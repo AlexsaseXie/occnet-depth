@@ -113,12 +113,22 @@ def get_single_rgb_depth_images(model_class, model_id):
     p = subprocess.Popen(['python', 'openexr_to_png.py', '--single', '--model_class', model_class, '--model_id', model_id],stdout=subprocess.PIPE,stderr=subprocess.PIPE)
     out, err = p.communicate()
 
+def get_mask(task_file, i):
+    start_time = time.time()
+    print('Save mask start:', i)
+
+    p = subprocess.Popen(['python', 'save_mask.py', '--task_file', task_file],stdout=open('/dev/null','w'),stderr=subprocess.STDOUT)
+    p.wait()
+
+    end_time = time.time()
+    print('Save mask end:', i, ',cost:', end_time - start_time)
+
+
 if __name__ == '__main__':
     all_model_info = split_task()    
 
+    # render
     render_start_time = time.time()
-
-    
     process_array = []
     for i in range(NPROC):
         task_file = str(os.path.join(TASK_SPLIT_ROOT, '%d.txt' % i))
@@ -141,13 +151,11 @@ if __name__ == '__main__':
     pool.close()
     pool.join()
     '''
-
-    
-    #render_all_obj(os.path.join(TASK_SPLIT_ROOT, 'all.txt'), 12)
     
     render_end_time = time.time()
     print('Render all finished in %f sec' % (render_end_time - render_start_time))
 
+    # transfer
 
     process_array = []
     transfer_start_time = time.time()
@@ -172,4 +180,23 @@ if __name__ == '__main__':
 
     transfer_end_time = time.time()
     print('Transfer all finished in %f sec' % (transfer_end_time - transfer_start_time))
+
+    # save mask
+
+    process_array = []
+    mask_start_time = time.time()
+
+    for i in range(NPROC):
+        task_file = str(os.path.join(TASK_SPLIT_ROOT, '%d.txt' % i))
+        print('save mask:', task_file)
+        p = multiprocessing.Process(target=get_mask, args=(task_file,i))
+        p.start()
+        process_array.append(p)
+
+    for i in range(NPROC):
+        process_array[i].join()
+
+    mask_end_time = time.time()
+    print('Save mask all finished in %f sec' % (mask_end_time - mask_start_time))    
+
     print('finished!')   

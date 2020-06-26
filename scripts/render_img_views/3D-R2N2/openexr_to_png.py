@@ -64,8 +64,8 @@ def main(args):
         if not os.path.exists(rendering_curr_model_save_png_root):
             os.mkdir(rendering_curr_model_save_png_root)
 
-        #if os.path.exists(os.path.join(rendering_curr_model_save_png_root, '%.2d_rgb.png' % (N_VIEWS - 1))):
-        #    continue
+        if os.path.exists(os.path.join(rendering_curr_model_save_png_root, '%.2d_rgb.png' % (N_VIEWS - 1))):
+            continue
         
         rf = open(os.path.join(rendering_curr_model_root, 'rendering_metadata.txt'), 'r')
         f = open(os.path.join(rendering_curr_model_save_png_root, 'depth_range.txt'), 'w')

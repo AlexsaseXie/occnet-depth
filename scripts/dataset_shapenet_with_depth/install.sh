@@ -18,8 +18,10 @@ reorganize_img_with_depth() {
   vox_out_file="$output_path/model.binvox"
 
   img_dir="$img_path/$modelname/rendering_png"
+  mask_dir="$img_path/$modelname/rendering_mask"
   img_out_dir="$output_path/img"
   depth_out_dir="$output_path/depth"
+  mask_out_dir="$output_path/mask"
 
   if [ ! -f "$img_dir/depth_range.txt" ]; then
     return
@@ -29,7 +31,7 @@ reorganize_img_with_depth() {
   camera_out_file="$output_path/img/cameras.npz"
 
   echo "Copying model $output_path"
-  mkdir -p $output_path $img_out_dir $depth_out_dir
+  mkdir -p $output_path $img_out_dir $depth_out_dir $mask_out_dir
 
   # points & pointcloud & voxel
   cp $points_file $points_out_file
@@ -53,6 +55,11 @@ reorganize_img_with_depth() {
 
   # copy depth range
   cp "$img_dir/depth_range.txt" "$depth_out_dir/"
+
+  # copy mask
+  for f in $mask_dir/*_mask.png; do
+    cp $f "$mask_out_dir/"
+  done
 }
 
 export -f reorganize_img_with_depth
