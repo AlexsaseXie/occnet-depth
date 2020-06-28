@@ -69,20 +69,26 @@ class Phase1Trainer(BaseTrainer):
         '''
         device = self.device
         inputs = data.get('inputs').to(device)
-        gt_depth_maps = data.get('depth')
-        batch_size = inputs.size(0)
+        gt_depth_maps = data.get('inputs.depth')
+        gt_masks = data.get('inputs.mask').byte()
+        batch_size = gt_depth_maps.size(0)
         
         kwargs = {}
+        self.model.eval()
         with torch.no_grad():
-            pr_depth_maps = self.model.predict_depth_map(inputs).cpu()
+            pr_depth_maps = self.model.predict_depth_maps(inputs)[:,-1].cpu()
         
         for i in trange(batch_size):
             gt_depth_map = gt_depth_maps[i]
             pr_depth_map = pr_depth_maps[i]
             gt_depth_map_max = torch.max(gt_depth_map)
             gt_depth_map_min = torch.min(gt_depth_map)
-            pr_depth_map_max = torch.max(pr_depth_map[pr_depth_map < 2.])
-            pr_depth_map_min = torch.min(pr_depth_map[pr_depth_map < 2.])
+            gt_mask = gt_masks[i]
+            #pr_depth_map_max = torch.max(pr_depth_map[pr_depth_map < 2.])
+            #pr_depth_map_min = torch.min(pr_depth_map[pr_depth_map < 2.])
+            pr_depth_map_max = torch.max(pr_depth_map[gt_mask])
+            pr_depth_map_min = torch.min(pr_depth_map[gt_mask])
+            pr_depth_map[1 - gt_mask] = pr_depth_map_max
             gt_depth_map = (gt_depth_map - gt_depth_map_min) / (gt_depth_map_max - gt_depth_map_min)
             pr_depth_map = (pr_depth_map - pr_depth_map_min) / (pr_depth_map_max - pr_depth_map_min)
 
@@ -101,17 +107,21 @@ class Phase1Trainer(BaseTrainer):
         '''
         device = self.device
         inputs = data.get('inputs').to(device)
-        gt_depth_maps = data.get('depth').to(device)
-        gt_mask = data.get('mask').to(device)
+        gt_depth_maps = data.get('inputs.depth').to(device)
+        gt_mask = data.get('inputs.mask').to(device)
         pr_depth_maps = self.model.predict_depth_maps(inputs)
         n_predicts = pr_depth_maps.size(1)
+
+        mask_pix_count = gt_mask.sum()
 
         loss = 0
         for i in range(n_predicts):
             # for object
-            loss += torch.sqrt(torch.pow((pr_depth_maps[:,i] - gt_depth_maps), 2) * gt_mask).mean()
+            if mask_pix_count != 0.:
+                loss += (F.mse_loss(pr_depth_maps[:,i], gt_depth_maps, reduce=False) * gt_mask).sum() / mask_pix_count
             # for background
-            loss += (F.relu(pr_depth_maps[:,i] - 2.) * (1. - gt_mask)).mean()
+            #loss += ( F.relu(5.0 - pr_depth_maps[:,i]) * (1. - gt_mask) ).mean()
+            #loss += 0.1 * ( F.sigmoid(pr_depth_maps[:,i]) * (-1.0) * (1. - gt_mask) ).mean()
 
         return loss
 

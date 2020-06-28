@@ -228,7 +228,7 @@ def get_inputs_field(mode, cfg):
             random_view = False
 
         inputs_field = data.ImagesWithDepthField(
-            'img', 'depth', transform,
+            'img', 'depth', 'mask', transform,
             with_camera=with_camera, random_view=random_view
         )
     elif input_type == 'multi_img':

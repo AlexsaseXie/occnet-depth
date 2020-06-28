@@ -13,14 +13,17 @@ class Merge(nn.Module):
 class DepthPredictNet(nn.Module):
     ''' '''
     def __init__(self, n_hourglass=1, img_dim=3, inp_dim=128, oup_dim=1, bn=False, increase=0):
+        super(DepthPredictNet, self).__init__()
         self.img_dim = img_dim
         self.inp_dim = inp_dim
         self.oup_dim = oup_dim
         self.n_hourglass = n_hourglass
 
         self.pre = nn.Sequential(
+            #Conv(img_dim, inp_dim, 3, 1, bn=True, relu=True),
+            #Conv(img_dim, 64, 7, 1, bn=True, relu=True),
             Conv(img_dim, 64, 3, 1, bn=True, relu=True),
-            Residual(64, inp_dim),
+            Residual(64, inp_dim)
         )
 
         self.hgs = nn.ModuleList(

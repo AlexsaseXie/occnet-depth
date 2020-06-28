@@ -413,10 +413,11 @@ class ImagesWithDepthField(Field):
         random_view (bool): whether a random view should be used
         with_camera (bool): whether camera data should be provided
     '''
-    def __init__(self, img_folder_name='img', depth_folder_name='depth', transform=None,
+    def __init__(self, img_folder_name='img', depth_folder_name='depth', mask_folder_name='mask', transform=None,
                  extension='png', random_view=True, with_camera=False):
         self.img_folder_name = img_folder_name
         self.depth_folder_name = depth_folder_name
+        self.mask_folder_name = mask_folder_name
         self.transform = transform
         self.extension = extension
         self.random_view = random_view
@@ -431,9 +432,11 @@ class ImagesWithDepthField(Field):
             category (int): index of category
         '''
         img_folder = os.path.join(model_path, self.img_folder_name)
-        img_files = glob.glob(os.path.join(img_folder, '*.%s' % self.extension))
+        img_files = sorted(glob.glob(os.path.join(img_folder, '*.%s' % self.extension)))
         depth_folder = os.path.join(model_path, self.depth_folder_name)
-        depth_files = glob.glob(os.path.join(depth_folder, '*.%s' % self.extension))
+        depth_files = sorted(glob.glob(os.path.join(depth_folder, '*.%s' % self.extension)))
+        mask_folder = os.path.join(model_path, self.mask_folder_name)
+        mask_files = sorted(glob.glob(os.path.join(mask_folder, '*.%s' % self.extension)))
 
         if self.random_view:
             idx_img = random.randint(0, len(img_files)-1)
@@ -450,10 +453,12 @@ class ImagesWithDepthField(Field):
 
         img_filename = img_files[idx_img]
         depth_filename = depth_files[idx_img]
+        mask_filename = mask_files[idx_img]
 
         image = Image.open(img_filename).convert('RGB')
         depth_image = Image.open(depth_filename).convert('L')
-        depth_mask = depth_image.point(lambda i: i == 255, '1')
+        #depth_mask = depth_image.point(lambda i: i < 255, '1')
+        depth_mask = Image.open(mask_filename).convert('1')
         if self.transform is not None:
             image = self.transform(image)
             depth_image = self.transform(depth_image)
