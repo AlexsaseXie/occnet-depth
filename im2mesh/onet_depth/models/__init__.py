@@ -28,7 +28,7 @@ class OccupancyWithDepthNetwork(nn.Module):
         device (device): torch device
     '''
 
-    def __init__(self, depth_predictor, decoder=None, encoder=None, encoder_latent=None, detach=True, p0_z=None,
+    def __init__(self, depth_predictor, decoder=None, encoder=None, encoder_latent=None, p0_z=None,
                  device=None):
         super().__init__()
         if p0_z is None:
@@ -52,7 +52,6 @@ class OccupancyWithDepthNetwork(nn.Module):
             self.encoder = None
 
         self._device = device
-        self.detach = detach
         self.p0_z = p0_z
 
     def predict_depth_maps(self, inputs):
@@ -63,7 +62,7 @@ class OccupancyWithDepthNetwork(nn.Module):
         #batch_size = inputs.size(0)
         return self.depth_predictor.get_last_predict(inputs)
 
-    def forward(self, p, inputs, sample=True, **kwargs):
+    def forward(self, p, inputs, gt_mask, sample=True, **kwargs):
         ''' Performs a forward pass through the network.
 
         Args:
@@ -72,17 +71,14 @@ class OccupancyWithDepthNetwork(nn.Module):
             sample (bool): whether to sample for z
         '''
         batch_size = p.size(0)
-        if self.detach:
-            with torch.no_grad():
-                depth_map = self.predict_depth_maps(inputs)[:,-1]
-        else:
-            depth_map = self.predict_depth_maps(inputs)[:,-1]
+        depth_map = self.predict_depth_map(inputs)
+        depth_map[1. - gt_mask] = 0.        
         c = self.encode_depth_map(depth_map)
         z = self.get_z_from_prior((batch_size,), sample=sample)
         p_r = self.decode(p, z, c, **kwargs)
         return p_r
 
-    def compute_elbo(self, p, occ, inputs, **kwargs):
+    def compute_elbo(self, p, occ, inputs, gt_mask, **kwargs):
         ''' Computes the expectation lower bound.
 
         Args:
@@ -90,7 +86,9 @@ class OccupancyWithDepthNetwork(nn.Module):
             occ (tensor): occupancy values for p
             inputs (tensor): conditioning input
         '''
-        c = self.encode_inputs(inputs)
+        depth_map = self.predict_depth_map(inputs)
+        depth_map[1. - gt_mask] = 0.
+        c = self.encode_depth_map(depth_map)
         q_z = self.infer_z(p, occ, c, **kwargs)
         z = q_z.rsample()
         p_r = self.decode(p, z, c, **kwargs)

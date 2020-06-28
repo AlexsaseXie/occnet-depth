@@ -76,7 +76,7 @@ class Phase1Trainer(BaseTrainer):
         kwargs = {}
         self.model.eval()
         with torch.no_grad():
-            pr_depth_maps = self.model.predict_depth_maps(inputs)[:,-1].cpu()
+            pr_depth_maps = self.model.predict_depth_map(inputs).cpu()
         
         for i in trange(batch_size):
             gt_depth_map = gt_depth_maps[i]
@@ -144,7 +144,8 @@ class Phase2Trainer(BaseTrainer):
                  surface_loss_weight=1.,
                  loss_tolerance_episolon=0.,
                  sign_lambda=0.,
-                 training_detach=True
+                 training_detach=True,
+                 depth_map_mix=False
                 ):
         self.model = model
         self.optimizer = optimizer
@@ -158,9 +159,14 @@ class Phase2Trainer(BaseTrainer):
         self.loss_tolerance_episolon = loss_tolerance_episolon
         self.sign_lambda = sign_lambda
         self.training_detach = training_detach
+        self.depth_map_mix = depth_map_mix
 
         if vis_dir is not None and not os.path.exists(vis_dir):
             os.makedirs(vis_dir)
+
+        if self.training_detach:
+            for param in self.model.depth_predictor.parameters():
+                param.requires_grad = False
 
     def train_step(self, data):
         ''' Performs a training step.
@@ -191,7 +197,10 @@ class Phase2Trainer(BaseTrainer):
         points = data.get('points').to(device)
         occ = data.get('points.occ').to(device)
 
-        inputs = data.get('inputs', torch.empty(points.size(0), 0)).to(device)
+        inputs = data.get('inputs').to(device)
+        #gt_depth_maps = data.get('inputs.depth').to(device)
+        gt_mask = data.get('inputs.mask').to(device).byte()
+
         voxels_occ = data.get('voxels')
 
         points_iou = data.get('points_iou').to(device)
@@ -201,7 +210,7 @@ class Phase2Trainer(BaseTrainer):
 
         with torch.no_grad():
             elbo, rec_error, kl = self.model.compute_elbo(
-                points, occ, inputs, **kwargs)
+                points, occ, inputs, gt_mask,  **kwargs)
 
         eval_dict['loss'] = -elbo.mean().item()
         eval_dict['rec_error'] = rec_error.mean().item()
@@ -211,7 +220,7 @@ class Phase2Trainer(BaseTrainer):
         batch_size = points.size(0)
 
         with torch.no_grad():
-            p_out = self.model(points_iou, inputs,
+            p_out = self.model(points_iou, inputs, gt_mask,
                                sample=self.eval_sample, **kwargs)
 
         occ_iou_np = (occ_iou >= 0.5).cpu().numpy()
@@ -228,7 +237,7 @@ class Phase2Trainer(BaseTrainer):
                 batch_size, *points_voxels.size())
             points_voxels = points_voxels.to(device)
             with torch.no_grad():
-                p_out = self.model(points_voxels, inputs,
+                p_out = self.model(points_voxels, inputs, gt_mask
                                    sample=self.eval_sample, **kwargs)
 
             voxels_occ_np = (voxels_occ >= 0.5).cpu().numpy()
@@ -248,7 +257,9 @@ class Phase2Trainer(BaseTrainer):
         device = self.device
 
         batch_size = data['points'].size(0)
-        inputs = data.get('inputs', torch.empty(batch_size, 0)).to(device)
+        inputs = data.get('inputs').to(device)
+        #gt_depth_maps = data.get('inputs.depth').to(device)
+        gt_mask = data.get('inputs.mask').to(device).byte()
 
         shape = (32, 32, 32)
         p = make_3d_grid([-0.5] * 3, [0.5] * 3, shape).to(device)
@@ -256,7 +267,7 @@ class Phase2Trainer(BaseTrainer):
 
         kwargs = {}
         with torch.no_grad():
-            p_r = self.model(p, inputs, sample=self.eval_sample, **kwargs)
+            p_r = self.model(p, inputs, gt_mask, sample=self.eval_sample, **kwargs)
 
         occ_hat = p_r.probs.view(batch_size, *shape)
         voxels_out = (occ_hat >= self.threshold).cpu().numpy()
@@ -276,12 +287,27 @@ class Phase2Trainer(BaseTrainer):
         '''
         device = self.device
         p = data.get('points').to(device)
+        batch_size = p.size(0)
         occ = data.get('points.occ').to(device)
-        inputs = data.get('inputs', torch.empty(p.size(0), 0)).to(device)
+
+        inputs = data.get('inputs').to(device)
+        gt_depth_maps = data.get('inputs.depth').to(device)
+        gt_mask = data.get('inputs.mask').to(device).byte()
+
+        if self.training_detach:
+            with torch.no_grad():
+                pr_depth_maps = self.model.predict_depth_map(inputs)
+        else:
+            pr_depth_maps = self.model.predict_depth_map(inputs)
+
+        pr_depth_maps[1 - gt_mask] = 0.
+        if self.depth_map_mix:
+            gt_depth_maps[1 - gt_mask] = 0.
+            alpha = torch.rand(batch_size,1,1,1).to(device)
+            pr_depth_maps = pr_depth_maps * alpha + gt_depth_maps * (1.0 - alpha)
 
         kwargs = {}
-
-        c = self.model.encode_inputs(inputs)
+        c = self.model.encode_depth_map(pr_depth_maps)
         q_z = self.model.infer_z(p, occ, c, **kwargs)
         z = q_z.rsample()
 

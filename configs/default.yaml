@@ -61,6 +61,7 @@ training:
   sign_lambda: {}
   phase: 1
   detach: true
+  depth_map_mix: false
 test:
   threshold: 0.5
   eval_mesh: true

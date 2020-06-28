@@ -59,7 +59,7 @@ def get_model(cfg, device=None, dataset=None, **kwargs):
 
     p0_z = get_prior_z(cfg, device)
     model = models.OccupancyWithDepthNetwork(
-        depth_predictor, decoder, encoder, encoder_latent, detach=training_detach, p0_z=p0_z, device=device
+        depth_predictor, decoder, encoder, encoder_latent, p0_z=p0_z, device=device
     )
 
     return model
@@ -109,6 +109,11 @@ def get_trainer(model, optimizer, cfg, device, **kwargs):
         else:
             loss_type = 'cross_entropy'
 
+        if 'depth_map_mix' in cfg['training']:
+            depth_map_mix = cfg['training']['depth_map_mix']
+        else:
+            depth_map_mix = False
+
         trainer = training.Phase2Trainer(
             model, optimizer,
             device=device, input_type=input_type,
@@ -118,7 +123,8 @@ def get_trainer(model, optimizer, cfg, device, **kwargs):
             surface_loss_weight=surface_loss_weight,
             loss_tolerance_episolon=loss_tolerance_episolon,
             sign_lambda=sign_lambda,
-            training_detach=training_detach
+            training_detach=training_detach,
+            depth_map_mix=depth_map_mix
         )
     return trainer
 
