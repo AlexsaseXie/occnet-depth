@@ -37,18 +37,18 @@ class CheckpointIO(object):
             outdict[k] = v.state_dict()
         torch.save(outdict, filename)
 
-    def load(self, filename):
+    def load(self, filename, strict=True, load_optimizer=True):
         '''Loads a module dictionary from local file or url.
         
         Args:
             filename (str): name of saved module dictionary
         '''
         if is_url(filename):
-            return self.load_url(filename)
+            return self.load_url(filename, strict, load_optimizer)
         else:
-            return self.load_file(filename)
+            return self.load_file(filename, strict, load_optimizer)
 
-    def load_file(self, filename):
+    def load_file(self, filename, strict=True, load_optimizer=True):
         '''Loads a module dictionary from file.
         
         Args:
@@ -61,13 +61,13 @@ class CheckpointIO(object):
         if os.path.exists(filename):
             print(filename)
             print('=> Loading checkpoint from local file...')
-            state_dict = torch.load(filename)
-            scalars = self.parse_state_dict(state_dict)
+            state_dict = torch.load(filename, map_location='cpu')
+            scalars = self.parse_state_dict(state_dict, strict, load_optimizer)
             return scalars
         else:
             raise FileExistsError
 
-    def load_url(self, url):
+    def load_url(self, url, strict=True, load_optimizer=True):
         '''Load a module dictionary from url.
         
         Args:
@@ -76,10 +76,10 @@ class CheckpointIO(object):
         print(url)
         print('=> Loading checkpoint from url...')
         state_dict = model_zoo.load_url(url, progress=True)
-        scalars = self.parse_state_dict(state_dict)
+        scalars = self.parse_state_dict(state_dict, strict, load_optimizer)
         return scalars
 
-    def parse_state_dict(self, state_dict):
+    def parse_state_dict(self, state_dict, strict=True, load_optimizer=True):
         '''Parse state_dict of model and return scalars.
         
         Args:
@@ -88,7 +88,17 @@ class CheckpointIO(object):
 
         for k, v in self.module_dict.items():
             if k in state_dict:
-                v.load_state_dict(state_dict[k])
+                if k == 'model' and strict == False :
+                    print('parsing model')
+                    # allow partial load
+                    model_dict = v.state_dict()
+                    pretrain_dict = { para_key: para_v for para_key, para_v in state_dict['model'].items() if para_key in model_dict }
+                    model_dict.update(pretrain_dict)
+                    v.load_state_dict(model_dict)
+                elif k == 'optimizer' and load_optimizer == False:
+                    pass
+                else:
+                    v.load_state_dict(state_dict[k])
             else:
                 print('Warning: Could not find %s in checkpoint!' % k)
         scalars = {k: v for k, v in state_dict.items()

@@ -23,7 +23,8 @@ parser.add_argument('--val_batch_size', type=int, default=10,
                     help='Val batch_size.')
 parser.add_argument('--learning_rate',type=float,default=1e-4,
                     help='Learning Rate.')
-
+parser.add_argument('--load_no_strict',action='store_true',default=True,help='Loading model with strict=False')
+parser.add_argument('--load_no_optimizer',action='store_true',help='Loading no optimizer')
 
 args = parser.parse_args()
 cfg = config.load_config(args.config, 'configs/default.yaml')
@@ -85,7 +86,7 @@ trainer = config.get_trainer(model, optimizer, cfg, device=device)
 
 checkpoint_io = CheckpointIO(out_dir, model=model, optimizer=optimizer)
 try:
-    load_dict = checkpoint_io.load('model.pt')
+    load_dict = checkpoint_io.load('model.pt', strict=not args.load_no_strict, load_optimizer=not args.load_no_optimizer)
 except FileExistsError:
     load_dict = dict()
 epoch_it = load_dict.get('epoch_it', -1)

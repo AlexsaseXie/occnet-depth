@@ -30,10 +30,11 @@ def get_model(cfg, device=None, dataset=None, **kwargs):
     encoder_latent_kwargs = cfg['model']['encoder_latent_kwargs']
 
     depth_predictor = depth_predict_net.DepthPredictNet(n_hourglass=1, img_dim=dim)
-    decoder = None
-    encoder = None
-    encoder_latent = None
-    if training_phase > 1:
+    if training_phase == 1:
+        decoder = None
+        encoder = None
+        encoder_latent = None
+    else:
         decoder = models.decoder_dict[decoder](
             dim=dim, z_dim=z_dim, c_dim=c_dim,
             **decoder_kwargs
