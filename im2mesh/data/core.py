@@ -13,7 +13,7 @@ class Field(object):
     ''' Data fields class.
     '''
 
-    def load(self, data_path, idx, category):
+    def load(self, data_path, idx, category, view_id=None):
         ''' Loads a data point.
 
         Args:
@@ -176,3 +176,134 @@ def worker_init_fn(worker_id):
     random_data = os.urandom(4)
     base_seed = int.from_bytes(random_data, byteorder="big")
     np.random.seed(base_seed + worker_id)
+
+
+class Shapes3dDataset_AllImgs(data.Dataset):
+    def __init__(self, dataset_folder, fields, split=None,
+                 categories=None, no_except=True, transform=None, n_views=24):
+        ''' Initialization of the the 3D shape dataset.
+
+        Args:
+            dataset_folder (str): dataset folder
+            fields (dict): dictionary of fields
+            split (str): which split is used
+            categories (list): list of categories to use
+            no_except (bool): no exception
+            transform (callable): transformation applied to data points
+        '''
+        # Attributes
+        self.dataset_folder = dataset_folder
+        self.fields = fields
+        self.no_except = no_except
+        self.transform = transform
+        self.n_views = n_views
+
+        # If categories is None, use all subfolders
+        if categories is None:
+            categories = os.listdir(dataset_folder)
+            categories = [c for c in categories
+                          if os.path.isdir(os.path.join(dataset_folder, c))]
+
+        # Read metadata file
+        metadata_file = os.path.join(dataset_folder, 'metadata.yaml')
+
+        if os.path.exists(metadata_file):
+            with open(metadata_file, 'r') as f:
+                self.metadata = yaml.load(f)
+        else:
+            self.metadata = {
+                c: {'id': c, 'name': 'n/a'} for c in categories
+            } 
+        
+        # Set index
+        for c_idx, c in enumerate(categories):
+            self.metadata[c]['idx'] = c_idx
+
+        # Get all models
+        self.models = []
+        self.models_count = []
+        for c_idx, c in enumerate(categories):
+            subpath = os.path.join(dataset_folder, c)
+            if not os.path.isdir(subpath):
+                logger.warning('Category %s does not exist in dataset.' % c)
+
+
+            if split is not None:
+                split_file = os.path.join(subpath, split + '.lst')
+                with open(split_file, 'r') as f:
+                    models_c = f.read().split('\n')
+            else:
+                models_c = os.listdir(subpath)
+            
+            self.models += [
+                {'category': c, 'model': m}
+                for m in models_c
+            ]
+            self.models_count.append(len(models_c))
+
+    def __len__(self):
+        ''' Returns the length of the dataset.
+        '''
+        return len(self.models) * self.n_views
+
+    def __getitem__(self, v_idx):
+        ''' Returns an item of the dataset.
+
+        Args:
+            idx (int): ID of data point
+        '''
+        idx = v_idx // self.n_views
+        view_id = v_idx % self.n_views
+
+        category = self.models[idx]['category']
+        model = self.models[idx]['model']
+        c_idx = self.metadata[category]['idx']
+
+        model_path = os.path.join(self.dataset_folder, category, model)
+        data = {}
+
+        for field_name, field in self.fields.items():
+            try:
+                field_data = field.load(model_path, idx, c_idx, view_id)
+            except Exception:
+                if self.no_except:
+                    logger.warn(
+                        'Error occured when loading field %s of model %s'
+                        % (field_name, model)
+                    )
+                    return None
+                else:
+                    raise
+
+            if isinstance(field_data, dict):
+                for k, v in field_data.items():
+                    if k is None:
+                        data[field_name] = v
+                    else:
+                        data['%s.%s' % (field_name, k)] = v
+            else:
+                data[field_name] = field_data
+
+        if self.transform is not None:
+            data = self.transform(data)
+
+        return data
+
+    def get_model_dict(self, idx):
+        return self.models[idx]
+
+    def test_model_complete(self, category, model):
+        ''' Tests if model is complete.
+
+        Args:
+            model (str): modelname
+        '''
+        model_path = os.path.join(self.dataset_folder, category, model)
+        files = os.listdir(model_path)
+        for field_name, field in self.fields.items():
+            if not field.check_complete(files):
+                logger.warn('Field "%s" is incomplete: %s'
+                            % (field_name, model_path))
+                return False
+
+        return True

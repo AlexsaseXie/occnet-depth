@@ -12,7 +12,7 @@ from torchvision import transforms
 
 class IndexField(Field):
     ''' Basic index field.'''
-    def load(self, model_path, idx, category):
+    def load(self, model_path, idx, category, view_id=None):
         ''' Loads the index field.
 
         Args:
@@ -30,10 +30,30 @@ class IndexField(Field):
         '''
         return True
 
+class ViewIdField(Field):
+    def load(self, model_path, idx, category, view_id=None):
+        ''' Loads the viewid field.
+
+        Args:
+            model_path (str): path to model
+            idx (int): ID of data point
+            category (int): index of category
+        '''
+        if view_id is None:
+            raise Exception('When loading ViewIdField, viewid is None!')
+        return view_id
+
+    def check_complete(self, files):
+        ''' Check if field is complete.
+        
+        Args:
+            files: files
+        '''
+        return True
 
 class CategoryField(Field):
     ''' Basic category field.'''
-    def load(self, model_path, idx, category):
+    def load(self, model_path, idx, category, view_id=None):
         ''' Loads the category field.
 
         Args:
@@ -50,7 +70,6 @@ class CategoryField(Field):
             files: files
         '''
         return True
-
 
 class ImagesField(Field):
     ''' Image Field.
@@ -72,7 +91,7 @@ class ImagesField(Field):
         self.random_view = random_view
         self.with_camera = with_camera
 
-    def load(self, model_path, idx, category):
+    def load(self, model_path, idx, category, view_id=None):
         ''' Loads the data point.
 
         Args:
@@ -82,7 +101,9 @@ class ImagesField(Field):
         '''
         folder = os.path.join(model_path, self.folder_name)
         files = glob.glob(os.path.join(folder, '*.%s' % self.extension))
-        if self.random_view:
+        if view_id is not None:
+            idx_img = view_id
+        elif self.random_view:
             idx_img = random.randint(0, len(files)-1)
         else:
             idx_img = 0
@@ -137,7 +158,7 @@ class MultiImageField(Field):
         self.with_camera = with_camera
         self.n_views = n_views
 
-    def load(self, model_path, idx, category):
+    def load(self, model_path, idx, category, view_id=None):
         ''' Loads the data point.
 
         Args:
@@ -147,6 +168,7 @@ class MultiImageField(Field):
         '''
         folder = os.path.join(model_path, self.folder_name)
         files = glob.glob(os.path.join(folder, '*.%s' % self.extension))
+        
         if self.random_view:
             choices = range(len(files) - 1)
             idx_img = random.sample(choices, self.n_views)
@@ -216,7 +238,7 @@ class PointsField(Field):
         self.with_transforms = with_transforms
         self.unpackbits = unpackbits
 
-    def load(self, model_path, idx, category):
+    def load(self, model_path, idx, category, view_id=None):
         ''' Loads the data point.
 
         Args:
@@ -254,7 +276,6 @@ class PointsField(Field):
 
         return data
 
-
 class VoxelsField(Field):
     ''' Voxel field class.
 
@@ -268,7 +289,7 @@ class VoxelsField(Field):
         self.file_name = file_name
         self.transform = transform
 
-    def load(self, model_path, idx, category):
+    def load(self, model_path, idx, category, view_id=None):
         ''' Loads the data point.
 
         Args:
@@ -296,7 +317,6 @@ class VoxelsField(Field):
         complete = (self.file_name in files)
         return complete
 
-
 class PointCloudField(Field):
     ''' Point cloud field.
 
@@ -314,7 +334,7 @@ class PointCloudField(Field):
         self.transform = transform
         self.with_transforms = with_transforms
 
-    def load(self, model_path, idx, category):
+    def load(self, model_path, idx, category, view_id=None):
         ''' Loads the data point.
 
         Args:
@@ -352,7 +372,6 @@ class PointCloudField(Field):
         complete = (self.file_name in files)
         return complete
 
-
 # NOTE: this will produce variable length output.
 # You need to specify collate_fn to make it work with a data laoder
 class MeshField(Field):
@@ -370,7 +389,7 @@ class MeshField(Field):
         self.file_name = file_name
         self.transform = transform
 
-    def load(self, model_path, idx, category):
+    def load(self, model_path, idx, category, view_id=None):
         ''' Loads the data point.
 
         Args:
@@ -400,7 +419,6 @@ class MeshField(Field):
         complete = (self.file_name in files)
         return complete
 
-
 class ImagesWithDepthField(Field):
     ''' Image With Depth Field.
 
@@ -423,7 +441,7 @@ class ImagesWithDepthField(Field):
         self.random_view = random_view
         self.with_camera = with_camera
 
-    def load(self, model_path, idx, category):
+    def load(self, model_path, idx, category, view_id=None):
         ''' Loads the data point.
 
         Args:
@@ -438,7 +456,9 @@ class ImagesWithDepthField(Field):
         mask_folder = os.path.join(model_path, self.mask_folder_name)
         mask_files = sorted(glob.glob(os.path.join(mask_folder, '*.%s' % self.extension)))
 
-        if self.random_view:
+        if view_id is not None:
+            idx_img = view_id
+        elif self.random_view:
             idx_img = random.randint(0, len(img_files)-1)
         else:
             idx_img = 0

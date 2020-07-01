@@ -1,9 +1,9 @@
 
 from im2mesh.data.core import (
-    Shapes3dDataset, collate_remove_none, worker_init_fn
+    Shapes3dDataset, collate_remove_none, worker_init_fn, Shapes3dDataset_AllImgs
 )
 from im2mesh.data.fields import (
-    IndexField, CategoryField, ImagesField, PointsField,
+    IndexField, ViewIdField, CategoryField, ImagesField, PointsField,
     VoxelsField, PointCloudField, MeshField, ImagesWithDepthField
 )
 from im2mesh.data.transforms import (
@@ -21,8 +21,10 @@ __all__ = [
     Shapes3dDataset,
     collate_remove_none,
     worker_init_fn,
+    Shapes3dDataset_AllImgs,
     # Fields
     IndexField,
+    ViewIdField,
     CategoryField,
     ImagesField,
     PointsField,
