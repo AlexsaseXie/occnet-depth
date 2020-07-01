@@ -275,7 +275,7 @@ class Phase2Trainer(BaseTrainer):
         for i in trange(batch_size):
             input_img_path = os.path.join(self.vis_dir, '%03d_in.png' % i)
             vis.visualize_data(
-                inputs[i].cpu(), self.input_type, input_img_path)
+                inputs[i].cpu(), 'img', input_img_path)
             vis.visualize_voxels(
                 voxels_out[i], os.path.join(self.vis_dir, '%03d.png' % i))
 

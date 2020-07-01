@@ -27,6 +27,7 @@ class Depth_Resnet18(nn.Module):
             raise ValueError('c_dim must be 512 if use_linear is False')
 
         if model_pretrained is not None:
+            print('Loading depth encoder from ', model_pretrained)
             state_dict = torch.load(model_pretrained, map_location='cpu')
             self.load_state_dict(state_dict)
 

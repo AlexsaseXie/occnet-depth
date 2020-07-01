@@ -23,10 +23,11 @@ cfg = config.load_config(args.config, 'configs/default.yaml')
 is_cuda = (torch.cuda.is_available() and not args.no_cuda)
 device = torch.device("cuda" if is_cuda else "cpu")
 
-out_dir = cfg['data']['path']
+out_dir = 'data/ShapeNet.pred_depth'
 pred_path = 'depth_pred'
 dataset_folder = cfg['data']['path']
-batch_size = cfg['training']['batch_size']
+#batch_size = cfg['training']['batch_size']
+batch_size = 64
 print('input_type:', cfg['data']['input_type'])
 
 if not os.path.exists(out_dir):
@@ -51,9 +52,9 @@ train_loader = torch.utils.data.DataLoader(
 # Model
 model = config.get_model(cfg, device=device, dataset=train_dataset)
 
-checkpoint_io = CheckpointIO(out_dir, model=model)
+checkpoint_io = CheckpointIO(cfg['training']['out_dir'], model=model)
 try:
-    load_dict = checkpoint_io.load('model.pt', strict=True)
+    load_dict = checkpoint_io.load('model_best.pt', strict=True)
 except FileExistsError:
     load_dict = dict()
 
@@ -61,6 +62,8 @@ it = 0
 batch_count = len(train_loader)
 t0 = time.time()
 
+from tqdm import tqdm
+pbar = tqdm(total=batch_count)
 for batch in train_loader:
     it += 1
     model.eval()
@@ -71,7 +74,6 @@ for batch in train_loader:
 
     idxs = batch.get('idx')
     viewids = batch.get('viewid')
-    model_info = train_dataset.get_model_dict(idxs)
 
     with torch.no_grad():
         out_depth_maps = model.predict_depth_map(inputs)
@@ -85,7 +87,7 @@ for batch in train_loader:
         cur_depth_map[1. - cur_mask] = depth_max
         cur_depth_map = (cur_depth_map - depth_min) / (depth_max - depth_min)
 
-        cur_model_info = model_info[i] # category & model
+        cur_model_info = train_dataset.get_model_dict(idxs[i]) # category & model
         cur_viewid = viewids[i]
 
         if not os.path.exists(os.path.join(out_dir, cur_model_info['category'])):
@@ -98,13 +100,14 @@ for batch in train_loader:
             os.mkdir(os.path.join(out_dir, cur_model_info['category'], cur_model_info['model'], pred_path))
         
         # save png
-        png_path = os.path.join(out_dir, cur_model_info['category'], cur_model_info['model'], pred_path, '%.2d_pred_depth.png' % cur_viewid)
+        png_path = os.path.join(out_dir, cur_model_info['category'], cur_model_info['model'], pred_path, '%.2d_depth.png' % cur_viewid)
         visualize_data(cur_depth_map, 'img', png_path)
         # record range
-        with open(os.path.join(out_dir, cur_model_info['category'], cur_model_info['model'], pred_path, 'pred_depth_range.txt'), mode='a') as f:
-            print(depth_min, depth_max, 1.0, file=f)
+        with open(os.path.join(out_dir, cur_model_info['category'], cur_model_info['model'], pred_path, 'depth_range.txt'), mode='a') as f:
+            print(depth_min.item(), depth_max.item(), 1.0, file=f)
 
     
     t1 = time.time()
-    print("\r finished: %d / %d in %d sec" % (it, batch_count, t1 - t0), flush=True)
-    
+    pbar.update(1)
+    #print("\r finished: %d / %d in %d sec" % (it, batch_count, t1 - t0), flush=True)
+pbar.close()    

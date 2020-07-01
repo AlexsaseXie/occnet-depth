@@ -24,7 +24,7 @@ parser.add_argument('--val_batch_size', type=int, default=10,
 parser.add_argument('--learning_rate',type=float,default=1e-4,
                     help='Learning Rate.')
 parser.add_argument('--load_no_strict',action='store_true',default=True,help='Loading model with strict=False')
-parser.add_argument('--load_no_optimizer',action='store_true',help='Loading no optimizer')
+parser.add_argument('--restart',action='store_true',help='Starting training from epoch 0')
 
 args = parser.parse_args()
 cfg = config.load_config(args.config, 'configs/default.yaml')
@@ -86,12 +86,18 @@ trainer = config.get_trainer(model, optimizer, cfg, device=device)
 
 checkpoint_io = CheckpointIO(out_dir, model=model, optimizer=optimizer)
 try:
-    load_dict = checkpoint_io.load('model.pt', strict=not args.load_no_strict, load_optimizer=not args.load_no_optimizer)
+    load_dict = checkpoint_io.load('model.pt', strict=not args.load_no_strict, load_optimizer=not args.restart)
 except FileExistsError:
     load_dict = dict()
-epoch_it = load_dict.get('epoch_it', -1)
-it = load_dict.get('it', -1)
-metric_val_best = load_dict.get(
+
+if args.restart:
+    epoch_it = -1
+    it = -1
+    metric_val_best = -model_selection_sign * np.inf
+else:
+    epoch_it = load_dict.get('epoch_it', -1)
+    it = load_dict.get('it', -1)
+    metric_val_best = load_dict.get(
     'loss_val_best', -model_selection_sign * np.inf)
 
 # Hack because of previous bug in code
