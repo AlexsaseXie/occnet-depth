@@ -4,7 +4,7 @@ from im2mesh.data.core import (
 )
 from im2mesh.data.fields import (
     IndexField, ViewIdField, CategoryField, ImagesField, PointsField,
-    VoxelsField, PointCloudField, MeshField, ImagesWithDepthField
+    VoxelsField, PointCloudField, MeshField, ImagesWithDepthField, DepthPredictedField
 )
 from im2mesh.data.transforms import (
     PointcloudNoise, SubsamplePointcloud,
@@ -31,6 +31,8 @@ __all__ = [
     VoxelsField,
     PointCloudField,
     MeshField,
+    ImagesWithDepthField,
+    DepthPredictedField,
     # Transforms
     PointcloudNoise,
     SubsamplePointcloud,

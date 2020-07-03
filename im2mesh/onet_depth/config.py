@@ -81,7 +81,6 @@ def get_trainer(model, optimizer, cfg, device, **kwargs):
     input_type = cfg['data']['input_type']
     
     training_phase = cfg['training']['phase'] # 1 for depth prediction; 2 for reconstruction
-    training_detach = cfg['training']['detach'] # detach or not
 
     if training_phase == 1:
         trainer = training.Phase1Trainer(
@@ -89,7 +88,7 @@ def get_trainer(model, optimizer, cfg, device, **kwargs):
             device=device, input_type=input_type,
             vis_dir=vis_dir
         )
-    else :
+    else:
         if 'surface_loss_weight' in cfg['model']:
             surface_loss_weight = cfg['model']['surface_loss_weight']
         else:
@@ -115,18 +114,36 @@ def get_trainer(model, optimizer, cfg, device, **kwargs):
         else:
             depth_map_mix = False
 
-        trainer = training.Phase2Trainer(
-            model, optimizer,
-            device=device, input_type=input_type,
-            vis_dir=vis_dir, threshold=threshold,
-            eval_sample=cfg['training']['eval_sample'],
-            loss_type=loss_type,
-            surface_loss_weight=surface_loss_weight,
-            loss_tolerance_episolon=loss_tolerance_episolon,
-            sign_lambda=sign_lambda,
-            training_detach=training_detach,
-            depth_map_mix=depth_map_mix
-        )
+        if input_type == 'img_with_depth':
+            training_detach = cfg['training']['detach'] # detach or not
+            trainer = training.Phase2Trainer(
+                model, optimizer,
+                device=device, input_type=input_type,
+                vis_dir=vis_dir, threshold=threshold,
+                eval_sample=cfg['training']['eval_sample'],
+                loss_type=loss_type,
+                surface_loss_weight=surface_loss_weight,
+                loss_tolerance_episolon=loss_tolerance_episolon,
+                sign_lambda=sign_lambda,
+                training_detach=training_detach,
+                depth_map_mix=depth_map_mix
+            )
+        elif input_type == 'depth_pred':
+            training_use_gt_depth = cfg['training']['use_gt_depth']
+            trainer = training.Phase2HalfwayTrainer(
+                model, optimizer,
+                device=device, input_type=input_type,
+                vis_dir=vis_dir, threshold=threshold,
+                eval_sample=cfg['training']['eval_sample'],
+                loss_type=loss_type,
+                surface_loss_weight=surface_loss_weight,
+                loss_tolerance_episolon=loss_tolerance_episolon,
+                sign_lambda=sign_lambda,
+                use_gt_depth_map=training_use_gt_depth,
+                depth_map_mix=depth_map_mix
+            )
+        else:
+            raise NotImplementedError('unsupported input_type for phase2,(only support img_with_depth & depth_pred)')
     return trainer
 
 

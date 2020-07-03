@@ -422,7 +422,7 @@ class MeshField(Field):
 class ImagesWithDepthField(Field):
     ''' Image With Depth Field.
 
-    It is the field used for loading images.
+    It is the field used for loading images and depth.
 
     Args:
         folder_name (str): folder name
@@ -441,6 +441,47 @@ class ImagesWithDepthField(Field):
         self.random_view = random_view
         self.with_camera = with_camera
 
+    def get_depth_image(self, depth_folder, idx_img):
+        depth_files = sorted(glob.glob(os.path.join(depth_folder, '*.%s' % self.extension)))
+
+        depth_range_file = os.path.join(depth_folder, 'depth_range.txt')
+        with open(depth_range_file,'r') as f:
+            txt = f.readlines()
+            depth_range = txt[idx_img].split(' ')
+        depth_min = float(depth_range[0])
+        depth_max = float(depth_range[1])
+        depth_unit = float(depth_range[2])
+
+        depth_filename = depth_files[idx_img]
+
+        depth_image = Image.open(depth_filename).convert('L')
+        if self.transform is not None:
+            depth_image = self.transform(depth_image)
+
+        depth_image = depth_image * (depth_max - depth_min) + depth_min
+        depth_image = depth_image / depth_unit
+        return depth_image
+
+    def get_mask(self, mask_folder, idx_img):
+        mask_files = sorted(glob.glob(os.path.join(mask_folder, '*.%s' % self.extension)))
+        mask_filename = mask_files[idx_img]
+
+        depth_mask = Image.open(mask_filename).convert('1')
+        if self.transform is not None:
+            depth_mask = self.transform(depth_mask)
+
+        return depth_mask
+
+    def get_image(self, img_folder, idx_img):
+        img_files = sorted(glob.glob(os.path.join(img_folder, '*.%s' % self.extension)))
+        img_filename = img_files[idx_img]
+
+        image = Image.open(img_filename).convert('RGB')
+        if self.transform is not None:
+            image = self.transform(image)
+        
+        return image
+
     def load(self, model_path, idx, category, view_id=None):
         ''' Loads the data point.
 
@@ -452,9 +493,7 @@ class ImagesWithDepthField(Field):
         img_folder = os.path.join(model_path, self.img_folder_name)
         img_files = sorted(glob.glob(os.path.join(img_folder, '*.%s' % self.extension)))
         depth_folder = os.path.join(model_path, self.depth_folder_name)
-        depth_files = sorted(glob.glob(os.path.join(depth_folder, '*.%s' % self.extension)))
         mask_folder = os.path.join(model_path, self.mask_folder_name)
-        mask_files = sorted(glob.glob(os.path.join(mask_folder, '*.%s' % self.extension)))
 
         if view_id is not None:
             idx_img = view_id
@@ -462,6 +501,66 @@ class ImagesWithDepthField(Field):
             idx_img = random.randint(0, len(img_files)-1)
         else:
             idx_img = 0
+
+        image = self.get_image(img_folder, idx_img)
+        depth_image = self.get_depth_image(depth_folder, idx_img)
+        depth_mask = self.get_mask(mask_folder, idx_img)
+
+        data = {
+            None: image,
+            'depth': depth_image,
+            'mask': depth_mask
+        }
+
+        if self.with_camera:
+            camera_file = os.path.join(img_folder, 'cameras.npz')
+            camera_dict = np.load(camera_file)
+            Rt = camera_dict['world_mat_%d' % idx_img].astype(np.float32)
+            K = camera_dict['camera_mat_%d' % idx_img].astype(np.float32)
+            data['world_mat'] = Rt
+            data['camera_mat'] = K
+
+        return data
+
+    def check_complete(self, files):
+        ''' Check if field is complete.
+        
+        Args:
+            files: files
+        '''
+        complete = (self.img_folder_name in files) & (self.depth_folder_name in files)
+        # TODO: check camera
+        return complete
+
+class DepthPredictedField(Field):
+    ''' Depth Field.
+
+    It is the field used for loading depth maps.
+
+    Args:
+        folder_name (str): folder name
+        transform (list): list of transformations applied to loaded images
+        extension (str): image extension
+        random_view (bool): whether a random view should be used
+        with_camera (bool): whether camera data should be provided
+    '''
+    def __init__(self, img_folder_name='img', depth_folder_name='depth', mask_folder_name='mask', 
+                  depth_pred_root=None, depth_pred_folder_name='depth_pred',
+                  transform=None,extension='png', random_view=True, with_camera=False):
+        self.img_folder_name = img_folder_name
+        self.depth_folder_name = depth_folder_name
+        self.mask_folder_name = mask_folder_name
+
+        self.depth_pred_root = depth_pred_root
+        self.depth_pred_folder_name = depth_pred_folder_name
+
+        self.transform = transform
+        self.extension = extension
+        self.random_view = random_view
+        self.with_camera = with_camera
+
+    def get_depth_image(self, depth_folder, idx_img):
+        depth_files = sorted(glob.glob(os.path.join(depth_folder, '*.%s' % self.extension)))
 
         depth_range_file = os.path.join(depth_folder, 'depth_range.txt')
         with open(depth_range_file,'r') as f:
@@ -471,26 +570,60 @@ class ImagesWithDepthField(Field):
         depth_max = float(depth_range[1])
         depth_unit = float(depth_range[2])
 
-        img_filename = img_files[idx_img]
         depth_filename = depth_files[idx_img]
-        mask_filename = mask_files[idx_img]
 
-        image = Image.open(img_filename).convert('RGB')
         depth_image = Image.open(depth_filename).convert('L')
-        #depth_mask = depth_image.point(lambda i: i < 255, '1')
-        depth_mask = Image.open(mask_filename).convert('1')
         if self.transform is not None:
-            image = self.transform(image)
             depth_image = self.transform(depth_image)
-            depth_mask = self.transform(depth_mask)
-        #recover depth from png & normalize
+
         depth_image = depth_image * (depth_max - depth_min) + depth_min
         depth_image = depth_image / depth_unit
+        return depth_image
 
+    def get_mask(self, mask_folder, idx_img):
+        mask_files = sorted(glob.glob(os.path.join(mask_folder, '*.%s' % self.extension)))
+        mask_filename = mask_files[idx_img]
+
+        depth_mask = Image.open(mask_filename).convert('1')
+        if self.transform is not None:
+            depth_mask = self.transform(depth_mask)
+
+        return depth_mask
+
+    def load(self, model_path, idx, category, view_id=None):
+        ''' Loads the data point.
+
+        Args:
+            model_path (str): path to model
+            idx (int): ID of data point
+            category (int): index of category
+        '''
+        img_folder = os.path.join(model_path, self.img_folder_name)
+        depth_folder = os.path.join(model_path, self.depth_folder_name)
+        mask_folder = os.path.join(model_path, self.mask_folder_name)
+        img_files = sorted(glob.glob(os.path.join(img_folder, '*.%s' % self.extension)))
+
+        if view_id is not None:
+            idx_img = view_id
+        elif self.random_view:
+            idx_img = random.randint(0, len(img_files)-1)
+        else:
+            idx_img = 0
+
+        depth_image = self.get_depth_image(depth_folder, idx_img)
+        depth_mask = self.get_mask(mask_folder, idx_img)
+
+        # self.depth_pred_root is not None:
+        paths = model_path.split('/')
+        depth_pred_folder = os.path.join(self.depth_pred_root, 
+            paths[-2], paths[-1], 
+            self.depth_pred_folder_name)
+        depth_pred_image = self.get_depth_image(depth_pred_folder, idx_img)
+            
         data = {
-            None: image,
             'depth': depth_image,
-            'mask': depth_mask
+            'mask': depth_mask,
+            'depth_pred': depth_pred_image
         }
 
         if self.with_camera:

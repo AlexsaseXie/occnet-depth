@@ -231,6 +231,24 @@ def get_inputs_field(mode, cfg):
             'img', 'depth', 'mask', transform,
             with_camera=with_camera, random_view=random_view
         )
+    elif input_type == 'depth_pred':
+        # data augment not supported
+        transform = transforms.Compose([
+            transforms.Resize((cfg['data']['img_size'])), transforms.ToTensor(),
+        ])
+        
+        with_camera = cfg['data']['img_with_camera']
+
+        if mode == 'train':
+            random_view = True
+        else:
+            random_view = False
+
+        inputs_field = data.DepthPredictedField(
+            'img', 'depth', 'mask',
+            cfg['data']['depth_pred_root'], 'depth_pred', transform,
+            with_camera=with_camera, random_view=random_view
+        )
     elif input_type == 'multi_img':
         if mode == 'train' and cfg['data']['img_augment']:
             resize_op = transforms.RandomResizedCrop(

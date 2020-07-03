@@ -17,6 +17,11 @@ decoder_dict = {
     'cbatchnorm_noresnet': decoder.DecoderCBatchNormNoResnet,
 }
 
+
+def background_setting(depth_maps, gt_masks, v=0.):
+    #inplace function
+    depth_maps[1. - gt_masks] = v
+
 class OccupancyWithDepthNetwork(nn.Module):
     ''' OccupancyWithDepth Network class.
 
@@ -72,7 +77,14 @@ class OccupancyWithDepthNetwork(nn.Module):
         '''
         batch_size = p.size(0)
         depth_map = self.predict_depth_map(inputs)
-        depth_map[1. - gt_mask] = 0.        
+        background_setting(depth_map, gt_mask)       
+        c = self.encode_depth_map(depth_map)
+        z = self.get_z_from_prior((batch_size,), sample=sample)
+        p_r = self.decode(p, z, c, **kwargs)
+        return p_r
+
+    def forward_halfway(self, p, depth_map, sample=True, **kwargs):
+        batch_size = p.size(0)   
         c = self.encode_depth_map(depth_map)
         z = self.get_z_from_prior((batch_size,), sample=sample)
         p_r = self.decode(p, z, c, **kwargs)
@@ -87,7 +99,19 @@ class OccupancyWithDepthNetwork(nn.Module):
             inputs (tensor): conditioning input
         '''
         depth_map = self.predict_depth_map(inputs)
-        depth_map[1. - gt_mask] = 0.
+        background_setting(depth_map, gt_mask)
+        c = self.encode_depth_map(depth_map)
+        q_z = self.infer_z(p, occ, c, **kwargs)
+        z = q_z.rsample()
+        p_r = self.decode(p, z, c, **kwargs)
+
+        rec_error = -p_r.log_prob(occ).sum(dim=-1)
+        kl = dist.kl_divergence(q_z, self.p0_z).sum(dim=-1)
+        elbo = -rec_error - kl
+
+        return elbo, rec_error, kl
+
+    def compute_elbo_halfway(self, p, occ, depth_map, **kwargs):
         c = self.encode_depth_map(depth_map)
         q_z = self.infer_z(p, occ, c, **kwargs)
         z = q_z.rsample()
