@@ -23,11 +23,13 @@ cfg = config.load_config(args.config, 'configs/default.yaml')
 is_cuda = (torch.cuda.is_available() and not args.no_cuda)
 device = torch.device("cuda" if is_cuda else "cpu")
 
-out_dir = 'data/ShapeNet.pred_depth'
+#out_dir = cfg['data']['path']
+out_dir = 'data/ShapeNet.depth_pred'
+print('out_dir:',out_dir)
 pred_path = 'depth_pred'
 dataset_folder = cfg['data']['path']
 #batch_size = cfg['training']['batch_size']
-batch_size = 64
+batch_size = 60
 print('input_type:', cfg['data']['input_type'])
 
 if not os.path.exists(out_dir):
@@ -103,7 +105,12 @@ for batch in train_loader:
         png_path = os.path.join(out_dir, cur_model_info['category'], cur_model_info['model'], pred_path, '%.2d_depth.png' % cur_viewid)
         visualize_data(cur_depth_map, 'img', png_path)
         # record range
-        with open(os.path.join(out_dir, cur_model_info['category'], cur_model_info['model'], pred_path, 'depth_range.txt'), mode='a') as f:
+        depth_range_path = os.path.join(out_dir, cur_model_info['category'], cur_model_info['model'], pred_path, 'depth_range.txt')
+        
+        if cur_viewid == 0:
+            if os.path.exists(depth_range_path):
+                os.remove(depth_range_path)
+        with open(depth_range_path, mode='a') as f:
             print(depth_min.item(), depth_max.item(), 1.0, file=f)
 
     

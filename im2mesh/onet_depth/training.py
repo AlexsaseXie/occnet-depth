@@ -440,7 +440,7 @@ class Phase2HalfwayTrainer(BaseTrainer):
             background_setting(gt_depth_maps, gt_mask)
             input_depth_maps = gt_depth_maps
         else:
-            pr_depth_maps = data.get('inputs.detph_pred').to(device)
+            pr_depth_maps = data.get('inputs.depth_pred').to(device)
             background_setting(pr_depth_maps, gt_mask)
             input_depth_maps = pr_depth_maps
 

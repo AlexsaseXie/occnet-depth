@@ -203,10 +203,17 @@ def get_data_fields(mode, cfg):
     if training_phase == 1:
         pass
     else:
+        if 'input_range' in cfg['data']:
+            input_range = cfg['data']['input_range']
+            print('Input range:', input_range)
+        else:
+            input_range = None
+
         fields['points'] = data.PointsField(
             cfg['data']['points_file'], points_transform,
             with_transforms=with_transforms,
             unpackbits=cfg['data']['points_unpackbits'],
+            input_range=input_range,
         )
 
         if mode in ('val', 'test'):
@@ -217,6 +224,7 @@ def get_data_fields(mode, cfg):
                     points_iou_file,
                     with_transforms=with_transforms,
                     unpackbits=cfg['data']['points_unpackbits'],
+                    input_range=input_range
                 )
             if voxels_file is not None:
                 fields['voxels'] = data.VoxelsField(voxels_file)

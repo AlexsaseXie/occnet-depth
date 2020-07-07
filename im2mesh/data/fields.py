@@ -232,11 +232,12 @@ class PointsField(Field):
             provided
 
     '''
-    def __init__(self, file_name, transform=None, with_transforms=False, unpackbits=False):
+    def __init__(self, file_name, transform=None, with_transforms=False, unpackbits=False, input_range=None):
         self.file_name = file_name
         self.transform = transform
         self.with_transforms = with_transforms
         self.unpackbits = unpackbits
+        self.input_range = input_range
 
     def load(self, model_path, idx, category, view_id=None):
         ''' Loads the data point.
@@ -258,9 +259,14 @@ class PointsField(Field):
             points = points.astype(np.float32)
 
         occupancies = points_dict['occupancies']
+
         if self.unpackbits:
             occupancies = np.unpackbits(occupancies)[:points.shape[0]]
         occupancies = occupancies.astype(np.float32)
+
+        if self.input_range is not None:
+            points = points[self.input_range[0]: self.input_range[1]]
+            occupancies = occupancies[self.input_range[0]: self.input_range[1]]
 
         data = {
             None: points,

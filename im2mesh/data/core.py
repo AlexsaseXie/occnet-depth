@@ -234,7 +234,8 @@ class Shapes3dDataset_AllImgs(data.Dataset):
                     models_c = f.read().split('\n')
             else:
                 models_c = os.listdir(subpath)
-            
+                models_c = list(filter(lambda x: not x.endswith('.lst'), models_c))
+    
             self.models += [
                 {'category': c, 'model': m}
                 for m in models_c
@@ -265,12 +266,13 @@ class Shapes3dDataset_AllImgs(data.Dataset):
         for field_name, field in self.fields.items():
             try:
                 field_data = field.load(model_path, idx, c_idx, view_id)
-            except Exception:
+            except Exception as e:
                 if self.no_except:
                     logger.warn(
                         'Error occured when loading field %s of model %s'
                         % (field_name, model)
                     )
+                    print('Exception:', e)
                     return None
                 else:
                     raise
