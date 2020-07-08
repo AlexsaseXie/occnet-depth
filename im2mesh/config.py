@@ -210,10 +210,18 @@ def get_inputs_field(mode, cfg):
         else:
             random_view = False
 
-        inputs_field = data.ImagesField(
-            cfg['data']['img_folder'], transform,
-            with_camera=with_camera, random_view=random_view
-        )
+        if 'img_extension' in cfg['data']:
+            inputs_field = data.DepthPredictedField(
+                'img', 'depth', 'mask', 
+                cfg['data']['depth_pred_root'], 'depth_pred', transform, extension=cfg['data']['img_extension'],
+                with_camera=with_camera, random_view=random_view
+            )
+        else:
+            inputs_field = data.DepthPredictedField(
+                'img', 'depth', 'mask', 
+                cfg['data']['depth_pred_root'], 'depth_pred', transform,
+                with_camera=with_camera, random_view=random_view
+            )
     elif input_type == 'img_with_depth':
         # data augment not supported
         transform = transforms.Compose([
@@ -227,10 +235,18 @@ def get_inputs_field(mode, cfg):
         else:
             random_view = False
 
-        inputs_field = data.ImagesWithDepthField(
-            'img', 'depth', 'mask', transform,
-            with_camera=with_camera, random_view=random_view
-        )
+        if 'img_extension' in cfg['data']:
+            inputs_field = data.DepthPredictedField(
+                'img', 'depth', 'mask', 
+                cfg['data']['depth_pred_root'], 'depth_pred', transform, extension=cfg['data']['img_extension'],
+                with_camera=with_camera, random_view=random_view
+            )
+        else:
+            inputs_field = data.DepthPredictedField(
+                'img', 'depth', 'mask', 
+                cfg['data']['depth_pred_root'], 'depth_pred', transform,
+                with_camera=with_camera, random_view=random_view
+            )
     elif input_type == 'depth_pred':
         # data augment not supported
         transform = transforms.Compose([
@@ -244,11 +260,18 @@ def get_inputs_field(mode, cfg):
         else:
             random_view = False
 
-        inputs_field = data.DepthPredictedField(
-            'img', 'depth', 'mask',
-            cfg['data']['depth_pred_root'], 'depth_pred', transform,
-            with_camera=with_camera, random_view=random_view
-        )
+        if 'img_extension' in cfg['data']:
+            inputs_field = data.DepthPredictedField(
+                'img', 'depth', 'mask', 
+                cfg['data']['depth_pred_root'], 'depth_pred', transform, extension=cfg['data']['img_extension'],
+                with_camera=with_camera, random_view=random_view
+            )
+        else:
+            inputs_field = data.DepthPredictedField(
+                'img', 'depth', 'mask', 
+                cfg['data']['depth_pred_root'], 'depth_pred', transform,
+                with_camera=with_camera, random_view=random_view
+            )
     elif input_type == 'multi_img':
         if mode == 'train' and cfg['data']['img_augment']:
             resize_op = transforms.RandomResizedCrop(
