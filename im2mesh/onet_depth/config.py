@@ -156,6 +156,11 @@ def get_generator(model, cfg, device, **kwargs):
         device (device): pytorch device
     '''
     preprocessor = config.get_preprocessor(cfg, device=device)
+    halfway = cfg['data']['input_type'] == 'depth_pred'
+    if halfway:
+        training_use_gt_depth = cfg['training']['use_gt_depth']
+    else:
+        training_use_gt_depth = False
 
     generator = generation.Generator3D(
         model,
@@ -167,6 +172,8 @@ def get_generator(model, cfg, device, **kwargs):
         refinement_step=cfg['generation']['refinement_step'],
         simplify_nfaces=cfg['generation']['simplify_nfaces'],
         preprocessor=preprocessor,
+        halfway=halfway,
+        use_gt_depth=training_use_gt_depth
     )
     return generator
 

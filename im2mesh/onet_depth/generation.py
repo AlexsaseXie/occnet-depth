@@ -8,6 +8,7 @@ from im2mesh.utils import libmcubes
 from im2mesh.common import make_3d_grid
 from im2mesh.utils.libsimplify import simplify_mesh
 from im2mesh.utils.libmise import MISE
+from im2mesh.onet_depth.models import background_setting
 import time
 
 
@@ -36,7 +37,9 @@ class Generator3D(object):
                  resolution0=16, upsampling_steps=3,
                  with_normals=False, padding=0.1, sample=False,
                  simplify_nfaces=None,
-                 preprocessor=None):
+                 preprocessor=None,
+                 halfway=True,
+                 use_gt_depth=False):
         self.model = model.to(device)
         self.points_batch_size = points_batch_size
         self.refinement_step = refinement_step
@@ -50,6 +53,9 @@ class Generator3D(object):
         self.simplify_nfaces = simplify_nfaces
         self.preprocessor = preprocessor
 
+        self.halfway = halfway
+        self.use_gt_depth = use_gt_depth
+
     def generate_mesh(self, data, return_stats=True):
         ''' Generates the output mesh.
 
@@ -61,21 +67,34 @@ class Generator3D(object):
         device = self.device
         stats_dict = {}
 
-        inputs = data.get('inputs', torch.empty(1, 0)).to(device)
-        kwargs = {}
+        gt_mask = data.get('inputs.mask').to(device)
+        if self.halfway:
+            if self.use_gt_depth:
+                depth = data.get('inputs.depth').to(device)
+            else:
+                depth = data.get('inputs.depth_pred').to(device)
+        else:
+            # Preprocess if requires
+            inputs = data.get('inputs').to(device)
+            if self.preprocessor is not None:
+                t0 = time.time()
+                with torch.no_grad():
+                    inputs = self.preprocessor(inputs)
+                stats_dict['time (preprocess)'] = time.time() - t0
 
-        # Preprocess if requires
-        if self.preprocessor is not None:
             t0 = time.time()
             with torch.no_grad():
-                inputs = self.preprocessor(inputs)
-            stats_dict['time (preprocess)'] = time.time() - t0
+                depth = self.model.predict_depth_map(inputs)
+            stats_dict['time (predict depth map)'] = time.time() - t0
 
+        background_setting(depth, gt_mask)
+
+        kwargs = {}
         # Encode inputs
         t0 = time.time()
         with torch.no_grad():
-            c = self.model.encode_inputs(inputs)
-        stats_dict['time (encode inputs)'] = time.time() - t0
+            c = self.model.encode_depth_map(inputs)
+        stats_dict['time (encode depth_map)'] = time.time() - t0
 
         z = self.model.get_z_from_prior((1,), sample=self.sample).to(device)
         mesh = self.generate_from_latent(z, c, stats_dict=stats_dict, **kwargs)
