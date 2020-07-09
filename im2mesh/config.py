@@ -211,15 +211,14 @@ def get_inputs_field(mode, cfg):
             random_view = False
 
         if 'img_extension' in cfg['data']:
-            inputs_field = data.DepthPredictedField(
-                'img', 'depth', 'mask', 
-                cfg['data']['depth_pred_root'], 'depth_pred', transform, extension=cfg['data']['img_extension'],
+            inputs_field = data.ImagesField(
+                cfg['data']['img_folder'], transform, 
+                extension=cfg['data']['img_extension'],
                 with_camera=with_camera, random_view=random_view
             )
         else:
-            inputs_field = data.DepthPredictedField(
-                'img', 'depth', 'mask', 
-                cfg['data']['depth_pred_root'], 'depth_pred', transform,
+            inputs_field = data.ImagesField(
+                cfg['data']['img_folder'], transform,
                 with_camera=with_camera, random_view=random_view
             )
     elif input_type == 'img_with_depth':
@@ -236,15 +235,15 @@ def get_inputs_field(mode, cfg):
             random_view = False
 
         if 'img_extension' in cfg['data']:
-            inputs_field = data.DepthPredictedField(
+            inputs_field = data.ImagesWithDepthField(
                 'img', 'depth', 'mask', 
-                cfg['data']['depth_pred_root'], 'depth_pred', transform, extension=cfg['data']['img_extension'],
+                transform, extension=cfg['data']['img_extension'],
                 with_camera=with_camera, random_view=random_view
             )
         else:
-            inputs_field = data.DepthPredictedField(
+            inputs_field = data.ImagesWithDepthField(
                 'img', 'depth', 'mask', 
-                cfg['data']['depth_pred_root'], 'depth_pred', transform,
+                transform,
                 with_camera=with_camera, random_view=random_view
             )
     elif input_type == 'depth_pred':
