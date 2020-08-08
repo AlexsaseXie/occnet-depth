@@ -438,7 +438,7 @@ class ImagesWithDepthField(Field):
         with_camera (bool): whether camera data should be provided
     '''
     def __init__(self, img_folder_name='img', depth_folder_name='depth', mask_folder_name='mask', transform=None,
-                 extension='png', random_view=True, with_camera=False):
+                 extension='png', random_view=True, with_camera=False, absolute_depth=True):
         self.img_folder_name = img_folder_name
         self.depth_folder_name = depth_folder_name
         self.mask_folder_name = mask_folder_name
@@ -446,6 +446,7 @@ class ImagesWithDepthField(Field):
         self.extension = extension
         self.random_view = random_view
         self.with_camera = with_camera
+        self.absolute_depth = absolute_depth
 
     def get_depth_image(self, depth_folder, idx_img):
         depth_files = sorted(glob.glob(os.path.join(depth_folder, '*.%s' % self.extension)))
@@ -464,9 +465,9 @@ class ImagesWithDepthField(Field):
         if self.transform is not None:
             depth_image = self.transform(depth_image)
 
-        depth_image = depth_image * (depth_max - depth_min) + depth_min
-        depth_image = depth_image / depth_unit
-        return depth_image
+        #depth_image = depth_image * (depth_max - depth_min) + depth_min
+        #depth_image = depth_image / depth_unit
+        return depth_image, depth_min / depth_unit, depth_max / depth_unit
 
     def get_mask(self, mask_folder, idx_img):
         mask_files = sorted(glob.glob(os.path.join(mask_folder, '*.%s' % self.extension)))
@@ -509,7 +510,10 @@ class ImagesWithDepthField(Field):
             idx_img = 0
 
         image = self.get_image(img_folder, idx_img)
-        depth_image = self.get_depth_image(depth_folder, idx_img)
+        depth_image, depth_min, depth_max = self.get_depth_image(depth_folder, idx_img)
+        if self.absolute_depth:
+            depth_image = depth_image * (depth_max - depth_min) + depth_min
+
         depth_mask = self.get_mask(mask_folder, idx_img)
 
         data = {
@@ -517,6 +521,10 @@ class ImagesWithDepthField(Field):
             'depth': depth_image,
             'mask': depth_mask
         }
+
+        if not self.absolute_depth:
+            data['depth_min'] = depth_min
+            data['depth_max'] = depth_max
 
         if self.with_camera:
             camera_file = os.path.join(img_folder, 'cameras.npz')
@@ -552,7 +560,8 @@ class DepthPredictedField(Field):
     '''
     def __init__(self, img_folder_name='img', depth_folder_name='depth', mask_folder_name='mask', 
                   depth_pred_root=None, depth_pred_folder_name='depth_pred',
-                  transform=None,extension='png', random_view=True, with_camera=False):
+                  transform=None,extension='png', random_view=True, with_camera=False,
+                  absolute_depth=True):
         self.img_folder_name = img_folder_name
         self.depth_folder_name = depth_folder_name
         self.mask_folder_name = mask_folder_name
@@ -564,6 +573,7 @@ class DepthPredictedField(Field):
         self.extension = extension
         self.random_view = random_view
         self.with_camera = with_camera
+        self.absolute_depth = absolute_depth
 
     def get_depth_image(self, depth_folder, idx_img):
         depth_files = sorted(glob.glob(os.path.join(depth_folder, '*.%s' % self.extension)))
@@ -582,9 +592,9 @@ class DepthPredictedField(Field):
         if self.transform is not None:
             depth_image = self.transform(depth_image)
 
-        depth_image = depth_image * (depth_max - depth_min) + depth_min
-        depth_image = depth_image / depth_unit
-        return depth_image
+        #depth_image = depth_image * (depth_max - depth_min) + depth_min
+        #depth_image = depth_image / depth_unit
+        return depth_image, depth_min / depth_unit, depth_max / depth_unit
 
     def get_mask(self, mask_folder, idx_img):
         mask_files = sorted(glob.glob(os.path.join(mask_folder, '*.%s' % self.extension)))
@@ -616,7 +626,7 @@ class DepthPredictedField(Field):
         else:
             idx_img = 0
 
-        depth_image = self.get_depth_image(depth_folder, idx_img)
+        depth_image, depth_min, depth_max = self.get_depth_image(depth_folder, idx_img)
         depth_mask = self.get_mask(mask_folder, idx_img)
 
         # self.depth_pred_root is not None:
@@ -624,13 +634,23 @@ class DepthPredictedField(Field):
         depth_pred_folder = os.path.join(self.depth_pred_root, 
             paths[-2], paths[-1], 
             self.depth_pred_folder_name)
-        depth_pred_image = self.get_depth_image(depth_pred_folder, idx_img)
+        depth_pred_image, depth_pred_min, depth_pred_max = self.get_depth_image(depth_pred_folder, idx_img)
             
+        if self.absolute_depth:
+            depth_image = depth_image * (depth_max - depth_min) + depth_min
+            depth_pred_image = depth_pred_image * (depth_pred_max - depth_pred_min) + depth_pred_min
+
         data = {
             'depth': depth_image,
             'mask': depth_mask,
             'depth_pred': depth_pred_image
         }
+
+        if not self.absolute_depth:
+            data['depth_min'] = depth_min
+            data['depth_max'] = depth_max
+            data['depth_pred_min'] = depth_pred_min
+            data['depth_pred_max'] = depth_pred_max
 
         if self.with_camera:
             camera_file = os.path.join(img_folder, 'cameras.npz')

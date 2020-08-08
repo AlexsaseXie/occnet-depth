@@ -234,17 +234,24 @@ def get_inputs_field(mode, cfg):
         else:
             random_view = False
 
+        if 'absolute_depth' in cfg['data']:
+            absolute_depth = cfg['data']['absolute_depth']
+        else:
+            absolute_depth = True
+
         if 'img_extension' in cfg['data']:
             inputs_field = data.ImagesWithDepthField(
                 'img', 'depth', 'mask', 
                 transform, extension=cfg['data']['img_extension'],
-                with_camera=with_camera, random_view=random_view
+                with_camera=with_camera, random_view=random_view,
+                absolute_depth=absolute_depth
             )
         else:
             inputs_field = data.ImagesWithDepthField(
                 'img', 'depth', 'mask', 
                 transform,
-                with_camera=with_camera, random_view=random_view
+                with_camera=with_camera, random_view=random_view,
+                absolute_depth=absolute_depth
             )
     elif input_type == 'depth_pred':
         # data augment not supported
@@ -259,17 +266,24 @@ def get_inputs_field(mode, cfg):
         else:
             random_view = False
 
+        if 'absolute_depth' in cfg['data']:
+            absolute_depth = cfg['data']['absolute_depth']
+        else:
+            absolute_depth = True
+
         if 'img_extension' in cfg['data']:
             inputs_field = data.DepthPredictedField(
                 'img', 'depth', 'mask', 
                 cfg['data']['depth_pred_root'], 'depth_pred', transform, extension=cfg['data']['img_extension'],
-                with_camera=with_camera, random_view=random_view
+                with_camera=with_camera, random_view=random_view,
+                absolute_depth=absolute_depth
             )
         else:
             inputs_field = data.DepthPredictedField(
                 'img', 'depth', 'mask', 
                 cfg['data']['depth_pred_root'], 'depth_pred', transform,
-                with_camera=with_camera, random_view=random_view
+                with_camera=with_camera, random_view=random_view,
+                absolute_depth=absolute_depth
             )
     elif input_type == 'multi_img':
         if mode == 'train' and cfg['data']['img_augment']:
