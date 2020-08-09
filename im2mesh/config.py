@@ -239,19 +239,24 @@ def get_inputs_field(mode, cfg):
         else:
             absolute_depth = True
 
+        if 'with_minmax' in cfg['data']:
+            with_minmax = cfg['data']['with_minmax']
+        else:
+            with_minmax = False
+
         if 'img_extension' in cfg['data']:
             inputs_field = data.ImagesWithDepthField(
                 'img', 'depth', 'mask', 
                 transform, extension=cfg['data']['img_extension'],
                 with_camera=with_camera, random_view=random_view,
-                absolute_depth=absolute_depth
+                absolute_depth=absolute_depth, with_minmax=with_minmax
             )
         else:
             inputs_field = data.ImagesWithDepthField(
                 'img', 'depth', 'mask', 
                 transform,
                 with_camera=with_camera, random_view=random_view,
-                absolute_depth=absolute_depth
+                absolute_depth=absolute_depth, with_minmax=with_minmax
             )
     elif input_type == 'depth_pred':
         # data augment not supported
@@ -271,19 +276,24 @@ def get_inputs_field(mode, cfg):
         else:
             absolute_depth = True
 
+        if 'with_minmax' in cfg['data']:
+            with_minmax = cfg['data']['with_minmax']
+        else:
+            with_minmax = False
+
         if 'img_extension' in cfg['data']:
             inputs_field = data.DepthPredictedField(
                 'img', 'depth', 'mask', 
                 cfg['data']['depth_pred_root'], 'depth_pred', transform, extension=cfg['data']['img_extension'],
                 with_camera=with_camera, random_view=random_view,
-                absolute_depth=absolute_depth
+                absolute_depth=absolute_depth, with_minmax=with_minmax
             )
         else:
             inputs_field = data.DepthPredictedField(
                 'img', 'depth', 'mask', 
                 cfg['data']['depth_pred_root'], 'depth_pred', transform,
                 with_camera=with_camera, random_view=random_view,
-                absolute_depth=absolute_depth
+                absolute_depth=absolute_depth, with_minmax=with_minmax
             )
     elif input_type == 'multi_img':
         if mode == 'train' and cfg['data']['img_augment']:
