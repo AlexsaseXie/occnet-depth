@@ -213,11 +213,18 @@ def get_data_fields(mode, cfg):
     points_transform = data.SubsamplePoints(cfg['data']['points_subsample'])
     with_transforms = cfg['model']['use_camera']
 
-    if 'input_range' in cfg['data']:
-        input_range = cfg['data']['input_range']
-        print('Input range:', input_range)
+    if mode == 'train':
+        if 'input_range' in cfg['data']:
+            input_range = cfg['data']['input_range']
+            print('Input range:', input_range)
+        else:
+            input_range = None
     else:
-        input_range = None
+        if 'test_range' in cfg['data']:
+            input_range = cfg['data']['test_range']
+            print('Test range:', input_range)
+        else:
+            input_range = None
 
     fields = {}
     fields['points'] = data.PointsField(

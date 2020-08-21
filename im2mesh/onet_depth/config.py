@@ -210,11 +210,18 @@ def get_data_fields(mode, cfg):
     if training_phase == 1:
         pass
     else:
-        if 'input_range' in cfg['data']:
-            input_range = cfg['data']['input_range']
-            print('Input range:', input_range)
+        if mode == 'train':
+            if 'input_range' in cfg['data']:
+                input_range = cfg['data']['input_range']
+                print('Input range:', input_range)
+            else:
+                input_range = None
         else:
-            input_range = None
+            if 'test_range' in cfg['data']:
+                input_range = cfg['data']['test_range']
+                print('Test range:', input_range)
+            else:
+                input_range = None
 
         fields['points'] = data.PointsField(
             cfg['data']['points_file'], points_transform,
