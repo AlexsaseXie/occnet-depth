@@ -9,7 +9,7 @@ from classify.depth_resnet import DepthClassify_Resnet18
 from classify.dataset import get_dataset
 from im2mesh import data
 
-out_dir = 'out/classify/depth_resnet18'
+out_dir = 'out/classify/depth_relative_resnet18'
 dataset_root = 'data/ShapeNet.with_depth.10w10w'
 batch_size = 256
 c_dim = 256
@@ -19,9 +19,10 @@ backup_every = 500
 lr_drop = 1500 
 quit_after = 2000
 input_type = 'img_with_depth'
+absolute_depth = False
 
-train_dataset = get_dataset(dataset_root, 'train', input_type)
-val_dataset = get_dataset(dataset_root, 'val', input_type)
+train_dataset = get_dataset(dataset_root, 'train', input_type, absolute_depth=absolute_depth)
+val_dataset = get_dataset(dataset_root, 'val', input_type, absolute_depth=absolute_depth)
 
 train_loader = torch.utils.data.DataLoader(
     train_dataset, batch_size=batch_size, num_workers=4, shuffle=True,

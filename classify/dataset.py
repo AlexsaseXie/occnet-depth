@@ -24,7 +24,7 @@ def get_img_inputs_field(mode):
 
     return inputs_field
 
-def get_img_with_depth_input_field(mode):
+def get_img_with_depth_input_field(mode, absolute_depth=True):
     # data augment not supported
     transform = transforms.Compose([
         transforms.Resize((IMG_SIZE)), 
@@ -40,15 +40,16 @@ def get_img_with_depth_input_field(mode):
 
     inputs_field = data.ImagesWithDepthField(
         'img', 'depth', 'mask', transform,
-        with_camera=with_camera, random_view=random_view
+        with_camera=with_camera, random_view=random_view,
+        absolute_depth=absolute_depth
     )
     return inputs_field
 
-def get_dataset(dataset_root, mode, input_type='img'):
+def get_dataset(dataset_root, mode, input_type='img', absolute_depth=True):
     if input_type == 'img':
         inputs_field = get_img_inputs_field(mode)
     elif input_type == 'img_with_depth':
-        inputs_field = get_img_with_depth_input_field(mode)
+        inputs_field = get_img_with_depth_input_field(mode, absolute_depth=absolute_depth)
 
     fields = {}
 

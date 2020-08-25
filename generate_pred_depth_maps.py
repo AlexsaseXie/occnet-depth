@@ -24,7 +24,7 @@ is_cuda = (torch.cuda.is_available() and not args.no_cuda)
 device = torch.device("cuda" if is_cuda else "cpu")
 
 #out_dir = cfg['data']['path']
-out_dir = 'data/ShapeNet.depth_pred'
+out_dir = 'data/ShapeNet.depth_pred_relative'
 print('out_dir:',out_dir)
 pred_path = 'depth_pred'
 dataset_folder = cfg['data']['path']
@@ -64,6 +64,13 @@ it = 0
 batch_count = len(train_loader)
 t0 = time.time()
 
+if 'absolute_depth' in cfg['data']:
+    absolute_depth = cfg['data']['absolute_depth']
+else:
+    absolute_depth = True
+
+print('absolute_depth:', absolute_depth)
+
 from tqdm import tqdm
 pbar = tqdm(total=batch_count)
 for batch in train_loader:
@@ -86,8 +93,16 @@ for batch in train_loader:
         depth_min = torch.min(cur_depth_map[cur_mask])
         depth_max = torch.max(cur_depth_map[cur_mask])
 
-        cur_depth_map[1. - cur_mask] = depth_max
-        cur_depth_map = (cur_depth_map - depth_min) / (depth_max - depth_min)
+        if absolute_depth:
+            # for absolute
+            cur_depth_map[1. - cur_mask] = depth_max
+            cur_depth_map = (cur_depth_map - depth_min) / (depth_max - depth_min)
+        else:
+            # for relative
+            cur_depth_map[1. - cur_mask] = 1.
+            cur_depth_map[cur_depth_map > 1] = 1.
+            cur_depth_map[cur_depth_map < 0] = 0.
+            
 
         cur_model_info = train_dataset.get_model_dict(idxs[i]) # category & model
         cur_viewid = viewids[i]

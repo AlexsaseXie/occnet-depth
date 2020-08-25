@@ -34,9 +34,16 @@ else:
     out_file_class = os.path.join(generation_dir, 'eval_input.csv')
 
 # Dataset
+if 'test_range' in cfg['data']:
+    input_range = cfg['data']['test_range']
+    print('Test range:', input_range)
+else:
+    input_range = None
+
 points_field = data.PointsField(
     cfg['data']['points_iou_file'], 
     unpackbits=cfg['data']['points_unpackbits'],
+    input_range=input_range
 )
 pointcloud_field = data.PointCloudField(
     cfg['data']['pointcloud_chamfer_file']
