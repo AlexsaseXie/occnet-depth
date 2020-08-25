@@ -33,13 +33,16 @@ class OccupancyWithDepthNetwork(nn.Module):
         device (device): torch device
     '''
 
-    def __init__(self, depth_predictor, decoder=None, encoder=None, encoder_latent=None, p0_z=None,
+    def __init__(self, depth_predictor=None, decoder=None, encoder=None, encoder_latent=None, p0_z=None,
                  device=None):
         super().__init__()
         if p0_z is None:
             p0_z = dist.Normal(torch.tensor([]), torch.tensor([]))
 
-        self.depth_predictor = depth_predictor.to(device)
+        if depth_predictor is not None:
+            self.depth_predictor = depth_predictor.to(device)
+        else:
+            self.depth_predictor = None
         
         if decoder is not None: 
             self.decoder = decoder.to(device)
@@ -61,11 +64,17 @@ class OccupancyWithDepthNetwork(nn.Module):
 
     def predict_depth_maps(self, inputs):
         #batch_size = inputs.size(0)
+        assert self.depth_predictor is not None
         return self.depth_predictor(inputs)
 
     def predict_depth_map(self, inputs):
         #batch_size = inputs.size(0)
+        assert self.depth_predictor is not None
         return self.depth_predictor.get_last_predict(inputs)
+
+    def fetch_minmax(self):
+        assert self.depth_predictor is not None
+        return self.depth_predictor.fetch_minmax()
 
     def forward(self, p, inputs, gt_mask, sample=True, **kwargs):
         ''' Performs a forward pass through the network.

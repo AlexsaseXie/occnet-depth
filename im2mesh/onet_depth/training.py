@@ -31,12 +31,13 @@ class Phase1Trainer(BaseTrainer):
         
     '''
 
-    def __init__(self, model, optimizer, device=None, input_type='img', vis_dir=None):
+    def __init__(self, model, optimizer, device=None, input_type='img', vis_dir=None, pred_minmax=False):
         self.model = model
         self.optimizer = optimizer
         self.device = device
         self.input_type = input_type
         self.vis_dir = vis_dir
+        self.pred_minmax = pred_minmax
 
         if vis_dir is not None and not os.path.exists(vis_dir):
             os.makedirs(vis_dir)
@@ -126,6 +127,14 @@ class Phase1Trainer(BaseTrainer):
             #loss += ( F.relu(5.0 - pr_depth_maps[:,i]) * (1. - gt_mask) ).mean()
             #loss += 0.1 * ( F.sigmoid(pr_depth_maps[:,i]) * (-1.0) * (1. - gt_mask) ).mean()
 
+        if self.pred_minmax:
+            gt_min = data.get('inputs.depth_min').to(device)
+            gt_max = data.get('inputs.depth_max').to(device)
+            predicted_minmax = self.model.fetch_minmax()
+            w_minmax = (224 ** 2) / 2
+            loss += w_minmax * F.mse_loss(predicted_minmax[:,0], gt_min)
+            loss += w_minmax * F.mse_loss(predicted_minmax[:,1], gt_max)
+
         return loss
 
 class Phase2Trainer(BaseTrainer):
@@ -167,7 +176,7 @@ class Phase2Trainer(BaseTrainer):
         if vis_dir is not None and not os.path.exists(vis_dir):
             os.makedirs(vis_dir)
 
-        if self.training_detach:
+        if self.training_detach and self.model.depth_predictor is not None:
             for param in self.model.depth_predictor.parameters():
                 param.requires_grad = False
 

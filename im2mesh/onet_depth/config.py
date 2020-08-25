@@ -8,6 +8,24 @@ from im2mesh.onet_depth.models import depth_predict_net
 from im2mesh import data
 from im2mesh import config
 
+def get_depth_predictor(cfg):
+    if 'depth_predictor' in cfg['model']:
+        predictor = cfg['model']['depth_predictor']
+    else:
+        predictor = 'hourglass'
+
+    if predictor == 'hourglass':
+        dim = cfg['data']['dim']
+        depth_predictor = depth_predict_net.DepthPredictNet(n_hourglass=1, img_dim=dim)
+    elif predictor == 'uresnet':
+        pred_min_max = cfg['model']['pred_minmax']
+        depth_predictor = depth_predict_net.UResnet_DepthPredict(pred_min_max=pred_min_max)
+    else:
+        depth_predictor = None
+        raise NotImplementedError
+
+    return depth_predictor
+
 
 def get_model(cfg, device=None, dataset=None, **kwargs):
     ''' Return the OccupancyWithDepth Network model.
@@ -28,13 +46,22 @@ def get_model(cfg, device=None, dataset=None, **kwargs):
     decoder_kwargs = cfg['model']['decoder_kwargs']
     encoder_kwargs = cfg['model']['encoder_kwargs']
     encoder_latent_kwargs = cfg['model']['encoder_latent_kwargs']
+    input_type = cfg['data']['input_type']
 
-    depth_predictor = depth_predict_net.DepthPredictNet(n_hourglass=1, img_dim=dim)
+    
     if training_phase == 1:
+        depth_predictor = get_depth_predictor(cfg)
         decoder = None
         encoder = None
         encoder_latent = None
     else:
+        if input_type == 'img_with_depth':
+            depth_predictor = get_depth_predictor(cfg)
+        elif input_type == 'depth_pred':
+            depth_predictor = None
+        else:
+            raise NotImplementedError
+        
         decoder = models.decoder_dict[decoder](
             dim=dim, z_dim=z_dim, c_dim=c_dim,
             **decoder_kwargs
@@ -83,10 +110,16 @@ def get_trainer(model, optimizer, cfg, device, **kwargs):
     training_phase = cfg['training']['phase'] # 1 for depth prediction; 2 for reconstruction
 
     if training_phase == 1:
+        if 'pred_minmax' in cfg['model']:
+            pred_minmax = cfg['model']['pred_minmax']
+        else:
+            pred_minmax = False
+
         trainer = training.Phase1Trainer(
             model, optimizer,
             device=device, input_type=input_type,
-            vis_dir=vis_dir
+            vis_dir=vis_dir,
+            pred_minmax=pred_minmax
         )
     else:
         if 'surface_loss_weight' in cfg['model']:
