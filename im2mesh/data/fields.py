@@ -8,6 +8,7 @@ from im2mesh.data.core import Field
 from im2mesh.utils import binvox_rw
 import torch
 from torchvision import transforms
+import h5py
 
 
 class IndexField(Field):
@@ -677,3 +678,85 @@ class DepthPredictedField(Field):
         complete = (self.img_folder_name in files) & (self.depth_folder_name in files)
         # TODO: check camera
         return complete
+
+class PointsH5Field(Field):
+    ''' Point using h5 Field.
+
+    It provides the field to load point data. This is used for the points
+    randomly sampled in the bounding volume of the 3D shape.
+
+    Args:
+        file_name (str): file name
+        transform (list): list of transformations which will be applied to the
+            points tensor
+        with_transforms (bool): whether scaling and rotation data should be
+            provided
+
+    '''
+    def __init__(self, file_name, subsample_n=None, with_transforms=False, input_range=None):
+        self.file_name = file_name
+        if subsample_n is not None:
+            self.N = subsample_n
+            if input_range is not None:
+                assert self.N < input_range[1] - input_range[0]
+        else:
+            if input_range is not None:
+                self.N = input_range[1] - input_range[0]
+            else:
+                self.N = 0
+        self.with_transforms = with_transforms
+        self.input_range = input_range
+
+        if self.N != 0:
+            self.points = np.zeros((self.N, 3), dtype=np.float32)
+            self.occupancies = np.zeros(self.N, dtype=np.float32)
+        print('Points h5 field:', self.file_name)
+
+    def load(self, model_path, idx, category, view_id=None):
+        ''' Loads the data point.
+
+        Args:
+            model_path (str): path to model
+            idx (int): ID of data point
+            category (int): index of category
+        '''
+        file_path = os.path.join(model_path, self.file_name)
+
+        h5f = h5py.File(file_path, 'r')
+
+        if self.N != 0:
+            if self.input_range is not None:
+                low = self.input_range[0]
+                high = self.input_range[1]
+            else:
+                low = 0
+                high = h5f['points'].shape[0]
+        
+            if self.N < high - low:
+                idx = np.s_[np.random.randint(low, high, size=self.N)]
+            else:
+                ids = np.s_[low:high]
+            h5f['points'].read_direct(self.points, idx)
+            h5f['occupancies'].read_direct(self.occupancies, idx)
+        else:
+            # only for first time
+            assert self.input_range is None
+            self.N = h5f['points'].shape[0]
+
+            self.points = np.zeros((self.N, 3), dtype=np.float32)
+            self.occupancies = np.zeros(self.N, dtype=np.float32)
+            idx = np.s_[0, self.N]
+            h5f['points'].read_direct(self.points, idx)
+            h5f['occupancies'].read_direct(self.occupancies, idx)
+
+        data = {
+            None: self.points,
+            'occ': self.occupancies,
+        }
+
+        if self.with_transforms:
+            data['loc'] = h5f['loc'][:].astype(np.float32)
+            data['scale'] = h5f['scale'][()].astype(np.float32)
+
+        h5f.close()
+        return data

@@ -210,6 +210,7 @@ def get_data_fields(mode, cfg):
         mode (str): the mode which is used
         cfg (dict): imported yaml config
     '''
+    N = cfg['data']['points_subsample']
     points_transform = data.SubsamplePoints(cfg['data']['points_subsample'])
     with_transforms = cfg['model']['use_camera']
 
@@ -227,23 +228,42 @@ def get_data_fields(mode, cfg):
             input_range = None
 
     fields = {}
-    fields['points'] = data.PointsField(
-        cfg['data']['points_file'], points_transform,
-        with_transforms=with_transforms,
-        unpackbits=cfg['data']['points_unpackbits'],
-        input_range=input_range
-    )
+    points_file = cfg['data']['points_file']
+    if points_file.endswith('.npz'):
+        fields['points'] = data.PointsField(
+            cfg['data']['points_file'], points_transform,
+            with_transforms=with_transforms,
+            unpackbits=cfg['data']['points_unpackbits'],
+            input_range=input_range
+        )
+    elif points_file.endswith('.h5'):
+        fields['points'] = data.PointsH5Field(
+            cfg['data']['points_file'], subsample_n=N,
+            with_transforms=with_transforms,
+            input_range=input_range
+        )
+    else:
+        raise NotImplementedError
 
     if mode in ('val', 'test'):
         points_iou_file = cfg['data']['points_iou_file']
         voxels_file = cfg['data']['voxels_file']
         if points_iou_file is not None:
-            fields['points_iou'] = data.PointsField(
-                points_iou_file,
-                with_transforms=with_transforms,
-                unpackbits=cfg['data']['points_unpackbits'],
-                input_range=input_range
-            )
+            if points_iou_file.endswith('.npz'):
+                fields['points_iou'] = data.PointsField(
+                    points_iou_file,
+                    with_transforms=with_transforms,
+                    unpackbits=cfg['data']['points_unpackbits'],
+                    input_range=input_range
+                )
+            elif points_iou_file.endswith('.h5'):
+                fields['points_iou'] = data.PointsH5Field(
+                    points_iou_file, 
+                    with_transforms=with_transforms,
+                    input_range=input_range
+                )
+            else:
+                raise NotImplementedError
         if voxels_file is not None:
             fields['voxels'] = data.VoxelsField(voxels_file)
 
