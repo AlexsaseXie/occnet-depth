@@ -111,8 +111,8 @@ class UResnet_DepthPredict(nn.Module):
         self.pred_min_max = pred_min_max
         if self.pred_min_max == True:
             module_list = nn.Sequential(
-                nn.Conv2d(512, 512, 2, stride=2),
-                nn.Conv2d(512, 512, 4, stride=1),
+                nn.Conv2d(512, 512, 3, stride=3, padding=1),
+                nn.Conv2d(512, 512, 3, stride=1),
                 ViewAsLinear(),
                 nn.Linear(512, 256),
                 nn.BatchNorm1d(256),

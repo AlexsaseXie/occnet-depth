@@ -5,10 +5,10 @@ from torchvision import models
 from im2mesh.encoder.conv import Resnet18
 
 class ImgClassify_ResNet18(nn.Module):
-    def __init__(self, num_classes=13, c_dim=512):
+    def __init__(self, num_classes=13, c_dim=512, pretrained=True):
         super(ImgClassify_ResNet18, self).__init__()
         self.normalize = True
-        self.features = Resnet18(c_dim, normalize=True, use_linear=True)
+        self.features = Resnet18(c_dim, normalize=True, use_linear=True, pretrained=pretrained)
         self.fc = nn.Linear(c_dim, num_classes)
         self.loss_func = nn.CrossEntropyLoss()
 

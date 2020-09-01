@@ -6,9 +6,9 @@ from torchvision import models
 from im2mesh.encoder.depth_conv import Depth_Resnet18
 
 class DepthClassify_Resnet18(nn.Module):
-    def __init__(self, num_classes=13, c_dim=512):
+    def __init__(self, num_classes=13, c_dim=512, pretrained=True):
         super(DepthClassify_Resnet18, self).__init__()
-        self.features = Depth_Resnet18(c_dim = c_dim, use_linear=True)
+        self.features = Depth_Resnet18(c_dim = c_dim, use_linear=True, features_pretrained=pretrained)
         self.pred_fc = nn.Linear(c_dim, num_classes)
         self.loss_func = nn.CrossEntropyLoss()
 

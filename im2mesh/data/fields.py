@@ -238,6 +238,7 @@ class PointsField(Field):
         self.with_transforms = with_transforms
         self.unpackbits = unpackbits
         self.input_range = input_range
+        print('Points_field:', self.file_name)
 
     def load(self, model_path, idx, category, view_id=None):
         ''' Loads the data point.
@@ -269,7 +270,7 @@ class PointsField(Field):
             occupancies = occupancies[self.input_range[0]: self.input_range[1]]
 
         #surface point occ = 0.5
-        occupancies[(occupancies > 0) & (occupancies < 1)] = 0.5
+        #occupancies[(occupancies > 0) & (occupancies < 1)] = 0.5
 
         data = {
             None: points,

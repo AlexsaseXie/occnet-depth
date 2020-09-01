@@ -47,11 +47,11 @@ class Resnet18(nn.Module):
         use_linear (bool): whether a final linear layer should be used
     '''
 
-    def __init__(self, c_dim, normalize=True, use_linear=True):
+    def __init__(self, c_dim, normalize=True, use_linear=True, pretrained=True):
         super().__init__()
         self.normalize = normalize
         self.use_linear = use_linear
-        self.features = models.resnet18(pretrained=True)
+        self.features = models.resnet18(pretrained=pretrained)
         self.features.fc = nn.Sequential()
         if use_linear:
             self.fc = nn.Linear(512, c_dim)
