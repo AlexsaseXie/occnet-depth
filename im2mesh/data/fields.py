@@ -704,12 +704,13 @@ class PointsH5Field(Field):
                 self.N = input_range[1] - input_range[0]
             else:
                 self.N = 0
+
+        self.first_load = True
         self.with_transforms = with_transforms
         self.input_range = input_range
 
-        if self.N != 0:
-            self.points = np.zeros((self.N, 3), dtype=np.float32)
-            self.occupancies = np.zeros(self.N, dtype=np.float32)
+        self.points = None
+        self.occupancies = None
         print('Points h5 field:', self.file_name)
 
     def load(self, model_path, idx, category, view_id=None):
@@ -724,34 +725,42 @@ class PointsH5Field(Field):
 
         h5f = h5py.File(file_path, 'r')
 
-        if self.N != 0:
-            if self.input_range is not None:
-                low = self.input_range[0]
-                high = self.input_range[1]
-            else:
-                low = 0
-                high = h5f['points'].shape[0]
-        
-            if self.N < high - low:
-                idx = np.s_[np.random.randint(low, high, size=self.N)]
-            else:
-                ids = np.s_[low:high]
-            h5f['points'].read_direct(self.points, idx)
-            h5f['occupancies'].read_direct(self.occupancies, idx)
-        else:
+        if self.first_load:
+            self.first_load = False
             # only for first time
-            assert self.input_range is None
-            self.N = h5f['points'].shape[0]
+            if self.N == 0:
+                self.N = h5f['points'].shape[0]
 
-            self.points = np.zeros((self.N, 3), dtype=np.float32)
-            self.occupancies = np.zeros(self.N, dtype=np.float32)
-            idx = np.s_[0, self.N]
-            h5f['points'].read_direct(self.points, idx)
-            h5f['occupancies'].read_direct(self.occupancies, idx)
+            self.pt_dtype = h5f['points'].dtype
+            self.occ_dtype = h5f['occupancies'].dtype
+
+            self.points = np.zeros((self.N, 3), dtype=self.pt_dtype)
+            self.occupancies = np.zeros(self.N, dtype=self.occ_dtype)
+
+        if self.input_range is not None:
+            low = self.input_range[0]
+            high = self.input_range[1]
+        else:
+            low = 0
+            high = h5f['points'].shape[0]
+    
+        if self.N < high - low:
+            idx = np.s_[np.random.randint(low, high, size=self.N)]
+        else:
+            idx = np.s_[low:high]
+        h5f['points'].read_direct(self.points, idx)
+        h5f['occupancies'].read_direct(self.occupancies, idx)
+
+        points = self.points.astype(np.float32)
+        if self.pt_dtype == np.float16:
+            # break symmetric
+            points += 1e-4 * np.random.randn(*points.shape)
+
+        occupancies = self.occupancies.astype(np.float32)
 
         data = {
-            None: self.points,
-            'occ': self.occupancies,
+            None: points,
+            'occ': occupancies,
         }
 
         if self.with_transforms:
