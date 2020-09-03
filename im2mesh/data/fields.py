@@ -693,8 +693,13 @@ class PointsH5Field(Field):
             provided
 
     '''
-    def __init__(self, file_name, subsample_n=None, with_transforms=False, input_range=None):
+    def __init__(self, file_name, subsample_n=None, with_transforms=False, input_range=None, chunked=True):
         self.file_name = file_name
+
+        if subsample_n is None:
+            chunked = False
+        self.chunked = chunked
+
         if subsample_n is not None:
             self.N = subsample_n
             if input_range is not None:
@@ -721,51 +726,109 @@ class PointsH5Field(Field):
             idx (int): ID of data point
             category (int): index of category
         '''
+        if self.chunked:
+            return self.load_chunked(model_path, idx, category, view_id)
+
         file_path = os.path.join(model_path, self.file_name)
 
-        h5f = h5py.File(file_path, 'r')
+        with h5py.File(file_path, 'r') as h5f:
+            if self.first_load:
+                self.first_load = False
+                # only for first time
+                if self.N == 0:
+                    self.N = h5f['points'].shape[0]
 
-        if self.first_load:
-            self.first_load = False
-            # only for first time
-            if self.N == 0:
-                self.N = h5f['points'].shape[0]
+                self.pt_dtype = h5f['points'].dtype
+                self.occ_dtype = h5f['occupancies'].dtype
 
-            self.pt_dtype = h5f['points'].dtype
-            self.occ_dtype = h5f['occupancies'].dtype
+                self.points = np.zeros((self.N, 3), dtype=self.pt_dtype)
+                self.occupancies = np.zeros(self.N, dtype=self.occ_dtype)
 
-            self.points = np.zeros((self.N, 3), dtype=self.pt_dtype)
-            self.occupancies = np.zeros(self.N, dtype=self.occ_dtype)
+            if self.input_range is not None:
+                low = self.input_range[0]
+                high = self.input_range[1]
+            else:
+                low = 0
+                high = h5f['points'].shape[0]
+        
+            if self.N < high - low:
+                idx = np.random.choice(range(low, high), self.N, False)
+                idx.sort()
+                pt_idx = np.s_[idx, :]
+                occ_idx = list(idx)
+            else:
+                pt_idx = np.s_[low:high,:]
+                occ_idx = np.s_[low:high]
 
-        if self.input_range is not None:
-            low = self.input_range[0]
-            high = self.input_range[1]
-        else:
-            low = 0
-            high = h5f['points'].shape[0]
-    
-        if self.N < high - low:
-            idx = np.s_[np.random.randint(low, high, size=self.N)]
-        else:
-            idx = np.s_[low:high]
-        h5f['points'].read_direct(self.points, idx)
-        h5f['occupancies'].read_direct(self.occupancies, idx)
+            h5f['points'].read_direct(self.points, pt_idx)
+            h5f['occupancies'].read_direct(self.occupancies, occ_idx)
 
-        points = self.points.astype(np.float32)
-        if self.pt_dtype == np.float16:
-            # break symmetric
-            points += 1e-4 * np.random.randn(*points.shape)
+            points = self.points.astype(np.float32)
+            if self.pt_dtype == np.float16:
+                # break symmetric
+                points += 1e-4 * np.random.randn(*points.shape)
 
-        occupancies = self.occupancies.astype(np.float32)
+            occupancies = self.occupancies.astype(np.float32)
 
-        data = {
-            None: points,
-            'occ': occupancies,
-        }
+            data = {
+                None: points,
+                'occ': occupancies,
+            }
 
-        if self.with_transforms:
-            data['loc'] = h5f['loc'][:].astype(np.float32)
-            data['scale'] = h5f['scale'][()].astype(np.float32)
+            if self.with_transforms:
+                data['loc'] = h5f['loc'][:].astype(np.float32)
+                data['scale'] = h5f['scale'][()].astype(np.float32)
 
-        h5f.close()
+        return data
+
+    def load_chunked(self, model_path, idx, category, view_id=None):
+        assert self.N != 0
+        #assert self.input_range is None
+        # input_range is not used here
+
+        file_path = os.path.join(model_path, self.file_name)
+
+        with h5py.File(file_path, 'r') as h5f:
+            if self.first_load:
+                self.first_load = False
+                # only for first time
+                self.total_length = h5f['points'].shape[0]
+
+                self.pt_dtype = h5f['points'].dtype
+                self.occ_dtype = h5f['occupancies'].dtype
+
+                self.points = np.zeros((self.N, 3), dtype=self.pt_dtype)
+                self.occupancies = np.zeros(self.N, dtype=self.occ_dtype)
+
+                self.total_chunk_count = self.total_length // self.N
+                if self.total_length % self.N != 0:
+                    self.total_chunk_count += 1
+
+            choice = np.random.randint(0, self.total_chunk_count)
+            if choice == self.total_chunk_count - 1:
+                pt_idx = np.s_[self.total_length - self.N: self.total_length, :]
+                occ_idx = np.s_[self.total_length - self.N: self.total_length]
+            else:            
+                pt_idx = np.s_[choice * self.N: (choice+1) * self.N, :]
+                occ_idx = np.s_[choice * self.N: (choice+1) * self.N]
+
+            h5f['points'].read_direct(self.points, pt_idx)
+            h5f['occupancies'].read_direct(self.occupancies, occ_idx)
+
+            points = self.points.astype(np.float32)
+            if self.pt_dtype == np.float16:
+                # break symmetric
+                points += 1e-4 * np.random.randn(*points.shape)
+            
+            occupancies = self.occupancies.astype(np.float32)
+
+            data = {
+                None: points,
+                'occ': occupancies,
+            }
+
+            if self.with_transforms:
+                data['loc'] = h5f['loc'][:].astype(np.float32)
+                data['scale'] = h5f['scale'][()].astype(np.float32)
+
         return data
