@@ -55,6 +55,7 @@ class Generator3D(object):
 
         self.halfway = halfway
         self.use_gt_depth = use_gt_depth
+        print('self.halfway:', self.halfway)
 
     def generate_mesh(self, data, return_stats=True):
         ''' Generates the output mesh.
@@ -67,7 +68,7 @@ class Generator3D(object):
         device = self.device
         stats_dict = {}
 
-        gt_mask = data.get('inputs.mask').to(device)
+        gt_mask = data.get('inputs.mask').to(device).byte()
         if self.halfway:
             if self.use_gt_depth:
                 depth = data.get('inputs.depth').to(device)
@@ -93,7 +94,7 @@ class Generator3D(object):
         # Encode inputs
         t0 = time.time()
         with torch.no_grad():
-            c = self.model.encode_depth_map(inputs)
+            c = self.model.encode_depth_map(depth)
         stats_dict['time (encode depth_map)'] = time.time() - t0
 
         z = self.model.get_z_from_prior((1,), sample=self.sample).to(device)
