@@ -10,31 +10,57 @@ class DepthToPCNp:
         
         self.grid_x, self.grid_y = np.mgrid[:224, :224]
 
-    def sample_resize(self, depth_img, mask_img, n=2048):
+    def sample_resize(self, depth, mask, n=2048):
         '''
-            depth_img : PIL Image
-            mask_img : PIL Image
+            depth : img_w * img_h numpy.ndarray float64
+            mask : img_w * img_h numpy.ndarray bool
 
-            returns depth: img_w * img_h numpy.ndarray
-                    mask: img_w * img_h numpy.ndarray
+            returns depth: img_w * img_h numpy.ndarray float32
+                    mask: img_w * img_h numpy.ndarray bool
         '''
-        depth = np.array(depth_img)
         img_w = depth.shape[0]
         img_h = depth.shape[1]
-        mask = np.array(mask_img)
         current_count = mask.sum()
-        if current_count < n:
-            factor = np.ceil(np.sqrt(n / current_count))
-            depth = 1.0 / depth
-            new_depth_img = Image.fromarray(depth)
-            new_depth_img = new_depth_img.resize((img_w * factor, img_h * factor), Image.BILINEAR)
-            new_mask_img = mask_img.resize((img_w * factor, img_h * factor))
 
-            depth = 1.0 / np.array(new_depth_img)
-            mask = np.array(new_mask_img)
+        factor = np.ceil(np.sqrt(n / current_count))
+       
+        if current_count < n:
+            mask_img = mask.astype(np.uint8) * 128
+            mask_img = Image.fromarray(mask_img)
             
+        while current_count < n:
+            #print(current_count, n, ',factor:', factor)
+            new_size = (int(img_w * factor), int(img_h * factor))
+            
+            # transfer to uint8
+            interior_mask_img = mask_img.resize(new_size, Image.BILINEAR)
+            interior_mask_img = interior_mask_img.point(lambda i: i >= 128, '1')
+            border_mask_img = mask_img.resize(new_size, Image.NEAREST)
+            border_mask_img = border_mask_img.point(lambda i: i >= 128, '1')
+
+            mask = np.array(interior_mask_img)
+            border_mask = np.array(border_mask_img)
+            border_mask = np.logical_not(mask) & border_mask
+            #print('border count = ', border_mask.sum())            
+            mask[border_mask] = True
+
             current_count = mask.sum()
-            assert current_count >= n
+            #print('current count = ', current_count)
+            if current_count >= n:
+                depth = (1.0 / depth).astype(np.float32)
+                new_depth_img = Image.fromarray(depth, 'F')
+                interior_depth_img = new_depth_img.resize(new_size, Image.BILINEAR)
+                border_depth_img = new_depth_img.resize(new_size, Image.NEAREST)
+                depth = 1.0 / np.array(interior_depth_img)
+
+                border_depth = 1.0 / np.array(border_depth_img)
+                depth[border_mask] = border_depth[border_mask]
+                break
+            else:
+                #print('current_count:%d' % current_count, ',factor:', factor)
+                factor = factor * 2.
+           
+            assert False
 
         return depth, mask
             
@@ -77,13 +103,23 @@ class DepthToPCNp:
         pts = pc_xyz[mask]
         if n is not None:
             assert pts.shape[0] >= n
-            choice = np.random.sample(range(n), False)
+            choice = np.random.choice(range(pts.shape[0]), size=n, replace=False)
             pts = pts[choice]
         
         return pts
 
-    def work(self, depth_img, mask_img, n=2048, unit=1.):
-        depth, mask = self.sample_resize(depth_img, mask_img, n)
+    def work(self, depth_img, mask_img, depth_min, depth_max, n=2048, unit=1.):
+        '''
+            depth_img : PIL Image (mode L)
+            mask_img : PIL Image (mode 1)
+            depth_min : float
+            depth_max : float 
+        '''
+        depth = np.array(depth_img) / 255.0
+        mask = np.array(mask_img)
+        depth = depth * (depth_max - depth_min) + depth_min
+
+        depth, mask = self.sample_resize(depth, mask, n)
         pc_xyz = self.back_projection(depth, unit)
         pts = self.mask_sample(pc_xyz, mask, n)
         return pts
