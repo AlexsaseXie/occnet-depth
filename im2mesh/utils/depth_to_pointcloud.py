@@ -117,10 +117,10 @@ class DepthToPCNp:
         '''
         depth = np.array(depth_img) / 255.0
         mask = np.array(mask_img)
-        depth = depth * (depth_max - depth_min) + depth_min
+        depth = (depth * (depth_max - depth_min) + depth_min) / unit
 
         depth, mask = self.sample_resize(depth, mask, n)
-        pc_xyz = self.back_projection(depth, unit)
+        pc_xyz = self.back_projection(depth, 1.)
         pts = self.mask_sample(pc_xyz, mask, n)
         return pts
 
