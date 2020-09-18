@@ -327,7 +327,7 @@ class Phase2Trainer(BaseTrainer):
             pr_depth_maps = pr_depth_maps * alpha + gt_depth_maps * (1.0 - alpha)
 
         kwargs = {}
-        c = self.model.encode_depth_map(pr_depth_maps)
+        c = self.model.encode(pr_depth_maps)
         q_z = self.model.infer_z(p, occ, c, **kwargs)
         z = q_z.rsample()
 
@@ -394,6 +394,7 @@ class Phase2HalfwayTrainer(BaseTrainer):
         self.optimizer = optimizer
         self.device = device
         self.input_type = input_type
+        assert input_type == 'depth_pred' or input_type == 'depth_pointcloud'
         self.vis_dir = vis_dir
         self.threshold = threshold
         self.eval_sample = eval_sample
@@ -435,27 +436,28 @@ class Phase2HalfwayTrainer(BaseTrainer):
         # Compute elbo
         points = data.get('points').to(device)
         occ = data.get('points.occ').to(device)
-
-        gt_mask = data.get('inputs.mask').to(device).byte()
         voxels_occ = data.get('voxels')
-
         points_iou = data.get('points_iou').to(device)
         occ_iou = data.get('points_iou.occ').to(device)
 
         kwargs = {}
 
-        if self.use_gt_depth_map:
-            gt_depth_maps = data.get('inputs.depth').to(device)
-            background_setting(gt_depth_maps, gt_mask)
-            input_depth_maps = gt_depth_maps
-        else:
-            pr_depth_maps = data.get('inputs.depth_pred').to(device)
-            background_setting(pr_depth_maps, gt_mask)
-            input_depth_maps = pr_depth_maps
+        if self.input_type == 'depth_pred':
+            gt_mask = data.get('inputs.mask').to(device).byte()
+            if self.use_gt_depth_map:
+                gt_depth_maps = data.get('inputs.depth').to(device)
+                background_setting(gt_depth_maps, gt_mask)
+                encoder_inputs = gt_depth_maps
+            else:
+                pr_depth_maps = data.get('inputs.depth_pred').to(device)
+                background_setting(pr_depth_maps, gt_mask)
+                encoder_inputs = pr_depth_maps
+        elif self.input_type == 'depth_pointcloud':
+            encoder_inputs = data.get('inputs').to(device)
 
         with torch.no_grad():
             elbo, rec_error, kl = self.model.compute_elbo_halfway(
-                points, occ, input_depth_maps, **kwargs)
+                points, occ, encoder_inputs, **kwargs)
 
         eval_dict['loss'] = -elbo.mean().item()
         eval_dict['rec_error'] = rec_error.mean().item()
@@ -465,7 +467,7 @@ class Phase2HalfwayTrainer(BaseTrainer):
         batch_size = points.size(0)
 
         with torch.no_grad():
-            p_out = self.model.forward_halfway(points_iou, input_depth_maps,
+            p_out = self.model.forward_halfway(points_iou, encoder_inputs,
                                sample=self.eval_sample, **kwargs)
 
         occ_iou_np = (occ_iou >= 0.5).cpu().numpy()
@@ -482,7 +484,7 @@ class Phase2HalfwayTrainer(BaseTrainer):
                 batch_size, *points_voxels.size())
             points_voxels = points_voxels.to(device)
             with torch.no_grad():
-                p_out = self.model.forward_halfway(points_voxels, input_depth_maps,
+                p_out = self.model.forward_halfway(points_voxels, encoder_inputs,
                                    sample=self.eval_sample, **kwargs)
 
             voxels_occ_np = (voxels_occ >= 0.5).cpu().numpy()
@@ -502,40 +504,52 @@ class Phase2HalfwayTrainer(BaseTrainer):
         device = self.device
 
         batch_size = data['points'].size(0)
-        gt_mask = data.get('inputs.mask').to(device).byte()
-
+        
         shape = (32, 32, 32)
         p = make_3d_grid([-0.5] * 3, [0.5] * 3, shape).to(device)
         p = p.expand(batch_size, *p.size())
 
-        if self.use_gt_depth_map:
-            gt_depth_maps = data.get('inputs.depth').to(device)
-            background_setting(gt_depth_maps, gt_mask)
-            input_depth_maps = gt_depth_maps
-        else:
-            pr_depth_maps = data.get('inputs.depth_pred').to(device)
-            background_setting(pr_depth_maps, gt_mask)
-            input_depth_maps = pr_depth_maps
+        if self.input_type == 'depth_pred':
+            gt_mask = data.get('inputs.mask').to(device).byte()
+            if self.use_gt_depth_map:
+                gt_depth_maps = data.get('inputs.depth').to(device)
+                background_setting(gt_depth_maps, gt_mask)
+                encoder_inputs = gt_depth_maps
+            else:
+                pr_depth_maps = data.get('inputs.depth_pred').to(device)
+                background_setting(pr_depth_maps, gt_mask)
+                encoder_inputs = pr_depth_maps
+        elif self.input_type == 'depth_pointcloud':
+            encoder_inputs = data.get('inputs').to(device)
 
         kwargs = {}
         with torch.no_grad():
-            p_r = self.model.forward_halfway(p, input_depth_maps, sample=self.eval_sample, **kwargs)
+            p_r = self.model.forward_halfway(p, encoder_inputs, sample=self.eval_sample, **kwargs)
 
         occ_hat = p_r.probs.view(batch_size, *shape)
         voxels_out = (occ_hat >= self.threshold).cpu().numpy()
 
-        for i in trange(batch_size):
-            if self.use_gt_depth_map:
-                input_img_path = os.path.join(self.vis_dir, '%03d_in_gt.png' % i)
-            else:
-                input_img_path = os.path.join(self.vis_dir, '%03d_in_pr.png' % i)
-            
-            depth_map = input_depth_maps[i].cpu()
-            depth_map = depth_to_L(depth_map, gt_mask[i].cpu())
-            vis.visualize_data(
-                depth_map, 'img', input_img_path)
-            vis.visualize_voxels(
-                voxels_out[i], os.path.join(self.vis_dir, '%03d.png' % i))
+        if self.input_type == 'depth_pred':
+            for i in trange(batch_size):
+                if self.use_gt_depth_map:
+                    input_img_path = os.path.join(self.vis_dir, '%03d_in_gt.png' % i)
+                else:
+                    input_img_path = os.path.join(self.vis_dir, '%03d_in_pr.png' % i)
+                    
+                depth_map = encoder_inputs[i].cpu()
+                depth_map = depth_to_L(depth_map, gt_mask[i].cpu())
+                vis.visualize_data(
+                    depth_map, 'img', input_img_path)
+                vis.visualize_voxels(
+                    voxels_out[i], os.path.join(self.vis_dir, '%03d.png' % i))
+        elif self.input_type == 'depth_pointcloud':
+            for i in trange(batch_size):
+                input_pointcloud_file = os.path.join(self.vis_dir, '%03d_depth_pointcloud.png' % i)
+                
+                pc = encoder_inputs[i].cpu()
+                vis.visualize_pointcloud(pc, out_file=input_pointcloud_file)
+                vis.visualize_voxels(voxels_out[i], os.path.join(self.vis_dir, '%03d.png' % i))
+
 
     def compute_loss(self, data):
         ''' Computes the loss.
@@ -548,23 +562,26 @@ class Phase2HalfwayTrainer(BaseTrainer):
         batch_size = p.size(0)
         occ = data.get('points.occ').to(device)
 
-        gt_mask = data.get('inputs.mask').to(device).byte()
-        if self.use_gt_depth_map:
-            gt_depth_maps = data.get('inputs.depth').to(device)
-            background_setting(gt_depth_maps, gt_mask)
-            input_depth_maps = gt_depth_maps
-        else:
-            pr_depth_maps = data.get('inputs.depth_pred').to(device)
-            background_setting(pr_depth_maps, gt_mask)
-            if self.depth_map_mix:
+        if self.input_type == 'depth_pred':
+            gt_mask = data.get('inputs.mask').to(device).byte()
+            if self.use_gt_depth_map:
                 gt_depth_maps = data.get('inputs.depth').to(device)
                 background_setting(gt_depth_maps, gt_mask)
-                alpha = torch.rand(batch_size,1,1,1).to(device)
-                pr_depth_maps = pr_depth_maps * alpha + gt_depth_maps * (1.0 - alpha)
-            input_depth_maps = pr_depth_maps
+                encoder_inputs = gt_depth_maps
+            else:
+                pr_depth_maps = data.get('inputs.depth_pred').to(device)
+                background_setting(pr_depth_maps, gt_mask)
+                if self.depth_map_mix:
+                    gt_depth_maps = data.get('inputs.depth').to(device)
+                    background_setting(gt_depth_maps, gt_mask)
+                    alpha = torch.rand(batch_size,1,1,1).to(device)
+                    pr_depth_maps = pr_depth_maps * alpha + gt_depth_maps * (1.0 - alpha)
+                encoder_inputs = pr_depth_maps
+        elif self.input_type == 'depth_pointcloud':
+            encoder_inputs = data.get('inputs').to(device)
 
         kwargs = {}
-        c = self.model.encode_depth_map(input_depth_maps)
+        c = self.model.encode(encoder_inputs)
         q_z = self.model.infer_z(p, occ, c, **kwargs)
         z = q_z.rsample()
 

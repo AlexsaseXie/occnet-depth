@@ -5,10 +5,10 @@ from im2mesh.data.core import (
 from im2mesh.data.fields import (
     IndexField, ViewIdField, CategoryField, ImagesField, PointsField,
     VoxelsField, PointCloudField, MeshField, ImagesWithDepthField, DepthPredictedField,
-    PointsH5Field
+    PointsH5Field, DepthPointCloudField
 )
 from im2mesh.data.transforms import (
-    PointcloudNoise, SubsamplePointcloud,
+    PointcloudNoise, SubsamplePointcloud, SubsampleDepthPointcloud,
     SubsamplePoints
 )
 from im2mesh.data.real import (

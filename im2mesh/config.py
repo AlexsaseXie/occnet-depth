@@ -295,6 +295,26 @@ def get_inputs_field(mode, cfg):
                 with_camera=with_camera, random_view=random_view,
                 absolute_depth=absolute_depth, with_minmax=with_minmax
             )
+    elif input_type == 'depth_pointcloud':
+        t_lst = []
+        if 'depth_pointcloud_n' in cfg['data'] and cfg['data']['depth_pointcloud_n'] is not None:
+            t_lst.append(data.SubsampleDepthPointcloud(cfg['data']['depth_pointcloud_n']))
+        if 'depth_pointcloud_noise' in cfg['data'] and cfg['data']['depth_pointcloud_noise'] is not None:
+            t_lst.append(data.PointcloudNoise(cfg['data']['depth_pointcloud_noise']))
+        transform = transforms.Compose(t_lst)
+
+        if mode == 'train':
+            random_view = True
+        else:
+            random_view = False
+
+        with_transforms = cfg['data']['with_transforms']
+        inputs_field = data.DepthPointCloudField(
+            cfg['data']['depth_pointcloud_root'],
+            cfg['data']['depth_pointcloud_folder'],
+            transform,
+            random_view=random_view
+        )
     elif input_type == 'multi_img':
         if mode == 'train' and cfg['data']['img_augment']:
             resize_op = transforms.RandomResizedCrop(

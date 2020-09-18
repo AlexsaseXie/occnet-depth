@@ -832,3 +832,71 @@ class PointsH5Field(Field):
                 data['scale'] = h5f['scale'][()].astype(np.float32)
 
         return data
+
+class DepthPointCloudField(Field):
+    ''' Depth Point Cloud Field.
+
+    It is the field used for loading depth point cloud.
+
+    Args:
+        folder_name (str): folder name
+        transform (list): list of transformations applied to loaded images
+        extension (str): image extension
+        random_view (bool): whether a random view should be used
+    '''
+    def __init__(self, depth_pointcloud_root=None, depth_pointcloud_folder_name='depth_pointcloud',
+                  transform=None, random_view=True):
+        self.depth_pointcloud_root = depth_pointcloud_root
+        self.depth_pointcloud_folder_name = depth_pointcloud_folder_name
+
+        self.transform = transform
+        self.random_view = random_view
+        #self.with_camera = with_camera
+
+    def load(self, model_path, idx, category, view_id=None):
+        ''' Loads the data point.
+
+        Args:
+            model_path (str): path to model
+            idx (int): ID of data point
+            category (int): index of category
+        '''
+        if self.depth_pointcloud_root is not None:
+            paths = model_path.split('/')
+            depth_pointcloud_folder = os.path.join(self.depth_pointcloud_root, paths[-2], paths[-1], self.depth_pointcloud_folder_name)
+        else:
+            depth_pointcloud_folder = os.path.join(model_path, self.depth_pointcloud_folder_name)
+
+        depth_pointcloud_files = sorted(glob.glob(os.path.join(depth_pointcloud_folder, '*.npz')))
+
+        if view_id is not None:
+            idx_img = view_id
+        elif self.random_view:
+            idx_img = random.randint(0, len(depth_pointcloud_files)-1)
+        else:
+            idx_img = 0
+
+        depth_pointcloud_file = depth_pointcloud_files[idx_img]
+
+        # load npz
+        depth_pointcloud_dict = np.load(depth_pointcloud_file)
+
+        depth_pointcloud = depth_pointcloud_dict['points']
+        if self.transform is not None:
+            depth_pointcloud = self.transform(depth_pointcloud)
+
+        data = {
+            None: depth_pointcloud
+        }
+
+        return data
+
+    def check_complete(self, files):
+        ''' Check if field is complete.
+        
+        Args:
+            files: files
+        '''
+        complete = True
+        return complete
+

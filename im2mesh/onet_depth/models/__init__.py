@@ -27,7 +27,7 @@ class OccupancyWithDepthNetwork(nn.Module):
 
     Args:
         decoder (nn.Module): decoder network
-        encoder (nn.Module): encoder network
+        encoder (nn.Module): encoder network( eithor for depth map or for depth pointcloud )
         encoder_latent (nn.Module): latent encoder network
         p0_z (dist): prior distribution for latent code z
         device (device): torch device
@@ -87,14 +87,14 @@ class OccupancyWithDepthNetwork(nn.Module):
         batch_size = p.size(0)
         depth_map = self.predict_depth_map(inputs)
         background_setting(depth_map, gt_mask)       
-        c = self.encode_depth_map(depth_map)
+        c = self.encode(depth_map)
         z = self.get_z_from_prior((batch_size,), sample=sample)
         p_r = self.decode(p, z, c, **kwargs)
         return p_r
 
-    def forward_halfway(self, p, depth_map, sample=True, **kwargs):
+    def forward_halfway(self, p, encoder_input, sample=True, **kwargs):
         batch_size = p.size(0)   
-        c = self.encode_depth_map(depth_map)
+        c = self.encode(encoder_input)
         z = self.get_z_from_prior((batch_size,), sample=sample)
         p_r = self.decode(p, z, c, **kwargs)
         return p_r
@@ -109,7 +109,7 @@ class OccupancyWithDepthNetwork(nn.Module):
         '''
         depth_map = self.predict_depth_map(inputs)
         background_setting(depth_map, gt_mask)
-        c = self.encode_depth_map(depth_map)
+        c = self.encode(depth_map)
         q_z = self.infer_z(p, occ, c, **kwargs)
         z = q_z.rsample()
         p_r = self.decode(p, z, c, **kwargs)
@@ -120,8 +120,8 @@ class OccupancyWithDepthNetwork(nn.Module):
 
         return elbo, rec_error, kl
 
-    def compute_elbo_halfway(self, p, occ, depth_map, **kwargs):
-        c = self.encode_depth_map(depth_map)
+    def compute_elbo_halfway(self, p, occ, encoder_input, **kwargs):
+        c = self.encode(encoder_input)
         q_z = self.infer_z(p, occ, c, **kwargs)
         z = q_z.rsample()
         p_r = self.decode(p, z, c, **kwargs)
@@ -132,18 +132,18 @@ class OccupancyWithDepthNetwork(nn.Module):
 
         return elbo, rec_error, kl
 
-    def encode_depth_map(self, depth_map):
-        ''' Encodes the depth map.
+    def encode(self, encoder_input):
+        ''' Encodes the depth map / depth pointcloud.
 
         Args:
-             depth_map (tensor): the depth map
+             encoder_input (tensor): depth map / depth pointcloud
         '''
 
         if self.encoder is not None:
-            c = self.encoder(depth_map)
+            c = self.encoder(encoder_input)
         else:
             # Return inputs?
-            c = torch.empty(inputs.size(0), 0)
+            c = torch.empty(encoder_input.size(0), 0)
 
         return c
 

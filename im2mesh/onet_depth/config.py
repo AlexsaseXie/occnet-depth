@@ -161,7 +161,7 @@ def get_trainer(model, optimizer, cfg, device, **kwargs):
                 training_detach=training_detach,
                 depth_map_mix=depth_map_mix
             )
-        elif input_type == 'depth_pred':
+        elif input_type == 'depth_pred' or input_type == 'depth_pointcloud':
             training_use_gt_depth = cfg['training']['use_gt_depth']
             trainer = training.Phase2HalfwayTrainer(
                 model, optimizer,
@@ -189,8 +189,8 @@ def get_generator(model, cfg, device, **kwargs):
         device (device): pytorch device
     '''
     preprocessor = config.get_preprocessor(cfg, device=device)
-    halfway = cfg['data']['input_type'] == 'depth_pred'
-    if halfway:
+    input_type = cfg['data']['input_type']
+    if input_type == 'depth_pred':
         training_use_gt_depth = cfg['training']['use_gt_depth']
     else:
         training_use_gt_depth = False
@@ -205,7 +205,7 @@ def get_generator(model, cfg, device, **kwargs):
         refinement_step=cfg['generation']['refinement_step'],
         simplify_nfaces=cfg['generation']['simplify_nfaces'],
         preprocessor=preprocessor,
-        halfway=halfway,
+        input_type=input_type,
         use_gt_depth=training_use_gt_depth
     )
     return generator

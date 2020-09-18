@@ -38,7 +38,7 @@ class Generator3D(object):
                  with_normals=False, padding=0.1, sample=False,
                  simplify_nfaces=None,
                  preprocessor=None,
-                 halfway=True,
+                 input_type='depth_pred',
                  use_gt_depth=False):
         self.model = model.to(device)
         self.points_batch_size = points_batch_size
@@ -53,9 +53,11 @@ class Generator3D(object):
         self.simplify_nfaces = simplify_nfaces
         self.preprocessor = preprocessor
 
-        self.halfway = halfway
+        self.input_type = input_type
+        assert self.input_type == 'depth_pred' or self.input_type == 'depth_pointcloud' or \
+            self.input_type == 'img' or self.input_type == 'img_with_depth'
         self.use_gt_depth = use_gt_depth
-        print('self.halfway:', self.halfway)
+        print('self.input_type:', self.input_type)
 
     def generate_mesh(self, data, return_stats=True):
         ''' Generates the output mesh.
@@ -69,11 +71,15 @@ class Generator3D(object):
         stats_dict = {}
 
         gt_mask = data.get('inputs.mask').to(device).byte()
-        if self.halfway:
+        if self.input_type == 'depth_pred':
             if self.use_gt_depth:
                 depth = data.get('inputs.depth').to(device)
             else:
                 depth = data.get('inputs.depth_pred').to(device)
+            background_setting(depth, gt_mask)
+            encoder_inputs = depth
+        elif input_type == 'depth_pointcloud':
+            encoder_inputs = data.get('inputs').to(device)
         else:
             # Preprocess if requires
             inputs = data.get('inputs').to(device)
@@ -87,15 +93,15 @@ class Generator3D(object):
             with torch.no_grad():
                 depth = self.model.predict_depth_map(inputs)
             stats_dict['time (predict depth map)'] = time.time() - t0
-
-        background_setting(depth, gt_mask)
+            background_setting(depth, gt_mask)
+            encoder_inputs = depth
 
         kwargs = {}
         # Encode inputs
         t0 = time.time()
         with torch.no_grad():
-            c = self.model.encode_depth_map(depth)
-        stats_dict['time (encode depth_map)'] = time.time() - t0
+            c = self.model.encode(encoder_inputs)
+        stats_dict['time (encode)'] = time.time() - t0
 
         z = self.model.get_z_from_prior((1,), sample=self.sample).to(device)
         mesh = self.generate_from_latent(z, c, stats_dict=stats_dict, **kwargs)
