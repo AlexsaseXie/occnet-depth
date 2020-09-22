@@ -178,16 +178,12 @@ def export_points(mesh, modelname, loc, scale, args):
         return
 
     n_points_uniform = int(args.points_size * args.points_uniform_ratio)
-    n_points_on_surface = int(args.points_size * (1. - args.points_uniform_ratio) / 3.)
-    n_points_noise_surface = args.points_size - n_points_uniform - n_points_on_surface 
+    n_points_noise_surface = args.points_size - n_points_uniform
 
     # uniform
     boxsize = 1 + args.points_padding
     points_uniform = np.random.rand(n_points_uniform, 3)
     points_uniform = boxsize * (points_uniform - 0.5)
-
-    # surface 
-    points_on_surface = mesh.sample(n_points_on_surface)
 
     # surface + noise
     points_noise_surface, points_noise_index = mesh.sample(n_points_noise_surface, return_index=True)
@@ -195,18 +191,16 @@ def export_points(mesh, modelname, loc, scale, args):
     points_noise_ratio = np.random.rand(n_points_noise_surface) * 2. - 1.
     points_noise_surface += args.points_sigma * points_noise_ratio.reshape(n_points_noise_surface, 1) * points_noise_normal
     
-    points = np.concatenate([points_uniform, points_on_surface, points_noise_surface], axis=0)
+    points = np.concatenate([points_uniform, points_noise_surface], axis=0)
 
-    #points = np.concatenate([points_uniform, points_surface], axis=0)
     points_uniform_occupancies = check_mesh_contains(mesh, points_uniform).astype(np.float32)
-    points_on_surface_occupancies = np.ones(n_points_on_surface).astype(np.float32) * 0.5
     points_noise_surface_occupancies = check_mesh_contains(mesh, points_noise_surface).astype(np.float32)
     # adjustment
     points_noise_ratio = np.abs(points_noise_ratio)
     points_noise_ratio[points_noise_ratio > 1] = 1
     points_noise_surface_occupancies = (points_noise_surface_occupancies - 0.5) * points_noise_ratio + 0.5
 
-    occupancies = np.concatenate([points_uniform_occupancies, points_on_surface_occupancies, points_noise_surface_occupancies], axis=0)
+    occupancies = np.concatenate([points_uniform_occupancies, points_noise_surface_occupancies], axis=0)
 
     # Compress
     if args.float16:

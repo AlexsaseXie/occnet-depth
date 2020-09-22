@@ -10,7 +10,7 @@ from functools import partial
 sys.path.append('..')
 from im2mesh.utils import binvox_rw, voxels
 from im2mesh.utils.libmesh import check_mesh_contains
-
+from im2mesh.common import make_3d_grid
 
 parser = argparse.ArgumentParser('Sample a watertight mesh.')
 parser.add_argument('in_folder', type=str,
@@ -42,14 +42,8 @@ parser.add_argument('--voxels_res', type=int, default=32,
 
 parser.add_argument('--points_folder', type=str,
                     help='Output path for points.')
-parser.add_argument('--points_size', type=int, default=100000,
-                    help='Size of points.')
-parser.add_argument('--points_uniform_ratio', type=float, default=1.,
-                    help='Ratio of points to sample uniformly'
-                         'in bounding box.')
-parser.add_argument('--points_sigma', type=float, default=0.01,
-                    help='Standard deviation of gaussian noise added to points'
-                         'samples on the surfaces.')
+parser.add_argument('--points_resolution', type=int, default=128,
+                    help='Resolution of sampled points')
 parser.add_argument('--points_padding', type=float, default=0.1,
                     help='Additional padding applied to the uniformly'
                          'sampled points on both sides (in total).')
@@ -177,32 +171,15 @@ def export_points(mesh, modelname, loc, scale, args):
         print('Points already exist: %s' % filename)
         return
 
-    n_points_uniform = int(args.points_size * args.points_uniform_ratio)
-    n_points_on_surface = int(args.points_size * (1. - args.points_uniform_ratio) / 3.)
-    n_points_noise_surface = args.points_size - n_points_uniform - n_points_on_surface 
+    # uniform grid 
+    total_l = 1. + args.points_padding
+    res = args.points_resolution 
+    points_uniform = make_3d_grid((-total_l/2.0 + total_l/(res*2),)*3, (total_l/2.0 - total_l/(res*2),)*3, (res,)*3).numpy()
 
-    # uniform
-    boxsize = 1 + args.points_padding
-    points_uniform = np.random.rand(n_points_uniform, 3)
-    points_uniform = boxsize * (points_uniform - 0.5)
-
-    # surface 
-    points_on_surface = mesh.sample(n_points_on_surface)
-
-    # surface + noise
-    points_noise_surface = mesh.sample(n_points_noise_surface)
-    points_noise_surface += args.points_sigma * np.random.randn(n_points_noise_surface, 3)
-    
-    points = np.concatenate([points_uniform, points_on_surface, points_noise_surface], axis=0)
-
-    #points = np.concatenate([points_uniform, points_surface], axis=0)
     points_uniform_occupancies = check_mesh_contains(mesh, points_uniform).astype(np.float32)
-    points_on_surface_occupancies = np.ones(n_points_on_surface).astype(np.float32) * 0.5
-    points_noise_surface_occupancies = check_mesh_contains(mesh, points_noise_surface).astype(np.float32)
-    # adjustment
-    points_noise_surface_occupancies = (points_noise_surface_occupancies - 0.5) / 2.0 + 0.5
 
-    occupancies = np.concatenate([points_uniform_occupancies, points_on_surface_occupancies, points_noise_surface_occupancies], axis=0)
+    points = points_uniform
+    occupancies = points_uniform_occupancies
 
     # Compress
     if args.float16:
