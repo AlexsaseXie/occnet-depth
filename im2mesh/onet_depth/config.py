@@ -211,20 +211,7 @@ def get_generator(model, cfg, device, **kwargs):
     return generator
 
 
-def get_prior_z(cfg, device, **kwargs):
-    ''' Returns prior distribution for latent code z.
-
-    Args:
-        cfg (dict): imported yaml config
-        device (device): pytorch device
-    '''
-    z_dim = cfg['model']['z_dim']
-    p0_z = dist.Normal(
-        torch.zeros(z_dim, device=device),
-        torch.ones(z_dim, device=device)
-    )
-
-    return p0_z
+from im2mesh.onet.config import get_prior_z 
 
 
 def get_data_fields(mode, cfg):
@@ -234,9 +221,6 @@ def get_data_fields(mode, cfg):
         mode (str): the mode which is used
         cfg (dict): imported yaml config
     '''
-    N = cfg['data']['points_subsample']
-    points_transform = data.SubsamplePoints(cfg['data']['points_subsample'])
-    with_transforms = cfg['model']['use_camera']
     training_phase = cfg['training']['phase'] # 1 for depth prediction; 2 for reconstruction
 
     fields = {}
@@ -244,57 +228,7 @@ def get_data_fields(mode, cfg):
     if training_phase == 1:
         pass
     else:
-        if mode == 'train':
-            if 'input_range' in cfg['data']:
-                input_range = cfg['data']['input_range']
-                print('Input range:', input_range)
-            else:
-                input_range = None
-        else:
-            if 'test_range' in cfg['data']:
-                input_range = cfg['data']['test_range']
-                print('Test range:', input_range)
-            else:
-                input_range = None
-
-        points_file = cfg['data']['points_file']
-        if points_file.endswith('.npz'):
-            fields['points'] = data.PointsField(
-                cfg['data']['points_file'], points_transform,
-                with_transforms=with_transforms,
-                unpackbits=cfg['data']['points_unpackbits'],
-                input_range=input_range,
-            )
-        elif points_file.endswith('.h5'):
-            fields['points'] = data.PointsH5Field(
-                cfg['data']['points_file'], subsample_n=N,
-                with_transforms=with_transforms,
-                input_range=input_range
-            )
-        else:
-            raise NotImplementedError
-
-        if mode in ('val', 'test'):
-            points_iou_file = cfg['data']['points_iou_file']
-            voxels_file = cfg['data']['voxels_file']
-            if points_iou_file is not None:
-                if points_iou_file.endswith('.npz'):
-                    fields['points_iou'] = data.PointsField(
-                        points_iou_file,
-                        with_transforms=with_transforms,
-                        unpackbits=cfg['data']['points_unpackbits'],
-                        input_range=input_range
-                    )
-                elif points_iou_file.endswith('.h5'):
-                    fields['points_iou'] = data.PointsH5Field(
-                        points_iou_file, 
-                        with_transforms=with_transforms,
-                        input_range=input_range
-                    )
-                else:
-                    raise NotImplementedError
-
-            if voxels_file is not None:
-                fields['voxels'] = data.VoxelsField(voxels_file)
+        from im2mesh.onet.config import get_data_fields as _get_data_fields
+        return _get_data_fields(mode, cfg)
 
     return fields

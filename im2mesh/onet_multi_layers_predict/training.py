@@ -9,6 +9,7 @@ from im2mesh.common import (
 from im2mesh.utils import visualize as vis
 from im2mesh.training import BaseTrainer
 
+from im2mesh.onet.loss_functions import get_occ_loss, occ_loss_postprocess
 
 class Trainer(BaseTrainer):
     ''' Trainer object for the Occupancy Network.
@@ -224,29 +225,12 @@ class Trainer(BaseTrainer):
         p_r = self.model.decode(p, z, f3, f2, f1, **kwargs)
         logits = p_r.logits
         probs = p_r.probs
-        if self.loss_type == 'cross_entropy':
-            loss_i = F.binary_cross_entropy_with_logits(
-                logits, occ, reduction='none')
-        elif self.loss_type == 'l2':
-            logits = F.sigmoid(logits)
-            loss_i = torch.pow((logits - occ), 2)
-        elif self.loss_type == 'l1':
-            logits = F.sigmoid(logits)
-            loss_i = torch.abs(logits - occ)
-        else:
-            logits = F.sigmoid(logits)
-            loss_i = F.binary_cross_entropy(logits, occ, reduction='none')
+        
+        # loss
+        loss_i = get_occ_loss(logits, occ, self.loss_type)
+        # loss strategies
+        loss_i = occ_loss_postprocess(loss_i, occ, probs, self.loss_tolerance_episolon, self.sign_lambda, self.threshold, self.surface_loss_weight)
 
-        if self.loss_tolerance_episolon != 0.:
-            loss_i = torch.clamp(loss_i, min=self.loss_tolerance_episolon, max=100)
-
-        if self.sign_lambda != 0.:
-            w = 1. - self.sign_lambda * torch.sign(occ - 0.5) * torch.sign(probs - self.threshold)
-            loss_i = loss_i * w
-
-        if self.surface_loss_weight != 1.:
-            w = ((occ > 0.) & (occ < 1.)).float()
-            w = w * (self.surface_loss_weight - 1) + 1
-            loss_i = loss_i * w
         loss = loss + loss_i.sum(-1).mean()
+
         return loss

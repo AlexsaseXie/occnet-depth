@@ -9,6 +9,7 @@ from im2mesh.common import (
 from im2mesh.utils import visualize as vis
 from im2mesh.training import BaseTrainer
 
+from im2mesh.onet.loss_functions import get_occ_loss, occ_loss_postprocess
 
 class Trainer(BaseTrainer):
     ''' Trainer object for the Occupancy Network.
@@ -255,12 +256,9 @@ class Trainer(BaseTrainer):
 
         # General points
         logits = self.model.decode(p, z, c, **kwargs).logits
-        if self.loss_type == 'cross_entropy':
-            loss_i = F.binary_cross_entropy_with_logits(
-                logits, occ, reduction='none')
-        else:
-            logits = F.sigmoid(logits)
-            loss_i = torch.pow((logits - occ), 2)
+        
+        loss_i = get_occ_loss(logits, occ, self.loss_type)
+
         loss = loss + loss_i.sum(-1).mean()
 
         return loss, force_loss
