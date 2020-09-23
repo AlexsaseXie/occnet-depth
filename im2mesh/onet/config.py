@@ -86,7 +86,12 @@ def get_trainer(model, optimizer, cfg, device, **kwargs):
     else:
         sign_lambda = 0.
 
-    trainer = training.Trainer(
+    if 'use_sdf' in cfg and cfg['use_sdf']:
+        trainer_constructor = training.SDFTrainer
+    else:
+        trainer_constructor = training.Trainer
+
+    trainer = trainer_constructor(
         model, optimizer,
         device=device, input_type=input_type,
         vis_dir=vis_dir, threshold=threshold,
@@ -143,7 +148,48 @@ def get_prior_z(cfg, device, **kwargs):
     return p0_z
 
 
-def get_data_fields(mode, cfg):
+def get_sdf_data_fields(mode, cfg):
+    # currently only support h5
+    N = cfg['data']['points_subsample']
+    with_transforms = cfg['model']['use_camera']
+    if mode == 'train':
+        if 'input_range' in cfg['data']:
+            input_range = cfg['data']['input_range']
+            print('Input range:', input_range)
+        else:
+            input_range = None
+    else:
+        if 'test_range' in cfg['data']:
+            input_range = cfg['data']['test_range']
+            print('Test range:', input_range)
+        else:
+            input_range = None
+
+    fields = {}
+    points_file = cfg['data']['points_file']
+    fields['points'] = data.SdfH5Field(
+        points_file, subsample_n=N,
+        with_transforms=with_transforms,
+        input_range=input_range
+    )
+
+    if mode in ('val', 'test'):
+        points_iou_file = cfg['data']['points_iou_file']
+        voxels_file = cfg['data']['voxels_file']
+        if points_iou_file is not None:
+            fields['points_iou'] = data.SdfH5Field(
+                points_iou_file, 
+                with_transforms=with_transforms,
+                input_range=input_range
+            )
+
+        if voxels_file is not None:
+            fields['voxels'] = data.VoxelsField(voxels_file)
+
+    return fields
+
+
+def get_occ_data_fields(mode, cfg):
     ''' Returns the data fields.
 
     Args:
@@ -209,3 +255,15 @@ def get_data_fields(mode, cfg):
             fields['voxels'] = data.VoxelsField(voxels_file)
 
     return fields
+
+
+def get_data_fields(mode, cfg):
+    if 'use_sdf' in cfg:
+        use_sdf = cfg['use_sdf']
+    else:
+        use_sdf = False
+
+    if use_sdf:
+        return get_sdf_data_fields(mode, cfg)
+    else:
+        return get_occ_data_fields(mode, cfg)

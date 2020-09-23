@@ -31,5 +31,24 @@ def occ_loss_postprocess(loss_i, occ, probs, loss_tolerance_episolon=0., sign_la
 
     return loss_i
 
-def get_sdf_loss(logits, sdf, loss_type):
-    return 0
+def get_sdf_loss(logits, sdf, loss_type, ratio=10.):
+    sdf = sdf * ratio
+    if loss_type == 'l2':
+        loss_i = torch.sqrt(torch.pow((logits, sdf), 2))
+    elif loss_type == 'l1':
+        loss_i = torch.abs(logits - sdf)
+    else:
+        raise NotImplementedError
+
+    return loss_i
+
+def sdf_loss_postprocess(loss_i, sdf, surface_loss_weight=1., surface_flag=None, surface_band=0.1):
+    if surface_loss_weight != 1.:
+        if surface_flag is not None:
+            w = surface_flag
+        else:
+            w = ((sdf < surface_band) & (sdf > -surface_band)).float()
+        w = w * (surface_loss_weight - 1) + 1
+        loss_i = loss_i * w
+
+    return loss_i
