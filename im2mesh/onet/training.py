@@ -207,7 +207,8 @@ class SDFTrainer(BaseTrainer):
                  vis_dir=None, threshold=0, eval_sample=False, loss_type='l2',
                  surface_loss_weight=1.,
                  loss_tolerance_episolon=0.,
-                 sign_lambda=0.
+                 sign_lambda=0.,
+                 sdf_ratio=20.
                 ):
         self.model = model
         self.optimizer = optimizer
@@ -220,6 +221,7 @@ class SDFTrainer(BaseTrainer):
         self.surface_loss_weight = surface_loss_weight
         self.loss_tolerance_episolon = loss_tolerance_episolon
         self.sign_lambda = sign_lambda
+        self.sdf_ratio=sdf_ratio
 
         if vis_dir is not None and not os.path.exists(vis_dir):
             os.makedirs(vis_dir)
@@ -350,7 +352,7 @@ class SDFTrainer(BaseTrainer):
         logits = p_r.logits
 
         # loss
-        loss_i = get_sdf_loss(logits, sdf, self.loss_type)
+        loss_i = get_sdf_loss(logits, sdf, self.loss_type, ratio=self.sdf_ratio)
         # loss strategies
         loss_i = sdf_loss_postprocess(loss_i, sdf, surface_loss_weight=self.surface_loss_weight, surface_flag=surface_flag)
 

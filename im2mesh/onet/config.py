@@ -86,19 +86,25 @@ def get_trainer(model, optimizer, cfg, device, **kwargs):
     else:
         sign_lambda = 0.
 
+    trainer_params = {
+        'device': device, 'input_type': input_type,
+        'vis_dir': vis_dir, 'threshold': threshold,
+        'eval_sample': cfg['training']['eval_sample'],
+        'surface_loss_weight': surface_loss_weight,
+        'loss_tolerance_episolon': loss_tolerance_episolon,
+        'sign_lambda': sign_lambda
+    }
+
     if 'use_sdf' in cfg and cfg['use_sdf']:
         trainer_constructor = training.SDFTrainer
+        if 'sdf_ratio' in cfg['model']:
+            trainer_params['sdf_ratio'] = cfg['model']['sdf_ratio']
     else:
         trainer_constructor = training.Trainer
 
     trainer = trainer_constructor(
         model, optimizer,
-        device=device, input_type=input_type,
-        vis_dir=vis_dir, threshold=threshold,
-        eval_sample=cfg['training']['eval_sample'],
-        surface_loss_weight=surface_loss_weight,
-        loss_tolerance_episolon=loss_tolerance_episolon,
-        sign_lambda=sign_lambda
+        **trainer_params
     )
 
     if 'loss_type' in cfg['training']:
