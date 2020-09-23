@@ -888,7 +888,7 @@ class DepthPointCloudField(Field):
         # load npz
         depth_pointcloud_dict = np.load(depth_pointcloud_file)
 
-        depth_pointcloud = depth_pointcloud_dict['points']
+        depth_pointcloud = depth_pointcloud_dict['pointcloud']
         if self.transform is not None:
             depth_pointcloud = self.transform(depth_pointcloud)
 

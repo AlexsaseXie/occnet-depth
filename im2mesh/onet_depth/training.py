@@ -529,7 +529,7 @@ class Phase2HalfwayTrainer(BaseTrainer):
                 input_pointcloud_file = os.path.join(self.vis_dir, '%03d_depth_pointcloud.png' % i)
                 
                 pc = encoder_inputs[i].cpu()
-                vis.visualize_pointcloud(pc, out_file=input_pointcloud_file)
+                vis.visualize_pointcloud(pc, out_file=input_pointcloud_file, elev=15, azim=180)
                 vis.visualize_voxels(voxels_out[i], os.path.join(self.vis_dir, '%03d.png' % i))
 
     def compute_loss(self, data):

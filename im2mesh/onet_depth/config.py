@@ -57,7 +57,7 @@ def get_model(cfg, device=None, dataset=None, **kwargs):
     else:
         if input_type == 'img_with_depth':
             depth_predictor = get_depth_predictor(cfg)
-        elif input_type == 'depth_pred':
+        elif input_type == 'depth_pred' or input_type == 'depth_pointcloud':
             depth_predictor = None
         else:
             raise NotImplementedError

@@ -54,7 +54,7 @@ def visualize_voxels(voxels, out_file=None, show=False):
 
 
 def visualize_pointcloud(points, normals=None,
-                         out_file=None, show=False):
+                         out_file=None, show=False, elev=30, azim=45):
     r''' Visualizes point cloud data.
 
     Args:
@@ -81,7 +81,7 @@ def visualize_pointcloud(points, normals=None,
     ax.set_xlim(-0.5, 0.5)
     ax.set_ylim(-0.5, 0.5)
     ax.set_zlim(-0.5, 0.5)
-    ax.view_init(elev=30, azim=45)
+    ax.view_init(elev=elev, azim=azim)
     if out_file is not None:
         plt.savefig(out_file)
     if show:
