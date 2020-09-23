@@ -278,7 +278,8 @@ class SDFTrainer(BaseTrainer):
                                sample=self.eval_sample, **kwargs)
 
         occ_iou_np = (sdf_iou <= 0.).cpu().numpy()
-        occ_iou_hat_np = (p_out.logits <= threshold).cpu().numpy()
+        occ_iou_pred_sdf = p_out.logits / self.sdf_ratio
+        occ_iou_hat_np = (occ_iou_pred_sdf <= threshold).cpu().numpy()
         iou = compute_iou(occ_iou_np, occ_iou_hat_np).mean()
         eval_dict['iou'] = iou
 
@@ -295,7 +296,8 @@ class SDFTrainer(BaseTrainer):
                                    sample=self.eval_sample, **kwargs)
 
             voxels_occ_np = (voxels_occ >= 0.5).cpu().numpy()
-            occ_hat_np = (p_out.logits <= threshold).cpu().numpy()
+            occ_hat_pred_sdf = p_out.logits / self.sdf_ratio
+            occ_hat_np = (occ_hat_pred_sdf <= threshold).cpu().numpy()
             iou_voxels = compute_iou(voxels_occ_np, occ_hat_np).mean()
 
             eval_dict['iou_voxels'] = iou_voxels
@@ -321,7 +323,8 @@ class SDFTrainer(BaseTrainer):
         with torch.no_grad():
             p_r = self.model(p, inputs, sample=self.eval_sample, **kwargs)
 
-        voxels_out = (p_r.logits <= self.threshold).cpu().numpy()
+        pred_sdf = p_r.logits / self.sdf_ratio
+        voxels_out = (pred_sdf <= self.threshold).cpu().numpy()
 
         for i in trange(batch_size):
             input_img_path = os.path.join(self.vis_dir, '%03d_in.png' % i)
