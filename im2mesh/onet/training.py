@@ -223,6 +223,8 @@ class SDFTrainer(BaseTrainer):
         self.sign_lambda = sign_lambda
         self.sdf_ratio=sdf_ratio
 
+        print('sdf ratio:', self.sdf_ratio)
+
         if vis_dir is not None and not os.path.exists(vis_dir):
             os.makedirs(vis_dir)
 
@@ -266,7 +268,8 @@ class SDFTrainer(BaseTrainer):
         with torch.no_grad():
             p_out = self.model(points, inputs, 
                                 sample=self.eval_sample, **kwargs)
-            loss = get_sdf_loss(p_out.logits, sdf, self.loss_type)
+            loss = get_sdf_loss(p_out.logits, sdf, self.loss_type, ratio=self.sdf_ratio)
+            loss = loss.sum(-1).mean()
 
         eval_dict['loss'] = loss.item()
 
@@ -324,6 +327,7 @@ class SDFTrainer(BaseTrainer):
             p_r = self.model(p, inputs, sample=self.eval_sample, **kwargs)
 
         pred_sdf = p_r.logits / self.sdf_ratio
+        pred_sdf = pred_sdf.view(batch_size, *shape)
         voxels_out = (pred_sdf <= self.threshold).cpu().numpy()
 
         for i in trange(batch_size):
