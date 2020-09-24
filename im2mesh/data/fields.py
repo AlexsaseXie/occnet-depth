@@ -712,11 +712,8 @@ class PointsH5Field(Field):
 
         self.random_choice = random_choice
         self.input_range = input_range
-        self.first_load = True
         self.with_transforms = with_transforms
 
-        self.points = None
-        self.occupancies = None
         print('Points h5 field:', self.file_name)
 
     def load(self, model_path, idx, category, view_id=None):
@@ -733,17 +730,10 @@ class PointsH5Field(Field):
         file_path = os.path.join(model_path, self.file_name)
 
         with h5py.File(file_path, 'r') as h5f:
-            if self.first_load:
-                self.first_load = False
-                # only for first time
-                if self.N == 0:
-                    self.N = h5f['points'].shape[0]
-
-                self.pt_dtype = h5f['points'].dtype
-                self.occ_dtype = h5f['occupancies'].dtype
-
-                self.points = np.zeros((self.N, 3), dtype=self.pt_dtype)
-                self.occupancies = np.zeros(self.N, dtype=self.occ_dtype)
+            if self.N != 0:
+                N = self.N
+            else:
+                N = h5f['points'].shape[0]
 
             if self.input_range is not None:
                 low = self.input_range[0]
@@ -752,32 +742,31 @@ class PointsH5Field(Field):
                 low = 0
                 high = h5f['points'].shape[0]
         
-            if self.N < high - low:
+            if N < high - low:
                 if self.random_choice:
                     #random choice
-                    idx = np.random.choice(range(low, high), self.N, False)
+                    idx = np.random.choice(range(low, high), N, False)
                     idx.sort()
                     pt_idx = np.s_[idx, :]
                     occ_idx = list(idx)
                 else:
                     #continuous
-                    start = np.random.randint(low, high - self.N)
-                    pt_idx = np.s_[start: start + self.N, :]
-                    occ_idx = np.s_[start: start + self.N]
+                    start = np.random.randint(low, high - N)
+                    pt_idx = np.s_[start: start + N, :]
+                    occ_idx = np.s_[start: start + N]
             else:
                 pt_idx = np.s_[low:high,:]
                 occ_idx = np.s_[low:high]
 
-            h5f['points'].read_direct(self.points, pt_idx)
-            h5f['occupancies'].read_direct(self.occupancies, occ_idx)
-
-            points = self.points.astype(np.float32)
-            if self.pt_dtype == np.float16:
-                # break symmetric
+            points = h5f['points'][pt_idx]
+            occupancies = h5f['occupancies'][occ_idx].astype(np.float32)
+            if points.dtype == np.float16:
+                points = points.astype(np.float32)
                 points += 1e-4 * np.random.randn(*points.shape)
-
-            occupancies = self.occupancies.astype(np.float32)
-
+            else:
+                points = points.astype(np.float32)
+            
+                
             data = {
                 None: points,
                 'occ': occupancies,
@@ -796,38 +785,27 @@ class PointsH5Field(Field):
         file_path = os.path.join(model_path, self.file_name)
 
         with h5py.File(file_path, 'r') as h5f:
-            if self.first_load:
-                self.first_load = False
-                # only for first time
-                self.total_length = h5f['points'].shape[0]
+            total_length = h5f['points'].shape[0]
+            total_chunk_count = total_length / self.N
+            if total_length % self.N != 0:
+                total_chunk_count += 1
 
-                self.pt_dtype = h5f['points'].dtype
-                self.occ_dtype = h5f['occupancies'].dtype
-
-                self.points = np.zeros((self.N, 3), dtype=self.pt_dtype)
-                self.occupancies = np.zeros(self.N, dtype=self.occ_dtype)
-
-                self.total_chunk_count = self.total_length // self.N
-                if self.total_length % self.N != 0:
-                    self.total_chunk_count += 1
-
-            choice = np.random.randint(0, self.total_chunk_count)
-            if choice == self.total_chunk_count - 1:
-                pt_idx = np.s_[self.total_length - self.N: self.total_length, :]
-                occ_idx = np.s_[self.total_length - self.N: self.total_length]
+            choice = np.random.randint(0, total_chunk_count)
+            if choice == total_chunk_count - 1:
+                pt_idx = np.s_[total_length - self.N: total_length, :]
+                occ_idx = np.s_[total_length - self.N: total_length]
             else:            
                 pt_idx = np.s_[choice * self.N: (choice+1) * self.N, :]
                 occ_idx = np.s_[choice * self.N: (choice+1) * self.N]
 
-            h5f['points'].read_direct(self.points, pt_idx)
-            h5f['occupancies'].read_direct(self.occupancies, occ_idx)
-
-            points = self.points.astype(np.float32)
-            if self.pt_dtype == np.float16:
+            points = h5f['points'][pt_idx]
+            occupancies = h5f['occupancies'][occ_idx].astype(np.float32)
+            if points.dtype == np.float16:
                 # break symmetric
+                points = points.astype(np.float32)
                 points += 1e-4 * np.random.randn(*points.shape)
-            
-            occupancies = self.occupancies.astype(np.float32)
+            else:
+                points = points.astype(np.float32)
 
             data = {
                 None: points,
@@ -940,11 +918,8 @@ class SdfH5Field(Field):
 
         self.random_choice = random_choice
         self.input_range = input_range
-        self.first_load = True
         self.with_transforms = with_transforms
 
-        self.points = None
-        self.occupancies = None
         print('Sdf h5 field:', self.file_name)
 
     def load(self, model_path, idx, category, view_id=None):
@@ -961,19 +936,10 @@ class SdfH5Field(Field):
         file_path = os.path.join(model_path, self.file_name)
 
         with h5py.File(file_path, 'r') as h5f:
-            if self.first_load:
-                self.first_load = False
-                # only for first time
-                if self.N == 0:
-                    self.N = h5f['points'].shape[0]
-
-                self.pt_dtype = h5f['points'].dtype
-                self.sdf_dtype = h5f['sdf'].dtype
-                self.surface_flag_dtype = h5f['surface_points_flag'].dtype
-
-                self.points = np.zeros((self.N, 3), dtype=self.pt_dtype)
-                self.sdf = np.zeros(self.N, dtype=self.sdf_dtype)
-                self.surface_flag = np.zeros(self.N, dtype=self.surface_flag_dtype)
+            if self.N != 0:
+                N = self.N
+            else:
+                N = h5f['points'].shape[0]
 
             if self.input_range is not None:
                 low = self.input_range[0]
@@ -982,33 +948,32 @@ class SdfH5Field(Field):
                 low = 0
                 high = h5f['points'].shape[0]
         
-            if self.N < high - low:
+            if N < high - low:
                 if self.random_choice:
                     #random choice
-                    idx = np.random.choice(range(low, high), self.N, False)
+                    idx = np.random.choice(range(low, high), N, False)
                     idx.sort()
                     pt_idx = np.s_[idx, :]
                     sdf_idx = list(idx)
                 else:
                     #continuous
-                    start = np.random.randint(low, high - self.N)
-                    pt_idx = np.s_[start: start + self.N, :]
-                    sdf_idx = np.s_[start: start + self.N]
+                    start = np.random.randint(low, high - N)
+                    pt_idx = np.s_[start: start + N, :]
+                    sdf_idx = np.s_[start: start + N]
             else:
                 pt_idx = np.s_[low:high,:]
                 sdf_idx = np.s_[low:high]
 
-            h5f['points'].read_direct(self.points, pt_idx)
-            h5f['sdf'].read_direct(self.sdf, sdf_idx)
-            h5f['surface_points_flag'].read_direct(self.surface_flag, sdf_idx)
+            points = h5f['points'][pt_idx]
+            sdf = h5f['sdf'][sdf_idx].astype(np.float32)
+            surface_flag = h5f['surface_points_flag'][sdf_idx].astype(np.float32)
 
-            points = self.points.astype(np.float32)
-            if self.pt_dtype == np.float16:
+            if points.dtype == np.float16:
                 # break symmetric
+                points = points.astype(np.float32)
                 points += 1e-4 * np.random.randn(*points.shape)
-
-            sdf = self.sdf.astype(np.float32)
-            surface_flag = self.surface_flag.astype(np.float32)
+            else:
+                points = points.astype(np.float32)
 
             data = {
                 None: points,
@@ -1029,42 +994,29 @@ class SdfH5Field(Field):
         file_path = os.path.join(model_path, self.file_name)
 
         with h5py.File(file_path, 'r') as h5f:
-            if self.first_load:
-                self.first_load = False
-                # only for first time
-                self.total_length = h5f['points'].shape[0]
+            total_length = h5f['points'].shape[0]
+            total_chunk_count = total_length / self.N
+            if total_length % self.N != 0:
+                total_chunk_count += 1
 
-                self.pt_dtype = h5f['points'].dtype
-                self.sdf_dtype = h5f['sdf'].dtype
-                self.surface_flag_dtype = h5f['surface_points_flag'].dtype
-
-                self.points = np.zeros((self.N, 3), dtype=self.pt_dtype)
-                self.sdf = np.zeros(self.N, dtype=self.sdf_dtype)
-                self.surface_flag = np.zeros(self.N, dtype=self.surface_flag_dtype)
-
-                self.total_chunk_count = self.total_length // self.N
-                if self.total_length % self.N != 0:
-                    self.total_chunk_count += 1
-
-            choice = np.random.randint(0, self.total_chunk_count)
-            if choice == self.total_chunk_count - 1:
-                pt_idx = np.s_[self.total_length - self.N: self.total_length, :]
-                sdf_idx = np.s_[self.total_length - self.N: self.total_length]
+            choice = np.random.randint(0, total_chunk_count)
+            if choice == total_chunk_count - 1:
+                pt_idx = np.s_[total_length - self.N: total_length, :]
+                sdf_idx = np.s_[total_length - self.N: total_length]
             else:            
                 pt_idx = np.s_[choice * self.N: (choice+1) * self.N, :]
                 sdf_idx = np.s_[choice * self.N: (choice+1) * self.N]
 
-            h5f['points'].read_direct(self.points, pt_idx)
-            h5f['sdf'].read_direct(self.sdf, sdf_idx)
-            h5f['surface_points_flag'].read_direct(self.surface_flag, sdf_idx)
+            points = h5f['points'][pt_idx]
+            sdf = h5f['sdf'][sdf_idx].astype(np.float32)
+            surface_flag = h5f['surface_points_flag'][sdf_idx].astype(np.float32)
 
-            points = self.points.astype(np.float32)
-            if self.pt_dtype == np.float16:
+            if points.dtype == np.float16:
                 # break symmetric
+                points = points.astype(np.float32)
                 points += 1e-4 * np.random.randn(*points.shape)
-            
-            sdf = self.sdf.astype(np.float32)
-            surface_flag = self.surface_flag.astype(np.float32)
+            else:
+                points = points.astype(np.float32)
 
             data = {
                 None: points,
