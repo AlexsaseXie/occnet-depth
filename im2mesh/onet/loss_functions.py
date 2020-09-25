@@ -34,7 +34,7 @@ def occ_loss_postprocess(loss_i, occ, probs, loss_tolerance_episolon=0., sign_la
 def get_sdf_loss(logits, sdf, loss_type, ratio=10.):
     sdf = sdf * ratio
     if loss_type == 'l2':
-        loss_i = torch.sqrt(torch.pow((logits - sdf), 2))
+        loss_i = torch.pow((logits - sdf), 2)
     elif loss_type == 'l1':
         loss_i = torch.abs(logits - sdf)
     else:

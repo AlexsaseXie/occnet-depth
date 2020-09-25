@@ -786,7 +786,7 @@ class PointsH5Field(Field):
 
         with h5py.File(file_path, 'r') as h5f:
             total_length = h5f['points'].shape[0]
-            total_chunk_count = total_length / self.N
+            total_chunk_count = total_length // self.N
             if total_length % self.N != 0:
                 total_chunk_count += 1
 
@@ -995,7 +995,7 @@ class SdfH5Field(Field):
 
         with h5py.File(file_path, 'r') as h5f:
             total_length = h5f['points'].shape[0]
-            total_chunk_count = total_length / self.N
+            total_chunk_count = total_length // self.N
             if total_length % self.N != 0:
                 total_chunk_count += 1
 
