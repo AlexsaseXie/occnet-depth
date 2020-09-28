@@ -163,6 +163,7 @@ def get_trainer(model, optimizer, cfg, device, **kwargs):
             )
         elif input_type == 'depth_pred' or input_type == 'depth_pointcloud':
             training_use_gt_depth = cfg['training']['use_gt_depth']
+            with_img = cfg['model']['pred_with_img']
             trainer = training.Phase2HalfwayTrainer(
                 model, optimizer,
                 device=device, input_type=input_type,
@@ -173,7 +174,8 @@ def get_trainer(model, optimizer, cfg, device, **kwargs):
                 loss_tolerance_episolon=loss_tolerance_episolon,
                 sign_lambda=sign_lambda,
                 use_gt_depth_map=training_use_gt_depth,
-                depth_map_mix=depth_map_mix
+                depth_map_mix=depth_map_mix,
+                with_img=with_img
             )
         else:
             raise NotImplementedError('unsupported input_type for phase2,(only support img_with_depth & depth_pred)')

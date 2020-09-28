@@ -234,30 +234,24 @@ def get_inputs_field(mode, cfg):
         else:
             random_view = False
 
+        data_params = {
+            'with_camera': with_camera, 
+            'random_view': random_view,
+        }
+
         if 'absolute_depth' in cfg['data']:
-            absolute_depth = cfg['data']['absolute_depth']
-        else:
-            absolute_depth = True
+            data_params['absolute_depth'] = cfg['data']['absolute_depth']
 
         if 'with_minmax' in cfg['data']:
-            with_minmax = cfg['data']['with_minmax']
-        else:
-            with_minmax = False
+            data_params['with_minmax'] = cfg['data']['with_minmax']
 
         if 'img_extension' in cfg['data']:
-            inputs_field = data.ImagesWithDepthField(
-                'img', 'depth', 'mask', 
-                transform, extension=cfg['data']['img_extension'],
-                with_camera=with_camera, random_view=random_view,
-                absolute_depth=absolute_depth, with_minmax=with_minmax
-            )
-        else:
-            inputs_field = data.ImagesWithDepthField(
-                'img', 'depth', 'mask', 
-                transform,
-                with_camera=with_camera, random_view=random_view,
-                absolute_depth=absolute_depth, with_minmax=with_minmax
-            )
+            data_params['extension'] = cfg['data']['img_extension']
+
+        inputs_field = data.ImagesWithDepthField(
+            'img', 'depth', 'mask', 
+            transform, **data_params
+        )
     elif input_type == 'depth_pred':
         # data augment not supported
         transform = transforms.Compose([
@@ -271,30 +265,27 @@ def get_inputs_field(mode, cfg):
         else:
             random_view = False
 
+        data_params = {
+            'with_camera': with_camera, 
+            'random_view': random_view,
+        }
+
         if 'absolute_depth' in cfg['data']:
-            absolute_depth = cfg['data']['absolute_depth']
-        else:
-            absolute_depth = True
+            data_params['absolute_depth'] = cfg['data']['absolute_depth']
 
         if 'with_minmax' in cfg['data']:
-            with_minmax = cfg['data']['with_minmax']
-        else:
-            with_minmax = False
+            data_params['with_minmax'] = cfg['data']['with_minmax']
+
+        if 'pred_with_img' in cfg['model']:
+            data_params['with_img'] = cfg['model']['pred_with_img']
 
         if 'img_extension' in cfg['data']:
-            inputs_field = data.DepthPredictedField(
-                'img', 'depth', 'mask', 
-                cfg['data']['depth_pred_root'], 'depth_pred', transform, extension=cfg['data']['img_extension'],
-                with_camera=with_camera, random_view=random_view,
-                absolute_depth=absolute_depth, with_minmax=with_minmax
-            )
-        else:
-            inputs_field = data.DepthPredictedField(
-                'img', 'depth', 'mask', 
-                cfg['data']['depth_pred_root'], 'depth_pred', transform,
-                with_camera=with_camera, random_view=random_view,
-                absolute_depth=absolute_depth, with_minmax=with_minmax
-            )
+            data_params['extension'] = cfg['data']['img_extension']
+
+        inputs_field = data.DepthPredictedField(
+            'img', 'depth', 'mask', 
+            cfg['data']['depth_pred_root'], 'depth_pred', transform, **data_params
+        )
     elif input_type == 'depth_pointcloud':
         t_lst = []
         if 'depth_pointcloud_n' in cfg['data'] and cfg['data']['depth_pointcloud_n'] is not None:

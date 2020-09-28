@@ -11,12 +11,14 @@ class Depth_Resnet18(nn.Module):
         use_linear (bool): whether a final linear layer should be used
     '''
 
-    def __init__(self, c_dim, use_linear=True, features_pretrained=True, model_pretrained=None):
+    def __init__(self, c_dim, use_linear=True, features_pretrained=True, model_pretrained=None, input_dim=1, normalize=False):
         super().__init__()
         self.use_linear = use_linear
         self.features = models.resnet18(pretrained=features_pretrained)
-        self.features.conv1 = nn.Conv2d(1, 64, kernel_size=7, stride=2, padding=3,
+        self.normalize = normalize
+        self.features.conv1 = nn.Conv2d(input_dim, 64, kernel_size=7, stride=2, padding=3,
                                bias=False)
+
         self.features.fc = nn.Sequential()
 
         if use_linear:
@@ -32,8 +34,14 @@ class Depth_Resnet18(nn.Module):
             self.load_state_dict(state_dict)
 
     def forward(self, x):
-        #normalize
-        net = x - 1.
+        if isinstance(x, tuple):
+            img = x[0]
+            depth = x[1]
+            if self.normalize:
+                depth = depth - 1.
+
+            x = torch.cat((img, depth), dim = 1)
+        # otherwise x is depth map already
         net = self.features(x)
         out = self.fc(net)
         return out

@@ -567,7 +567,7 @@ class DepthPredictedField(Field):
     def __init__(self, img_folder_name='img', depth_folder_name='depth', mask_folder_name='mask', 
                   depth_pred_root=None, depth_pred_folder_name='depth_pred',
                   transform=None,extension='png', random_view=True, with_camera=False,
-                  absolute_depth=True, with_minmax=False):
+                  absolute_depth=True, with_minmax=False, with_img=False):
         self.img_folder_name = img_folder_name
         self.depth_folder_name = depth_folder_name
         self.mask_folder_name = mask_folder_name
@@ -581,6 +581,7 @@ class DepthPredictedField(Field):
         self.with_camera = with_camera
         self.absolute_depth = absolute_depth
         self.with_minmax = with_minmax
+        self.with_img = with_img
 
     def get_depth_image(self, depth_folder, idx_img):
         depth_files = sorted(glob.glob(os.path.join(depth_folder, '*.%s' % self.extension)))
@@ -612,6 +613,16 @@ class DepthPredictedField(Field):
             depth_mask = self.transform(depth_mask)
 
         return depth_mask
+
+    def get_image(self, img_folder, idx_img):
+        img_files = sorted(glob.glob(os.path.join(img_folder, '*.%s' % self.extension)))
+        img_filename = img_files[idx_img]
+
+        image = Image.open(img_filename).convert('RGB')
+        if self.transform is not None:
+            image = self.transform(image)
+        
+        return image
 
     def load(self, model_path, idx, category, view_id=None):
         ''' Loads the data point.
@@ -652,6 +663,10 @@ class DepthPredictedField(Field):
             'mask': depth_mask,
             'depth_pred': depth_pred_image
         }
+
+        if self.with_img:
+            img = self.get_image(img_folder, idx_img)
+            data[None] = img
 
         if self.with_minmax:
             data['depth_min'] = depth_min
