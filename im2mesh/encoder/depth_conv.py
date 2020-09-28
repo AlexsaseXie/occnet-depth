@@ -34,9 +34,9 @@ class Depth_Resnet18(nn.Module):
             self.load_state_dict(state_dict)
 
     def forward(self, x):
-        if isinstance(x, tuple):
-            img = x[0]
-            depth = x[1]
+        if isinstance(x, dict):
+            img = x['img']
+            depth = x['depth']
             if self.normalize:
                 depth = depth - 1.
 

@@ -536,7 +536,7 @@ class Phase2HalfwayTrainer(BaseTrainer):
 
             if self.with_img:
                 img = data.get('inputs').to(device)
-                encoder_inputs = (img, encoder_inputs)
+                encoder_inputs = {'img': img, 'depth': encoder_inputs}
 
             return encoder_inputs, gt_mask
         elif self.input_type == 'depth_pointcloud':
