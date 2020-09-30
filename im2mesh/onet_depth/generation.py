@@ -9,6 +9,7 @@ from im2mesh.common import make_3d_grid
 from im2mesh.utils.libsimplify import simplify_mesh
 from im2mesh.utils.libmise import MISE
 from im2mesh.onet_depth.models import background_setting
+from im2mesh.onet_depth.training import compose_inputs
 import time
 
 
@@ -39,7 +40,9 @@ class Generator3D(object):
                  simplify_nfaces=None,
                  preprocessor=None,
                  input_type='depth_pred',
-                 use_gt_depth=False):
+                 use_gt_depth_map=False,
+                 with_img=False,
+                 depth_pointcloud_transfer=None):
         self.model = model.to(device)
         self.points_batch_size = points_batch_size
         self.refinement_step = refinement_step
@@ -56,7 +59,10 @@ class Generator3D(object):
         self.input_type = input_type
         assert self.input_type == 'depth_pred' or self.input_type == 'depth_pointcloud' or \
             self.input_type == 'img' or self.input_type == 'img_with_depth'
-        self.use_gt_depth = use_gt_depth
+        self.use_gt_depth_map = use_gt_depth_map
+        self.with_img = with_img
+        self.depth_pointcloud_transfer = depth_pointcloud_transfer
+        assert self.depth_pointcloud_transfer in (None, 'world', 'transpose_xy')
         print('self.input_type:', self.input_type)
 
     def generate_mesh(self, data, return_stats=True):
@@ -71,15 +77,10 @@ class Generator3D(object):
         stats_dict = {}
 
         gt_mask = data.get('inputs.mask').to(device).byte()
-        if self.input_type == 'depth_pred':
-            if self.use_gt_depth:
-                depth = data.get('inputs.depth').to(device)
-            else:
-                depth = data.get('inputs.depth_pred').to(device)
-            background_setting(depth, gt_mask)
-            encoder_inputs = depth
-        elif input_type == 'depth_pointcloud':
-            encoder_inputs = data.get('inputs').to(device)
+        if self.input_type in ('depth_pred', 'depth_pointcloud'):
+            encoder_inputs, _ = compose_inputs(data, mode='test', device=self.device, input_type=self.input_type,
+                                                use_gt_depth_map=self.use_gt_depth_map, depth_map_mix=False, 
+                                                with_img=self.with_img, depth_pointcloud_transfer=self.depth_pointcloud_transfer)
         else:
             # Preprocess if requires
             inputs = data.get('inputs').to(device)

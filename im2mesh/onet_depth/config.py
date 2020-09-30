@@ -122,64 +122,46 @@ def get_trainer(model, optimizer, cfg, device, **kwargs):
             pred_minmax=pred_minmax
         )
     else:
+        trainer_params = {
+            'device':device, 'input_type':input_type,
+            'vis_dir':vis_dir, 'threshold':threshold,
+            'eval_sample':cfg['training']['eval_sample'],
+        }
+
         if 'surface_loss_weight' in cfg['model']:
-            surface_loss_weight = cfg['model']['surface_loss_weight']
-        else:
-            surface_loss_weight = 1.
+            trainer_params['surface_loss_weight'] = cfg['model']['surface_loss_weight']
 
         if ('loss_tolerance_episolon' in cfg['training']) and (0 in cfg['training']['loss_tolerance_episolon']):
-            loss_tolerance_episolon = cfg['training']['loss_tolerance_episolon'][0]
-        else:
-            loss_tolerance_episolon = 0.
+            trainer_params['loss_tolerance_episolon'] = cfg['training']['loss_tolerance_episolon'][0]
 
         if ('sign_lambda' in cfg['training']) and (0 in cfg['training']['sign_lambda']):
-            sign_lambda = cfg['training']['sign_lambda'][0]
-        else:
-            sign_lambda = 0.
+            trainer_params['sign_lambda'] = cfg['training']['sign_lambda'][0]
 
         if 'loss_type' in cfg['training']:
-            loss_type = cfg['training']['loss_type']
-        else:
-            loss_type = 'cross_entropy'
+            trainer_params['loss_type'] = cfg['training']['loss_type']
 
         if 'depth_map_mix' in cfg['training']:
-            depth_map_mix = cfg['training']['depth_map_mix']
-        else:
-            depth_map_mix = False
+            trainer_params['depth_map_mix'] = cfg['training']['depth_map_mix']
 
         if input_type == 'img_with_depth':
-            training_detach = cfg['training']['detach'] # detach or not
+            trainer_params['training_detach'] = cfg['training']['detach'] # detach or not
             trainer = training.Phase2Trainer(
                 model, optimizer,
-                device=device, input_type=input_type,
-                vis_dir=vis_dir, threshold=threshold,
-                eval_sample=cfg['training']['eval_sample'],
-                loss_type=loss_type,
-                surface_loss_weight=surface_loss_weight,
-                loss_tolerance_episolon=loss_tolerance_episolon,
-                sign_lambda=sign_lambda,
-                training_detach=training_detach,
-                depth_map_mix=depth_map_mix
+                **trainer_params
             )
         elif input_type == 'depth_pred' or input_type == 'depth_pointcloud':
-            training_use_gt_depth = cfg['training']['use_gt_depth']
+            if 'use_gt_depth' in cfg['training']:
+                trainer_params['training_use_gt_depth'] = cfg['training']['use_gt_depth']
 
             if 'pred_with_img' in cfg['model']:
-                with_img = cfg['model']['pred_with_img']
-            else:
-                with_img = False
+                trainer_params['with_img'] = cfg['model']['pred_with_img']
+
+            if 'depth_pointcloud_transfer' in cfg['model']:
+                trainer_params['depth_pointcloud_transfer'] = cfg['model']['depth_pointcloud_transfer']
+
             trainer = training.Phase2HalfwayTrainer(
                 model, optimizer,
-                device=device, input_type=input_type,
-                vis_dir=vis_dir, threshold=threshold,
-                eval_sample=cfg['training']['eval_sample'],
-                loss_type=loss_type,
-                surface_loss_weight=surface_loss_weight,
-                loss_tolerance_episolon=loss_tolerance_episolon,
-                sign_lambda=sign_lambda,
-                use_gt_depth_map=training_use_gt_depth,
-                depth_map_mix=depth_map_mix,
-                with_img=with_img
+                **trainer_params
             )
         else:
             raise NotImplementedError('unsupported input_type for phase2,(only support img_with_depth & depth_pred)')
@@ -196,23 +178,31 @@ def get_generator(model, cfg, device, **kwargs):
     '''
     preprocessor = config.get_preprocessor(cfg, device=device)
     input_type = cfg['data']['input_type']
+
+    generator_params = {
+        'device': device,
+        'threshold': cfg['test']['threshold'],
+        'resolution0': cfg['generation']['resolution_0'],
+        'upsampling_steps': cfg['generation']['upsampling_steps'],
+        'sample': cfg['generation']['use_sampling'],
+        'refinement_step' :cfg['generation']['refinement_step'],
+        'simplify_nfaces' :cfg['generation']['simplify_nfaces'],
+        'preprocessor' :preprocessor,
+        'input_type' :input_type,
+    }
+
     if input_type == 'depth_pred':
-        training_use_gt_depth = cfg['training']['use_gt_depth']
-    else:
-        training_use_gt_depth = False
+        generator_params['training_use_gt_depth'] = cfg['training']['use_gt_depth']
+
+    if 'pred_with_img' in cfg['model']:
+        generator_params['with_img'] = cfg['model']['pred_with_img']
+
+    if 'depth_pointcloud_transfer' in cfg['model']:
+        generator_params['depth_pointcloud_transfer'] = cfg['model']['depth_pointcloud_transfer']
 
     generator = generation.Generator3D(
         model,
-        device=device,
-        threshold=cfg['test']['threshold'],
-        resolution0=cfg['generation']['resolution_0'],
-        upsampling_steps=cfg['generation']['upsampling_steps'],
-        sample=cfg['generation']['use_sampling'],
-        refinement_step=cfg['generation']['refinement_step'],
-        simplify_nfaces=cfg['generation']['simplify_nfaces'],
-        preprocessor=preprocessor,
-        input_type=input_type,
-        use_gt_depth=training_use_gt_depth
+        **generator_params
     )
     return generator
 

@@ -315,3 +315,17 @@ def fix_K_camera(K, img_size=137):
     ], device=K.device, dtype=K.dtype)
     K_new = scale_mat.view(1, 3, 3) @ K
     return K_new
+
+
+def get_world_mat(data, transpose=None, device=None):
+    Rt = data['inputs.world_mat'].to(device)
+
+    R = Rt[:, :, :3]
+    t = Rt[:, :, 3:]
+
+    if transpose is not None:
+        assert isinstance(transpose, list)
+        assert len(transpose) == 3
+        R = R[:, transpose, :]
+
+    return {'R':R, 't':t}

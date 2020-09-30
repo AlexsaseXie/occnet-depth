@@ -11,6 +11,7 @@ from im2mesh.training import BaseTrainer
 from im2mesh.onet_depth.models import background_setting
 
 from im2mesh.onet.loss_functions import get_occ_loss, occ_loss_postprocess
+from im2mesh.common import get_world_mat, transform_points, transform_points_back
 
 def depth_to_L(pr_depth_map, gt_mask):
     #not inplace function
@@ -350,6 +351,51 @@ class Phase2Trainer(BaseTrainer):
 
         return loss
 
+def compose_inputs(data, mode='train', device=None, input_type='depth_pred',
+    use_gt_depth_map=False, depth_map_mix=False, with_img=False, depth_pointcloud_transfer=None):
+    
+    assert mode in ('train', 'val', 'test')
+
+    if input_type == 'depth_pred':
+        gt_mask = data.get('inputs.mask').to(device).byte()
+        batch_size = gt_mask.size(0)
+        if use_gt_depth_map:
+            gt_depth_maps = data.get('inputs.depth').to(device)
+            background_setting(gt_depth_maps, gt_mask)
+            encoder_inputs = gt_depth_maps
+        else:
+            pr_depth_maps = data.get('inputs.depth_pred').to(device)
+            background_setting(pr_depth_maps, gt_mask)
+            if depth_map_mix and mode == 'train':
+                gt_depth_maps = data.get('inputs.depth').to(device)
+                background_setting(gt_depth_maps, gt_mask)
+                alpha = torch.rand(batch_size,1,1,1).to(device)
+                pr_depth_maps = pr_depth_maps * alpha + gt_depth_maps * (1.0 - alpha)
+            encoder_inputs = pr_depth_maps
+
+        if with_img:
+            img = data.get('inputs').to(device)
+            encoder_inputs = {'img': img, 'depth': encoder_inputs}
+
+        return encoder_inputs, gt_mask
+    elif input_type == 'depth_pointcloud':
+        encoder_inputs = data.get('inputs').to(device)
+
+        if depth_pointcloud_transfer is not None:
+            if depth_pointcloud_transfer == 'world':
+                world_mat = get_world_mat(data, transpose=[1,0,2], device=device)
+                R = world_mat['R']
+                # R's inverse is R^T
+                encoder_inputs = transform_points(encoder_inputs, R.transpose(1, 2))
+                # encoder_inputs = transform_points_back(encoder_inputs, R)
+            elif depth_pointcloud_transfer == 'transpose_xy':
+                encoder_inputs = encoder_inputs[:, [1,0,2]]
+            else:
+                raise NotImplementedError
+        return encoder_inputs, None
+    else:
+        raise NotImplementedError
+    
 class Phase2HalfwayTrainer(BaseTrainer):
     ''' Phase2HalfwayTrainer object for the Occupancy Network.
 
@@ -371,7 +417,8 @@ class Phase2HalfwayTrainer(BaseTrainer):
                  sign_lambda=0.,
                  use_gt_depth_map=False,
                  depth_map_mix=False,
-                 with_img=False
+                 with_img=False,
+                 depth_pointcloud_transfer=None
                 ):
         self.model = model
         self.optimizer = optimizer
@@ -388,6 +435,9 @@ class Phase2HalfwayTrainer(BaseTrainer):
         self.depth_map_mix = depth_map_mix
         self.use_gt_depth_map = use_gt_depth_map
         self.with_img = with_img
+        self.depth_pointcloud_transfer = depth_pointcloud_transfer
+
+        assert depth_pointcloud_transfer in (None, 'world', 'transpose_xy')
 
         if vis_dir is not None and not os.path.exists(vis_dir):
             os.makedirs(vis_dir)
@@ -426,7 +476,9 @@ class Phase2HalfwayTrainer(BaseTrainer):
 
         kwargs = {}
 
-        encoder_inputs, _ = self.compose_inputs(data, mode='val')
+        encoder_inputs, _ = compose_inputs(data, mode='val', device=self.device, input_type=self.input_type,
+                                                use_gt_depth_map=self.use_gt_depth_map, depth_map_mix=self.depth_map_mix, 
+                                                with_img=self.with_img, depth_pointcloud_transfer=self.depth_pointcloud_transfer)
 
         with torch.no_grad():
             elbo, rec_error, kl = self.model.compute_elbo_halfway(
@@ -482,7 +534,9 @@ class Phase2HalfwayTrainer(BaseTrainer):
         p = make_3d_grid([-0.5] * 3, [0.5] * 3, shape).to(device)
         p = p.expand(batch_size, *p.size())
 
-        encoder_inputs, gt_mask = self.compose_inputs(data, mode='val')
+        encoder_inputs, gt_mask = compose_inputs(data, mode='val', device=self.device, input_type=self.input_type,
+                                                use_gt_depth_map=self.use_gt_depth_map, depth_map_mix=self.depth_map_mix, 
+                                                with_img=self.with_img, depth_pointcloud_transfer=self.depth_pointcloud_transfer)
 
         kwargs = {}
         with torch.no_grad():
@@ -511,38 +565,7 @@ class Phase2HalfwayTrainer(BaseTrainer):
                 pc = encoder_inputs[i].cpu()
                 vis.visualize_pointcloud(pc, out_file=input_pointcloud_file, elev=15, azim=180)
                 vis.visualize_voxels(voxels_out[i], os.path.join(self.vis_dir, '%03d.png' % i))
-
-    def compose_inputs(self, data, mode='train'):
-        assert mode in ('train','val','test')
-
-        device = self.device
-
-        if self.input_type == 'depth_pred':
-            gt_mask = data.get('inputs.mask').to(device).byte()
-            batch_size = gt_mask.size(0)
-            if self.use_gt_depth_map:
-                gt_depth_maps = data.get('inputs.depth').to(device)
-                background_setting(gt_depth_maps, gt_mask)
-                encoder_inputs = gt_depth_maps
-            else:
-                pr_depth_maps = data.get('inputs.depth_pred').to(device)
-                background_setting(pr_depth_maps, gt_mask)
-                if self.depth_map_mix and mode == 'train':
-                    gt_depth_maps = data.get('inputs.depth').to(device)
-                    background_setting(gt_depth_maps, gt_mask)
-                    alpha = torch.rand(batch_size,1,1,1).to(device)
-                    pr_depth_maps = pr_depth_maps * alpha + gt_depth_maps * (1.0 - alpha)
-                encoder_inputs = pr_depth_maps
-
-            if self.with_img:
-                img = data.get('inputs').to(device)
-                encoder_inputs = {'img': img, 'depth': encoder_inputs}
-
-            return encoder_inputs, gt_mask
-        elif self.input_type == 'depth_pointcloud':
-            encoder_inputs = data.get('inputs').to(device)
-            return encoder_inputs, None
-        
+   
     def compute_loss(self, data):
         ''' Computes the loss.
 
@@ -554,7 +577,9 @@ class Phase2HalfwayTrainer(BaseTrainer):
         batch_size = p.size(0)
         occ = data.get('points.occ').to(device)
 
-        encoder_inputs,_ = self.compose_inputs(data, mode='train')
+        encoder_inputs,_ = compose_inputs(data, mode='train', device=self.device, input_type=self.input_type,
+                                                use_gt_depth_map=self.use_gt_depth_map, depth_map_mix=self.depth_map_mix, 
+                                                with_img=self.with_img, depth_pointcloud_transfer=self.depth_pointcloud_transfer)
 
         kwargs = {}
         c = self.model.encode(encoder_inputs)
