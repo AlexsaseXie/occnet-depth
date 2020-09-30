@@ -18,5 +18,6 @@ encoder_dict = {
     'voxel_simple': voxels.VoxelEncoder,
     'pixel2mesh_cond': pix2mesh_cond.Pix2mesh_Cond,
 
-    'depth_resnet18': depth_conv.Depth_Resnet18
+    'depth_resnet18': depth_conv.Depth_Resnet18,
+    'pointnet': pointnet.PointNetEncoder
 }
