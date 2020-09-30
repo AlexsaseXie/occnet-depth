@@ -163,7 +163,11 @@ def get_trainer(model, optimizer, cfg, device, **kwargs):
             )
         elif input_type == 'depth_pred' or input_type == 'depth_pointcloud':
             training_use_gt_depth = cfg['training']['use_gt_depth']
-            with_img = cfg['model']['pred_with_img']
+
+            if 'pred_with_img' in cfg['model']:
+                with_img = cfg['model']['pred_with_img']
+            else:
+                with_img = False
             trainer = training.Phase2HalfwayTrainer(
                 model, optimizer,
                 device=device, input_type=input_type,
