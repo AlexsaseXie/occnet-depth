@@ -9,10 +9,11 @@ from classify.depth_resnet import DepthClassify_Resnet18
 from classify.pointnet import PointcloudClassify_Pointnet
 from classify.dataset import get_dataset
 from im2mesh import data
+from tqdm import tqdm
 
 out_dir = 'out/classify/depthpc_world_512_origin_subdivision'
 dataset_root = '/home3/data/xieyunwei/occnet_data/ShapeNet.with_depth/'
-batch_size = 256
+batch_size = 128
 c_dim = 512
 
 save_every = 1000
@@ -78,13 +79,16 @@ def get_correctness():
     correct_count = 0
     total_count = 0
 
-    for val_batch in val_loader:
+    print('Testing:')
+    for val_batch in tqdm(val_loader):
         data = val_batch
 
         inputs = data.get('inputs')
         current_batch_size = inputs.shape[0]
 
-        out = model(data, device).to(device)
+        out = model(data, device)
+        if input_type == 'depth_pointcloud':
+            out = out[0]
         class_gt = data.get('category').to(device)
         class_predict = out.max(dim=1)[1]
         
