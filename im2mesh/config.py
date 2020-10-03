@@ -299,12 +299,18 @@ def get_inputs_field(mode, cfg):
         else:
             random_view = False
 
-        with_transforms = cfg['data']['with_transforms']
+        if 'depth_pointcloud_transfer' in cfg['model'] and cfg['model']['depth_pointcloud_transfer'] == 'world':
+            with_camera = True
+        else:
+            with_camera = False
+        
         inputs_field = data.DepthPointCloudField(
             cfg['data']['depth_pointcloud_root'],
             cfg['data']['depth_pointcloud_folder'],
             transform,
-            random_view=random_view
+            random_view=random_view,
+            with_camera=with_camera,
+            img_folder_name='img'
         )
     elif input_type == 'multi_img':
         if mode == 'train' and cfg['data']['img_augment']:

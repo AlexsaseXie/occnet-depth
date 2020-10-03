@@ -845,13 +845,14 @@ class DepthPointCloudField(Field):
         random_view (bool): whether a random view should be used
     '''
     def __init__(self, depth_pointcloud_root=None, depth_pointcloud_folder_name='depth_pointcloud',
-                  transform=None, random_view=True):
+                  transform=None, random_view=True, with_camera=False, img_folder_name='img'):
         self.depth_pointcloud_root = depth_pointcloud_root
         self.depth_pointcloud_folder_name = depth_pointcloud_folder_name
 
         self.transform = transform
         self.random_view = random_view
-        #self.with_camera = with_camera
+        self.with_camera = with_camera
+        self.img_folder_name = img_folder_name
 
     def load(self, model_path, idx, category, view_id=None):
         ''' Loads the data point.
@@ -888,6 +889,15 @@ class DepthPointCloudField(Field):
         data = {
             None: depth_pointcloud
         }
+
+        if self.with_camera:
+            img_folder = os.path.join(model_path, self.img_folder_name)
+            camera_file = os.path.join(img_folder, 'cameras.npz')
+            camera_dict = np.load(camera_file)
+            Rt = camera_dict['world_mat_%d' % idx_img].astype(np.float32)
+            K = camera_dict['camera_mat_%d' % idx_img].astype(np.float32)
+            data['world_mat'] = Rt
+            data['camera_mat'] = K
 
         return data
 

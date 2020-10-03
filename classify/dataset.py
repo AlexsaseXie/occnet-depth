@@ -57,7 +57,9 @@ def get_depth_pointcloud_field(mode):
         None,
         'depth_pointcloud',
         transform,
-        random_view=random_view
+        random_view=random_view,
+        with_camera=True,
+        img_folder_name='img'
     )
     return inputs_field
 
