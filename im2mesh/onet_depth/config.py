@@ -151,7 +151,7 @@ def get_trainer(model, optimizer, cfg, device, **kwargs):
             )
         elif input_type == 'depth_pred' or input_type == 'depth_pointcloud':
             if 'use_gt_depth' in cfg['training']:
-                trainer_params['training_use_gt_depth'] = cfg['training']['use_gt_depth']
+                trainer_params['use_gt_depth_map'] = cfg['training']['use_gt_depth']
 
             if 'pred_with_img' in cfg['model']:
                 trainer_params['with_img'] = cfg['model']['pred_with_img']

@@ -435,6 +435,8 @@ class Phase2HalfwayTrainer(BaseTrainer):
         self.depth_map_mix = depth_map_mix
         self.use_gt_depth_map = use_gt_depth_map
         self.with_img = with_img
+        if self.with_img:
+            print('Predict using img&depth')
         self.depth_pointcloud_transfer = depth_pointcloud_transfer
 
         assert depth_pointcloud_transfer in (None, 'world', 'transpose_xy')
@@ -546,12 +548,15 @@ class Phase2HalfwayTrainer(BaseTrainer):
         voxels_out = (occ_hat >= self.threshold).cpu().numpy()
 
         if self.input_type == 'depth_pred':
+            if self.with_img:
+                encoder_inputs = encoder_inputs['depth']
+
             for i in trange(batch_size):
                 if self.use_gt_depth_map:
                     input_img_path = os.path.join(self.vis_dir, '%03d_in_gt.png' % i)
                 else:
                     input_img_path = os.path.join(self.vis_dir, '%03d_in_pr.png' % i)
-                    
+                
                 depth_map = encoder_inputs[i].cpu()
                 depth_map = depth_to_L(depth_map, gt_mask[i].cpu())
                 vis.visualize_data(
