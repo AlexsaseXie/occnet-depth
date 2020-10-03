@@ -9,17 +9,19 @@ from classify.depth_resnet import DepthClassify_Resnet18
 from classify.dataset import get_dataset
 from im2mesh import data
 
-out_dir = 'out/classify/depth_relative_resnet18'
+out_dir = 'out/classify/depth_img_resnet18_origin_subdivision'
 dataset_root = 'data/ShapeNet.with_depth.10w10w'
 batch_size = 256
 c_dim = 256
 
 save_every = 100
 backup_every = 500
-lr_drop = 1500 
+lr_drop = 1500
 quit_after = 2000
 input_type = 'img_with_depth'
-absolute_depth = False
+pretrained = True
+absolute_depth = True
+pred_with_img = True
 
 train_dataset = get_dataset(dataset_root, 'train', input_type, absolute_depth=absolute_depth)
 val_dataset = get_dataset(dataset_root, 'val', input_type, absolute_depth=absolute_depth)
@@ -37,9 +39,9 @@ val_loader = torch.utils.data.DataLoader(
 is_cuda = torch.cuda.is_available()
 device = torch.device("cuda" if is_cuda else "cpu")
 if input_type == 'img':
-    model = ImgClassify_ResNet18(13, c_dim=c_dim)
+    model = ImgClassify_ResNet18(13, c_dim=c_dim, pretrained=pretrained)
 else:
-    model = DepthClassify_Resnet18(13, c_dim=c_dim)
+    model = DepthClassify_Resnet18(13, c_dim=c_dim, pretrained=pretrained, with_img=pred_with_img)
 model = model.to(device)
 
 if not os.path.exists(out_dir):
