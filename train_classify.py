@@ -10,16 +10,16 @@ from classify.pointnet import PointcloudClassify_Pointnet
 from classify.dataset import get_dataset
 from im2mesh import data
 
-out_dir = 'out/classify/depth_img_resnet18_origin_subdivision'
-dataset_root = 'data/ShapeNet.with_depth.10w10w'
+out_dir = 'out/classify/depthpc_world_512_origin_subdivision'
+dataset_root = '/home3/data/xieyunwei/occnet_data/ShapeNet.with_depth/'
 batch_size = 256
-c_dim = 256
+c_dim = 512
 
-save_every = 100
-backup_every = 500
-lr_drop = 1500
-quit_after = 2000
-input_type = 'img_with_depth'
+save_every = 1000
+backup_every = 4000
+lr_drop = 15000
+quit_after = 20000
+input_type = 'depth_pointcloud'
 pretrained = True
 absolute_depth = True
 pred_with_img = True
@@ -44,7 +44,7 @@ if input_type == 'img':
     model = ImgClassify_ResNet18(13, c_dim=c_dim, pretrained=pretrained)
 elif input_type == 'img_with_depth':
     model = DepthClassify_Resnet18(13, c_dim=c_dim, pretrained=pretrained, with_img=pred_with_img)
-elif input_type == 'depth_poincloud':
+elif input_type == 'depth_pointcloud':
     model = PointcloudClassify_Pointnet(13, c_dim=c_dim, depth_pointcloud_transfer=depth_pointcloud_transfer)
 else:
     raise NotImplementedError
@@ -120,8 +120,9 @@ while True:
                 torch.save(model.state_dict(), output_best_path)
                 output_best_path = os.path.join(out_dir,'encoder_best.pt')
                 torch.save(model.features.state_dict(), output_best_path)
-                output_best_path = os.path.join(out_dir,'resnet18_best.pt')
-                torch.save(model.features.features.state_dict(), output_best_path)
+                if input_type.startswith('img'):
+                    output_best_path = os.path.join(out_dir,'resnet18_best.pt')
+                    torch.save(model.features.features.state_dict(), output_best_path)
 
             output_path = os.path.join(out_dir,'model.pt')
             torch.save(model.state_dict(), output_path)

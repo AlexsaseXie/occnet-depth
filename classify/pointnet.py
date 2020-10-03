@@ -12,7 +12,7 @@ class PointcloudClassify_Pointnet(nn.Module):
         self.depth_pointcloud_transfer = depth_pointcloud_transfer
 
     def get_inputs(self, data, device):
-        pc, _ = compose_inputs(data, device, input_type='depth_pointcloud', depth_pointcloud_transfer=self.depth_pointcloud_transfer)
+        pc, _ = compose_inputs(data, mode='train', device=device, input_type='depth_pointcloud', depth_pointcloud_transfer=self.depth_pointcloud_transfer)
         return pc
 
     def forward(self, data, device):
