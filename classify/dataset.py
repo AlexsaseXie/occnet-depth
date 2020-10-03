@@ -45,11 +45,30 @@ def get_img_with_depth_input_field(mode, absolute_depth=True):
     )
     return inputs_field
 
+def get_depth_pointcloud_field(mode):
+    if mode == 'train':
+        random_view = True
+    else:
+        random_view = False
+
+    t_lst = []
+    transform = transforms.Compose(t_lst)
+    inputs_field = data.DepthPointCloudField(
+        None,
+        'depth_pointcloud',
+        transform,
+        random_view=random_view
+    )
+    return inputs_field
+
+
 def get_dataset(dataset_root, mode, input_type='img', absolute_depth=True):
     if input_type == 'img':
         inputs_field = get_img_inputs_field(mode)
     elif input_type == 'img_with_depth':
         inputs_field = get_img_with_depth_input_field(mode, absolute_depth=absolute_depth)
+    elif input_type == 'depth_pointcloud':
+        inputs_field = get_depth_pointcloud_field(mode)
 
     fields = {}
 

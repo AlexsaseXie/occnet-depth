@@ -1,18 +1,24 @@
 from im2mesh import common
 from torch import nn
 from im2mesh.encoder.pointnet import PointNetEncoder, feature_transform_reguliarzer
+from im2mesh.onet_depth.training import compose_inputs
 
 class PointcloudClassify_Pointnet(nn.Module):
-    def __init__(self, num_classes=13, c_dim=512, pretrained=True, with_img=False):
+    def __init__(self, num_classes=13, c_dim=512, depth_pointcloud_transfer=None):
         super(PointcloudClassify_Pointnet, self).__init__()
         self.features = PointNetEncoder(c_dim=c_dim, global_feat=True, feature_transform=True, channel=3, only_point_feature=False)
         self.pred_fc = nn.Linear(c_dim, num_classes)
         self.loss_func = nn.CrossEntropyLoss()
+        self.depth_pointcloud_transfer = depth_pointcloud_transfer
+
+    def get_inputs(self, data, device):
+        pc, _ = compose_inputs(data, device, input_type='depth_pointcloud', depth_pointcloud_transfer=self.depth_pointcloud_transfer)
+        return pc
 
     def forward(self, data, device):
-        pointcloud = data.get('inputs').to(device)
+        pc = self.get_inputs(data, device)
 
-        out, trans_point, trans_feat = self.features(pointcloud)
+        out, trans_point, trans_feat = self.features(pc)
         out = self.pred_fc(out)
         return out, trans_point, trans_feat
 

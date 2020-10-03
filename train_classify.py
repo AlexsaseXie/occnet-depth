@@ -6,6 +6,7 @@ import numpy as np
 import os
 from classify.img_resnet import ImgClassify_ResNet18
 from classify.depth_resnet import DepthClassify_Resnet18
+from classify.pointnet import PointcloudClassify_Pointnet
 from classify.dataset import get_dataset
 from im2mesh import data
 
@@ -22,6 +23,7 @@ input_type = 'img_with_depth'
 pretrained = True
 absolute_depth = True
 pred_with_img = True
+depth_pointcloud_transfer = 'world'
 
 train_dataset = get_dataset(dataset_root, 'train', input_type, absolute_depth=absolute_depth)
 val_dataset = get_dataset(dataset_root, 'val', input_type, absolute_depth=absolute_depth)
@@ -40,8 +42,12 @@ is_cuda = torch.cuda.is_available()
 device = torch.device("cuda" if is_cuda else "cpu")
 if input_type == 'img':
     model = ImgClassify_ResNet18(13, c_dim=c_dim, pretrained=pretrained)
-else:
+elif input_type == 'img_with_depth':
     model = DepthClassify_Resnet18(13, c_dim=c_dim, pretrained=pretrained, with_img=pred_with_img)
+elif input_type == 'depth_poincloud':
+    model = PointcloudClassify_Pointnet(13, c_dim=c_dim, depth_pointcloud_transfer=depth_pointcloud_transfer)
+else:
+    raise NotImplementedError
 model = model.to(device)
 
 if not os.path.exists(out_dir):
