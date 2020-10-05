@@ -1,6 +1,6 @@
 import torch
 import torch.nn as nn
-from im2mesh.layers import ResnetBlockFC
+from im2mesh.layers import ResnetBlockFC, ResnetBlockConv1d
 import numpy as np
 import torch.nn.functional as F
 
@@ -199,7 +199,7 @@ class STNkd(nn.Module):
 
 
 class PointNetEncoder(nn.Module):
-    def __init__(self, c_dim=1024, global_feat=True, feature_transform=True, channel=3, only_point_feature=False):
+    def __init__(self, c_dim=1024, global_feat=True, feature_transform=True, channel=3, only_point_feature=False, model_pretrained=None):
         super(PointNetEncoder, self).__init__()
         self.stn = STN3d(channel)
         self.conv1 = torch.nn.Conv1d(channel, 64, 1)
@@ -216,6 +216,11 @@ class PointNetEncoder(nn.Module):
         self.only_point_feature = only_point_feature
         if self.feature_transform:
             self.fstn = STNkd(k=64)
+
+        if model_pretrained is not None:
+            print('Loading depth encoder from ', model_pretrained)
+            state_dict = torch.load(model_pretrained, map_location='cpu')
+            self.load_state_dict(state_dict)
 
     def forward(self, x):
         # match the input of pointnet
@@ -243,6 +248,66 @@ class PointNetEncoder(nn.Module):
         pointfeat = x
         x = F.relu(self.bn2(self.conv2(x)))
         x = self.bn3(self.conv3(x))
+        x = torch.max(x, 2, keepdim=True)[0]
+        x = x.view(-1, self.c_dim)
+
+        if not self.global_feat:
+            x = x.view(-1, self.c_dim, 1).repeat(1, 1, N)
+            x = torch.cat([x, pointfeat], 1)
+
+        if self.only_point_feature:
+            return x
+        else:
+            return x, trans_point, trans_feat
+
+
+class PointNetResEncoder(nn.Module):
+    def __init__(self, c_dim=1024, global_feat=True, feature_transform=True, channel=3, only_point_feature=False, model_pretrained=None):
+        super(PointNetResEncoder, self).__init__()
+        self.stn = STN3d(channel)
+        self.block1 = ResnetBlockConv1d(channel, 64, 64)
+        self.block2 = ResnetBlockConv1d(64, 128, 128)
+        self.block3 = ResnetBlockConv1d(128, c_dim, c_dim)
+
+        self.c_dim = c_dim
+        self.global_feat = global_feat
+        self.feature_transform = feature_transform
+
+        self.only_point_feature = only_point_feature
+        if self.feature_transform:
+            self.fstn = STNkd(k=64)
+
+        if model_pretrained is not None:
+            print('Loading depth encoder from ', model_pretrained)
+            state_dict = torch.load(model_pretrained, map_location='cpu')
+            self.load_state_dict(state_dict)
+
+    def forward(self, x):
+        # match the input of pointnet
+        x = x.transpose(2, 1)
+
+        B, D, N = x.size()
+        trans_point = self.stn(x)
+        x = x.transpose(2, 1)
+        if D > 3:
+            x, feature = x.split(3,dim=2)
+        x = torch.bmm(x, trans_point)
+        if D > 3:
+            x = torch.cat([x,feature],dim=2)
+        x = x.transpose(2, 1)
+        x = self.block1(x)
+
+        if self.feature_transform:
+            trans_feat = self.fstn(x)
+            x = x.transpose(2, 1)
+            x = torch.bmm(x, trans_feat)
+            x = x.transpose(2, 1)
+        else:
+            trans_feat = None
+
+        pointfeat = x
+        x = self.block2(x)
+        x = self.block3(x)
         x = torch.max(x, 2, keepdim=True)[0]
         x = x.view(-1, self.c_dim)
 

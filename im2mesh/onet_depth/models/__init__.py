@@ -132,7 +132,7 @@ class OccupancyWithDepthNetwork(nn.Module):
 
         return elbo, rec_error, kl
 
-    def encode(self, encoder_input):
+    def encode(self, encoder_input, only_feature=True):
         ''' Encodes the depth map / depth pointcloud.
 
         Args:
@@ -141,6 +141,8 @@ class OccupancyWithDepthNetwork(nn.Module):
 
         if self.encoder is not None:
             c = self.encoder(encoder_input)
+            if only_feature and isinstance(c, tuple):
+                c = c[0]
         else:
             # Return inputs?
             c = torch.empty(encoder_input.size(0), 0)
