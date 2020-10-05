@@ -12,7 +12,7 @@ from im2mesh.onet_depth.models import background_setting
 
 from im2mesh.onet.loss_functions import get_occ_loss, occ_loss_postprocess
 from im2mesh.common import get_world_mat, transform_points, transform_points_back
-from im2mesh.encoder.pointnet import feature_transform_reguliarzers, PointNetEncoder, PointNetResEncoder
+from im2mesh.encoder.pointnet import feature_transform_reguliarzer, PointNetEncoder, PointNetResEncoder
 
 def depth_to_L(pr_depth_map, gt_mask):
     #not inplace function
@@ -600,7 +600,7 @@ class Phase2HalfwayTrainer(BaseTrainer):
         if isinstance(c, tuple):
             c, _, trans_feature = c
             if isinstance(self.model.encoder, PointNetEncoder) or isinstance(self.model.encoder, PointNetResEncoder):
-                loss = loss + 0.001 * feature_transform_reguliarzers(trans_feature) 
+                loss = loss + 0.001 * feature_transform_reguliarzer(trans_feature) 
 
         # General points
         p_r = self.model.decode(p, z, c, **kwargs)
