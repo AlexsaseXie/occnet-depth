@@ -1,5 +1,5 @@
 
-from im2mesh.onet.models.decoder import Decoder, DecoderBatchNorm, DecoderCBatchNorm, DecoderCBatchNorm2, DecoderCBatchNormNoResnet
+#from im2mesh.onet.models.decoder import Decoder, DecoderBatchNorm, DecoderCBatchNorm, DecoderCBatchNorm2, DecoderCBatchNormNoResnet
 
 import torch
 import torch.nn as nn

@@ -1,7 +1,8 @@
 import torch.nn as nn
-# import torch.nn.functional as F
+import torch.nn.functional as F
 from torchvision import models
-from im2mesh.common import normalize_imagenet
+from im2mesh.layers import ResnetBlockFC
+from im2mesh.common import normalize_imagenet, transform_points, project_to_camera
 
 
 class ConvEncoder(nn.Module):
@@ -47,7 +48,7 @@ class Resnet18(nn.Module):
         use_linear (bool): whether a final linear layer should be used
     '''
 
-    def __init__(self, c_dim, normalize=True, use_linear=True, pretrained=True):
+    def __init__(self, c_dim, normalize=True, use_linear=True, pretrained=True, local=False):
         super().__init__()
         self.normalize = normalize
         self.use_linear = use_linear
@@ -60,12 +61,65 @@ class Resnet18(nn.Module):
         else:
             raise ValueError('c_dim must be 512 if use_linear is False')
 
+        self.local = local
+        if self.local:
+            self.local_fc = ResnetBlockFC(64+128+256+512, c_dim)
+
     def forward(self, x):
         if self.normalize:
             x = normalize_imagenet(x)
         net = self.features(x)
         out = self.fc(net)
         return out
+
+    def forward_local(self, data, pts):
+        assert self.local
+        world_mat = data['world_mat']
+        camera_mat = data['camera_mat']
+        x = data[None]
+
+        pts = transform_points(pts, world_mat)
+        points_img = project_to_camera(pts, camera_mat)
+        points_img = points_img.unsqueeze(1)
+
+        local_feat_maps = []
+        if self.normalize:
+            x = normalize_imagenet(x)
+
+        x = self.features.conv1(x)
+        x = self.features.bn1(x)
+        x = self.features.relu(x)
+        x = self.features.maxpool(x) # 64 * 112 * 112
+        
+        x = self.features.layer1(x) 
+        local_feat_maps.append(x) # 64 * 56 * 56
+        x = self.features.layer2(x) 
+        local_feat_maps.append(x) # 128 * 28 * 28
+        x = self.features.layer3(x) 
+        local_feat_maps.append(x) # 256 * 14 * 14
+        x = self.features.layer4(x) 
+        local_feat_maps.append(x) # 512 * 7 * 7
+
+        x = self.features.avgpool(x)
+        x = x.view(x.size(0), -1)
+        x = self.fc(x)
+
+        # get local feats
+        local_feats = []
+        for f in local_feat_maps:
+            #f = f.detach()
+            f = F.grid_sample(f, points_img, mode='nearest')
+            f = f.squeeze(2)
+            local_feats.append(f)
+
+        local_feats = torch.cat(local_feats, dim=1)
+        local_feats = local_feats.transpose(1, 2) # batch * n_pts * f_dim
+
+        local_feats = self.local_fc(local_feats)
+
+        # x: B * c_dim
+        # local: feats B * n_pts * c_dim
+        return x, local_feats
 
 
 class Resnet34(nn.Module):
@@ -90,12 +144,7 @@ class Resnet34(nn.Module):
         else:
             raise ValueError('c_dim must be 512 if use_linear is False')
 
-    def forward(self, x):
-        if self.normalize:
-            x = normalize_imagenet(x)
-        net = self.features(x)
-        out = self.fc(net)
-        return out
+    forward = Resnet18.forward
 
 
 class Resnet50(nn.Module):
@@ -120,12 +169,7 @@ class Resnet50(nn.Module):
         else:
             raise ValueError('c_dim must be 2048 if use_linear is False')
 
-    def forward(self, x):
-        if self.normalize:
-            x = normalize_imagenet(x)
-        net = self.features(x)
-        out = self.fc(net)
-        return out
+    forward = Resnet18.forward
 
 
 class Resnet101(nn.Module):
@@ -149,9 +193,4 @@ class Resnet101(nn.Module):
         else:
             raise ValueError('c_dim must be 2048 if use_linear is False')
 
-    def forward(self, x):
-        if self.normalize:
-            x = normalize_imagenet(x)
-        net = self.features(x)
-        out = self.fc(net)
-        return out
+    forward = Resnet18.forward

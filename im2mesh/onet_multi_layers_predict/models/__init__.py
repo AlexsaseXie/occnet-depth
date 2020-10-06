@@ -1,8 +1,8 @@
 import torch
 import torch.nn as nn
 from torch import distributions as dist
-from im2mesh.onet.models import encoder_latent
-from im2mesh.onet_multi_layers_predict.models import decoder
+from im2mesh.onet.models import encoder_latent, decoder
+from im2mesh.onet_multi_layers_predict.models import decoder as decoder1
 
 # Encoder latent dictionary
 encoder_latent_dict = {
@@ -16,17 +16,17 @@ decoder_dict = {
     'cbatchnorm2': decoder.DecoderCBatchNorm2,
     'batchnorm': decoder.DecoderBatchNorm,
     'cbatchnorm_noresnet': decoder.DecoderCBatchNormNoResnet,
-    'cbatchnorm3': decoder.DecoderCBatchNorm3,
-    'batchnorm_concat': decoder.DecoderBatchNormConcat,
-    'concat': decoder.DecoderConcat,
+    'cbatchnorm3': decoder1.DecoderCBatchNorm3,
+    'batchnorm_concat': decoder1.DecoderBatchNormConcat,
+    'concat': decoder1.DecoderConcat,
 }
 
 decoder_local_dict = {
-    'batchnorm_localfeature': decoder.DecoderBatchNorm_LocalFeature,
-    'batchnormsimple_localfeature': decoder.DecoderBatchNormSimple_LocalFeature,
-    'nobn_localfeature': decoder.Decoder_LocalFeature,
-    'nobnsimple_localfeature': decoder.DecoderSimple_LocalFeature,
-    'batchnormhighhidden_localfeature': decoder.DecoderBatchNormHighHidden_LocalFeature,
+    'batchnorm_localfeature': decoder1.DecoderBatchNorm_LocalFeature,
+    'batchnormsimple_localfeature': decoder1.DecoderBatchNormSimple_LocalFeature,
+    'nobn_localfeature': decoder1.Decoder_LocalFeature,
+    'nobnsimple_localfeature': decoder1.DecoderSimple_LocalFeature,
+    'batchnormhighhidden_localfeature': decoder1.DecoderBatchNormHighHidden_LocalFeature,
 }
 
 

@@ -11,7 +11,7 @@ from im2mesh.training import BaseTrainer
 from im2mesh.onet_depth.models import background_setting
 
 from im2mesh.onet.loss_functions import get_occ_loss, occ_loss_postprocess
-from im2mesh.common import get_world_mat, transform_points, transform_points_back
+from im2mesh.common import get_camera_args, get_world_mat, transform_points, transform_points_back
 from im2mesh.encoder.pointnet import feature_transform_reguliarzer, PointNetEncoder, PointNetResEncoder
 
 def depth_to_L(pr_depth_map, gt_mask):
@@ -353,7 +353,8 @@ class Phase2Trainer(BaseTrainer):
         return loss
 
 def compose_inputs(data, mode='train', device=None, input_type='depth_pred',
-    use_gt_depth_map=False, depth_map_mix=False, with_img=False, depth_pointcloud_transfer=None):
+    use_gt_depth_map=False, depth_map_mix=False, with_img=False, depth_pointcloud_transfer=None,
+    local=False):
     
     assert mode in ('train', 'val', 'test')
 
@@ -377,6 +378,16 @@ def compose_inputs(data, mode='train', device=None, input_type='depth_pred',
         if with_img:
             img = data.get('inputs').to(device)
             encoder_inputs = {'img': img, 'depth': encoder_inputs}
+        
+        if local:
+            camera_args = get_camera_args(data, 'points.loc', 'points.scale', device=device)
+            Rt = camera_args['Rt']
+            K = camera_args['K']
+            encoder_inputs = {
+                None: encoder_inputs,
+                'world_mat': Rt,
+                'camera_mat': K,
+            }
 
         return encoder_inputs, gt_mask
     elif input_type == 'depth_pointcloud':
@@ -393,6 +404,13 @@ def compose_inputs(data, mode='train', device=None, input_type='depth_pred',
                 encoder_inputs = encoder_inputs[:, [1,0,2]]
             else:
                 raise NotImplementedError
+
+        if local:
+            assert depth_pointcloud_transfer == 'world'
+            encoder_inputs = {
+                None: encoder_inputs
+            }
+
         return encoder_inputs, None
     else:
         raise NotImplementedError
@@ -419,7 +437,8 @@ class Phase2HalfwayTrainer(BaseTrainer):
                  use_gt_depth_map=False,
                  depth_map_mix=False,
                  with_img=False,
-                 depth_pointcloud_transfer=None
+                 depth_pointcloud_transfer=None,
+                 local=False,
                 ):
         self.model = model
         self.optimizer = optimizer
@@ -439,6 +458,10 @@ class Phase2HalfwayTrainer(BaseTrainer):
         if self.with_img:
             print('Predict using img&depth')
         self.depth_pointcloud_transfer = depth_pointcloud_transfer
+
+        self.local=local
+        if self.local:
+            print('Predict using local features') 
 
         assert depth_pointcloud_transfer in (None, 'world', 'transpose_xy')
 
@@ -481,7 +504,8 @@ class Phase2HalfwayTrainer(BaseTrainer):
 
         encoder_inputs, _ = compose_inputs(data, mode='val', device=self.device, input_type=self.input_type,
                                                 use_gt_depth_map=self.use_gt_depth_map, depth_map_mix=self.depth_map_mix, 
-                                                with_img=self.with_img, depth_pointcloud_transfer=self.depth_pointcloud_transfer)
+                                                with_img=self.with_img, depth_pointcloud_transfer=self.depth_pointcloud_transfer,
+                                                local=self.local)
 
         with torch.no_grad():
             elbo, rec_error, kl = self.model.compute_elbo_halfway(
@@ -539,7 +563,8 @@ class Phase2HalfwayTrainer(BaseTrainer):
 
         encoder_inputs, gt_mask = compose_inputs(data, mode='val', device=self.device, input_type=self.input_type,
                                                 use_gt_depth_map=self.use_gt_depth_map, depth_map_mix=self.depth_map_mix, 
-                                                with_img=self.with_img, depth_pointcloud_transfer=self.depth_pointcloud_transfer)
+                                                with_img=self.with_img, depth_pointcloud_transfer=self.depth_pointcloud_transfer,
+                                                local=self.local)
 
         kwargs = {}
         with torch.no_grad():
@@ -585,10 +610,11 @@ class Phase2HalfwayTrainer(BaseTrainer):
 
         encoder_inputs,_ = compose_inputs(data, mode='train', device=self.device, input_type=self.input_type,
                                                 use_gt_depth_map=self.use_gt_depth_map, depth_map_mix=self.depth_map_mix, 
-                                                with_img=self.with_img, depth_pointcloud_transfer=self.depth_pointcloud_transfer)
+                                                with_img=self.with_img, depth_pointcloud_transfer=self.depth_pointcloud_transfer,
+                                                local=self.local)
 
         kwargs = {}
-        c = self.model.encode(encoder_inputs, only_feature=False)
+        c = self.model.encode(encoder_inputs, only_feature=False, p=p)
         q_z = self.model.infer_z(p, occ, c, **kwargs)
         z = q_z.rsample()
 
@@ -598,7 +624,12 @@ class Phase2HalfwayTrainer(BaseTrainer):
 
         # additional loss for feature transform
         if isinstance(c, tuple):
-            c, _, trans_feature = c
+            trans_feature = c[-1]
+            if self.local:
+                c = (c[0], c[1])
+            else:
+                c = c[0]
+        
             if isinstance(self.model.encoder, PointNetEncoder) or isinstance(self.model.encoder, PointNetResEncoder):
                 loss = loss + 0.001 * feature_transform_reguliarzer(trans_feature) 
 

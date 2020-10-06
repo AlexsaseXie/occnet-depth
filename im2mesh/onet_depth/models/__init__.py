@@ -2,6 +2,7 @@ import torch
 import torch.nn as nn
 from torch import distributions as dist
 from im2mesh.onet.models import encoder_latent, decoder
+from im2mesh.onet_multi_layers_predict.models import decoder as decoder1
 
 # Encoder latent dictionary
 encoder_latent_dict = {
@@ -15,6 +16,14 @@ decoder_dict = {
     'cbatchnorm2': decoder.DecoderCBatchNorm2,
     'batchnorm': decoder.DecoderBatchNorm,
     'cbatchnorm_noresnet': decoder.DecoderCBatchNormNoResnet,
+}
+
+decoder_local_dict = {
+    'batchnorm_localfeature': decoder1.DecoderBatchNorm_LocalFeature,
+    'batchnormsimple_localfeature': decoder1.DecoderBatchNormSimple_LocalFeature,
+    'nobn_localfeature': decoder1.Decoder_LocalFeature,
+    'nobnsimple_localfeature': decoder1.DecoderSimple_LocalFeature,
+    'batchnormhighhidden_localfeature': decoder1.DecoderBatchNormHighHidden_LocalFeature,
 }
 
 
@@ -34,7 +43,7 @@ class OccupancyWithDepthNetwork(nn.Module):
     '''
 
     def __init__(self, depth_predictor=None, decoder=None, encoder=None, encoder_latent=None, p0_z=None,
-                 device=None):
+                 device=None, decoder_local=None, local_logit_ratio=1.):
         super().__init__()
         if p0_z is None:
             p0_z = dist.Normal(torch.tensor([]), torch.tensor([]))
@@ -59,8 +68,14 @@ class OccupancyWithDepthNetwork(nn.Module):
         else:
             self.encoder = None
 
+        if decoder_local is not None:
+            self.decoder_local = decoder_local.to(device)
+        else:
+            self.decoder_local = None
+
         self._device = device
         self.p0_z = p0_z
+        self.local_logit_ratio = local_logit_ratio
 
     def predict_depth_maps(self, inputs):
         #batch_size = inputs.size(0)
@@ -79,6 +94,9 @@ class OccupancyWithDepthNetwork(nn.Module):
     def forward(self, p, inputs, gt_mask, sample=True, **kwargs):
         ''' Performs a forward pass through the network.
 
+        only predict depth map and encode
+        not supporting decoder_local
+
         Args:
             p (tensor): sampled points
             inputs (tensor): conditioning input
@@ -94,13 +112,16 @@ class OccupancyWithDepthNetwork(nn.Module):
 
     def forward_halfway(self, p, encoder_input, sample=True, **kwargs):
         batch_size = p.size(0)   
-        c = self.encode(encoder_input)
+        c = self.encode(encoder_input, p=p)
         z = self.get_z_from_prior((batch_size,), sample=sample)
         p_r = self.decode(p, z, c, **kwargs)
         return p_r
 
     def compute_elbo(self, p, occ, inputs, gt_mask, **kwargs):
         ''' Computes the expectation lower bound.
+
+        only predict depth map and encode
+        not supporting decoder_local
 
         Args:
             p (tensor): sampled points
@@ -121,7 +142,7 @@ class OccupancyWithDepthNetwork(nn.Module):
         return elbo, rec_error, kl
 
     def compute_elbo_halfway(self, p, occ, encoder_input, **kwargs):
-        c = self.encode(encoder_input)
+        c = self.encode(encoder_input, p=p)
         q_z = self.infer_z(p, occ, c, **kwargs)
         z = q_z.rsample()
         p_r = self.decode(p, z, c, **kwargs)
@@ -132,20 +153,25 @@ class OccupancyWithDepthNetwork(nn.Module):
 
         return elbo, rec_error, kl
 
-    def encode(self, encoder_input, only_feature=True):
+    def encode(self, encoder_input, only_feature=True, p=None):
         ''' Encodes the depth map / depth pointcloud.
 
         Args:
-             encoder_input (tensor): depth map / depth pointcloud
+             encoder_input (tensor) or (dict of tensors): depth map / depth pointcloud
         '''
+        assert self.encoder is not None 
 
-        if self.encoder is not None:
+        if self.decoder_local is None:
             c = self.encoder(encoder_input)
-            if only_feature and isinstance(c, tuple):
-                c = c[0]
         else:
-            # Return inputs?
-            c = torch.empty(encoder_input.size(0), 0)
+            assert p is not None
+            c = self.encoder.forward_local(encoder_input, p)
+
+        if only_feature and isinstance(c, tuple):
+            if self.decoder_local is None:
+                c = c[0]
+            else:
+                c = (c[0], c[1])
 
         return c
 
@@ -158,7 +184,12 @@ class OccupancyWithDepthNetwork(nn.Module):
             c (tensor): latent conditioned code c
         '''
 
-        logits = self.decoder(p, z, c, **kwargs)
+        if self.decoder_local is None:
+            logits = self.decoder(p, z, c, **kwargs)
+        else:
+            logits_global = self.decoder(p, z, c[0], **kwargs)
+            logits_local = self.decoder_local(p, z, c[1], **kwargs)
+            logits = logits_global + self.local_logit_ratio * logits_local
         p_r = dist.Bernoulli(logits=logits)
         return p_r
 

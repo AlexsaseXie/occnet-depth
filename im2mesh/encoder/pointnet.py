@@ -199,7 +199,7 @@ class STNkd(nn.Module):
 
 
 class PointNetEncoder(nn.Module):
-    def __init__(self, c_dim=1024, global_feat=True, feature_transform=True, channel=3, only_point_feature=False, model_pretrained=None):
+    def __init__(self, c_dim=1024, global_feat=True, feature_transform=True, channel=3, only_point_feature=False, model_pretrained=None, local=False):
         super(PointNetEncoder, self).__init__()
         self.stn = STN3d(channel)
         self.conv1 = torch.nn.Conv1d(channel, 64, 1)
@@ -222,11 +222,15 @@ class PointNetEncoder(nn.Module):
             state_dict = torch.load(model_pretrained, map_location='cpu')
             self.load_state_dict(state_dict)
 
+        self.local = local
+        if self.local:
+            self.local_fc = ResnetBlockFC(64+128+c_dim, c_dim)
+
     def forward(self, x):
         # match the input of pointnet
-        x = x.transpose(2, 1)
-
+        x = x.transpose(2, 1) # x: batch * 3 * n_pts
         B, D, N = x.size()
+
         trans_point = self.stn(x)
         x = x.transpose(2, 1)
         if D > 3:
@@ -259,6 +263,79 @@ class PointNetEncoder(nn.Module):
             return x
         else:
             return x, trans_point, trans_feat
+
+    def forward_local(self, data, pts, K=5):
+        assert self.local
+        x = data[None]
+
+        # calc dist matrix
+        B, N, D = x.size()
+        _, N_pt, _ = pts.size()
+
+        if D > 3:
+            a = x[:,:,:3].unsqueeze(2).expand(B, N, N_pt, 3)
+            b = pts[:,:,:3].unsqueeze(1).expand(B, N, N_pt, 3)
+        else:
+            a = x.unsqueeze(2).expand(B, N, N_pt, D)
+            b = pts.unsqueeze(1).expand(B, N, N_pt, D)
+        dist = ((a - b) ** 2).sum(dim=3)
+        
+        _, indices = torch.topk(dist, K, dim=1, largest=False) # indices : B * K * N_pt
+        # e.g. dist_v == dist.gather(1, indices)
+
+        indices = indices.unsqueeze(3).transpose(1, 3) # indices : B * 1 * N_pt * K
+
+        feature_maps = []
+        # match the input of pointnet
+        x = x.transpose(2, 1) # x: batch * 3 * n_pts
+
+        trans_point = self.stn(x)
+        x = x.transpose(2, 1)
+        if D > 3:
+            x, feature = x.split(3,dim=2)
+        x = torch.bmm(x, trans_point)
+        if D > 3:
+            x = torch.cat([x,feature],dim=2)
+        x = x.transpose(2, 1)
+        x = F.relu(self.bn1(self.conv1(x)))
+        feature_maps.append(x)
+
+        if self.feature_transform:
+            trans_feat = self.fstn(x)
+            x = x.transpose(2, 1)
+            x = torch.bmm(x, trans_feat)
+            x = x.transpose(2, 1)
+        else:
+            trans_feat = None
+
+        pointfeat = x
+        x = F.relu(self.bn2(self.conv2(x)))
+        feature_maps.append(x)
+        x = self.bn3(self.conv3(x))
+        feature_maps.append(x)
+        x = torch.max(x, 2, keepdim=True)[0]
+        x = x.view(-1, self.c_dim)
+
+        if not self.global_feat:
+            x = x.view(-1, self.c_dim, 1).repeat(1, 1, N)
+            x = torch.cat([x, pointfeat], 1)
+
+        local_feats = []
+        for fm in feature_maps:
+            #fm = fm.detach()
+            _, fm_c, _ = fm.size() # B * fm_c * N
+            
+            fm = fm.unsqueeze(2).expand(B, fm_c, N_pt, N)
+            f_local = fm.gather(2, indices.expand(B, fm_c, N_pt, K))
+            local_feats.append(f_local.mean(dim=3)) # append: B * fm_c * N_pt
+
+        local_feats = torch.cat(local_feats, 1).transpose(2, 1)
+        local_feats = self.local_fc(local_feats)
+
+        if self.only_point_feature:
+            return x, local_feats
+        else:
+            return x, local_feats, trans_point, trans_feat
 
 
 class PointNetResEncoder(nn.Module):

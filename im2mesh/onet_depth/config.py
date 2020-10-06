@@ -61,6 +61,26 @@ def get_model(cfg, device=None, dataset=None, **kwargs):
             depth_predictor = None
         else:
             raise NotImplementedError
+
+        if 'use_local_feature' in cfg['model']:
+            use_local_feature = cfg['model']['use_local_feature']
+        else:
+            use_local_feature = False
+        
+        if use_local_feature:
+            decoder_local = cfg['model']['decoder_local']
+            decoder_local_kwargs = cfg['model']['decoder_local_kwargs']
+            decoder_local = models.decoder_local_dict[decoder_local](
+                dim=dim, z_dim=z_dim, c_dim=cfg['model']['local_feature_dim'],
+                **decoder_local_kwargs
+            )
+        else:
+            decoder_local = None
+        
+        if 'logits1_ratio' in cfg['model']:
+            local_logit_ratio = cfg['model']['logits1_ratio']
+        else:
+            local_logit_ratio = 1.
         
         decoder = models.decoder_dict[decoder](
             dim=dim, z_dim=z_dim, c_dim=c_dim,
@@ -78,16 +98,25 @@ def get_model(cfg, device=None, dataset=None, **kwargs):
         if encoder == 'idx':
             encoder = nn.Embedding(len(dataset), c_dim)
         elif encoder is not None:
-            encoder = encoder_dict[encoder](
-                c_dim=c_dim,
-                **encoder_kwargs
-            )
+            if use_local_feature:
+                encoder = encoder_dict[encoder](
+                    c_dim=c_dim,
+                    local=True,
+                    **encoder_kwargs
+                )
+            else:
+                encoder = encoder_dict[encoder](
+                    c_dim=c_dim,
+                    **encoder_kwargs
+                )
         else:
             encoder = None
 
     p0_z = get_prior_z(cfg, device)
     model = models.OccupancyWithDepthNetwork(
-        depth_predictor, decoder, encoder, encoder_latent, p0_z=p0_z, device=device
+        depth_predictor, decoder, encoder, encoder_latent, p0_z=p0_z, device=device, 
+        decoder_local=decoder_local,
+        local_logit_ratio=local_logit_ratio
     )
 
     return model
@@ -142,6 +171,9 @@ def get_trainer(model, optimizer, cfg, device, **kwargs):
 
         if 'depth_map_mix' in cfg['training']:
             trainer_params['depth_map_mix'] = cfg['training']['depth_map_mix']
+
+        if 'use_local_feature' in cfg['model']:
+            trainer_params['local'] = cfg['model']['use_local_feature']
 
         if input_type == 'img_with_depth':
             trainer_params['training_detach'] = cfg['training']['detach'] # detach or not
