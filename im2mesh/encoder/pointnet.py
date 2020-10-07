@@ -220,7 +220,7 @@ class PointNetEncoder(nn.Module):
         if model_pretrained is not None:
             print('Loading depth encoder from ', model_pretrained)
             state_dict = torch.load(model_pretrained, map_location='cpu')
-            self.load_state_dict(state_dict)
+            self.load_state_dict(state_dict, strict=False)
 
         self.local = local
         if self.local:
@@ -271,7 +271,7 @@ class PointNetEncoder(nn.Module):
         # calc dist matrix
         B, N, D = x.size()
         _, N_pt, _ = pts.size()
-
+        
         if D > 3:
             a = x[:,:,:3].unsqueeze(2).expand(B, N, N_pt, 3)
             b = pts[:,:,:3].unsqueeze(1).expand(B, N, N_pt, 3)
@@ -326,7 +326,7 @@ class PointNetEncoder(nn.Module):
             _, fm_c, _ = fm.size() # B * fm_c * N
             
             fm = fm.unsqueeze(2).expand(B, fm_c, N_pt, N)
-            f_local = fm.gather(2, indices.expand(B, fm_c, N_pt, K))
+            f_local = fm.gather(3, indices.expand(B, fm_c, N_pt, K))
             local_feats.append(f_local.mean(dim=3)) # append: B * fm_c * N_pt
 
         local_feats = torch.cat(local_feats, 1).transpose(2, 1)

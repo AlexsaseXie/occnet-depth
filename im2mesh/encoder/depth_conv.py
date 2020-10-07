@@ -37,7 +37,7 @@ class Depth_Resnet18(nn.Module):
         if model_pretrained is not None:
             print('Loading depth encoder from ', model_pretrained)
             state_dict = torch.load(model_pretrained, map_location='cpu')
-            self.load_state_dict(state_dict)
+            self.load_state_dict(state_dict, strict=False)
 
     def forward(self, x):
         if isinstance(x, dict):

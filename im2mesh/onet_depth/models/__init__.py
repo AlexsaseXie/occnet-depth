@@ -1,7 +1,7 @@
 import torch
 import torch.nn as nn
 from torch import distributions as dist
-from im2mesh.onet.models import encoder_latent, decoder
+from im2mesh.onet.models import encoder_latent, decoder as decoder2
 from im2mesh.onet_multi_layers_predict.models import decoder as decoder1
 
 # Encoder latent dictionary
@@ -11,11 +11,11 @@ encoder_latent_dict = {
 
 # Decoder dictionary
 decoder_dict = {
-    'simple': decoder.Decoder,
-    'cbatchnorm': decoder.DecoderCBatchNorm,
-    'cbatchnorm2': decoder.DecoderCBatchNorm2,
-    'batchnorm': decoder.DecoderBatchNorm,
-    'cbatchnorm_noresnet': decoder.DecoderCBatchNormNoResnet,
+    'simple': decoder2.Decoder,
+    'cbatchnorm': decoder2.DecoderCBatchNorm,
+    'cbatchnorm2': decoder2.DecoderCBatchNorm2,
+    'batchnorm': decoder2.DecoderBatchNorm,
+    'cbatchnorm_noresnet': decoder2.DecoderCBatchNormNoResnet,
 }
 
 decoder_local_dict = {

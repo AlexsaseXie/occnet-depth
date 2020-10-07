@@ -573,6 +573,10 @@ class Phase2HalfwayTrainer(BaseTrainer):
         occ_hat = p_r.probs.view(batch_size, *shape)
         voxels_out = (occ_hat >= self.threshold).cpu().numpy()
 
+        # visualize
+        if self.local:
+            encoder_inputs = encoder_inputs[None]
+
         if self.input_type == 'depth_pred':
             if self.with_img:
                 encoder_inputs = encoder_inputs['depth']
