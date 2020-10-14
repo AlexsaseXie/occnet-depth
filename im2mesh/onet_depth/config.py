@@ -224,7 +224,7 @@ def get_generator(model, cfg, device, **kwargs):
     }
 
     if input_type == 'depth_pred':
-        generator_params['training_use_gt_depth'] = cfg['training']['use_gt_depth']
+        generator_params['use_gt_depth_map'] = cfg['training']['use_gt_depth']
 
     if 'pred_with_img' in cfg['model']:
         generator_params['with_img'] = cfg['model']['pred_with_img']

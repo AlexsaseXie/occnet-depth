@@ -76,7 +76,7 @@ class Generator3D(object):
         device = self.device
         stats_dict = {}
 
-        gt_mask = data.get('inputs.mask').to(device).byte()
+        #gt_mask = data.get('inputs.mask').to(device).byte()
         if self.input_type in ('depth_pred', 'depth_pointcloud'):
             encoder_inputs, _ = compose_inputs(data, mode='test', device=self.device, input_type=self.input_type,
                                                 use_gt_depth_map=self.use_gt_depth_map, depth_map_mix=False, 
