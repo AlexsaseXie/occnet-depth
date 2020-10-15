@@ -53,10 +53,12 @@ class Depth_Resnet18(nn.Module):
         return out
 
     def forward_local(self, data, pts):
-        world_mat = data['world_mat']
-        camera_mat = data['camera_mat']
-        x = data[None]
+        c, local_feat_maps = self.forward_local_first_step(data)
+        c, local_feats = self.forward_local_second_step(data, c, local_feat_maps, pts)
+        return c, local_feats
 
+    def forward_local_first_step(self, data):
+        x = data[None]
         if isinstance(x, dict):
             img = x['img']
             depth = x['depth']
@@ -64,11 +66,6 @@ class Depth_Resnet18(nn.Module):
                 depth = depth - 1.
 
             x = torch.cat((img, depth), dim = 1)
-
-        assert self.local
-        pts = common.transform_points(pts, world_mat)
-        points_img = common.project_to_camera(pts, camera_mat)
-        points_img = points_img.unsqueeze(1)
 
         local_feat_maps = []
         x = self.features.conv1(x)
@@ -89,6 +86,17 @@ class Depth_Resnet18(nn.Module):
         x = x.view(x.size(0), -1)
         x = self.fc(x)
 
+        return x, local_feat_maps
+
+    def forward_local_second_step(self, data, c, local_feat_maps, pts):
+        world_mat = data['world_mat']
+        camera_mat = data['camera_mat']
+
+        assert self.local
+        pts = common.transform_points(pts, world_mat)
+        points_img = common.project_to_camera(pts, camera_mat)
+        points_img = points_img.unsqueeze(1)
+
         # get local feats
         local_feats = []
         for f in local_feat_maps:
@@ -104,8 +112,7 @@ class Depth_Resnet18(nn.Module):
 
         # x: B * c_dim
         # local: feats B * n_pts * c_dim
-        return x, local_feats
-        
+        return c, local_feats
 
 '''
 resnet 18 forward:
