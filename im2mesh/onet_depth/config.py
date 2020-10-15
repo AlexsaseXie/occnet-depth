@@ -232,6 +232,9 @@ def get_generator(model, cfg, device, **kwargs):
     if 'depth_pointcloud_transfer' in cfg['model']:
         generator_params['depth_pointcloud_transfer'] = cfg['model']['depth_pointcloud_transfer']
 
+    if 'use_local_feature' in cfg['model']:
+        generator_params['local'] = cfg['model']['use_local_feature']
+
     generator = generation.Generator3D(
         model,
         **generator_params

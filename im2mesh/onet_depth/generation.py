@@ -42,7 +42,8 @@ class Generator3D(object):
                  input_type='depth_pred',
                  use_gt_depth_map=False,
                  with_img=False,
-                 depth_pointcloud_transfer=None):
+                 depth_pointcloud_transfer=None,
+                 local=False):
         self.model = model.to(device)
         self.points_batch_size = points_batch_size
         self.refinement_step = refinement_step
@@ -55,6 +56,7 @@ class Generator3D(object):
         self.sample = sample
         self.simplify_nfaces = simplify_nfaces
         self.preprocessor = preprocessor
+        self.local = local
 
         self.input_type = input_type
         assert self.input_type == 'depth_pred' or self.input_type == 'depth_pointcloud' or \
@@ -76,14 +78,15 @@ class Generator3D(object):
         device = self.device
         stats_dict = {}
 
-        #gt_mask = data.get('inputs.mask').to(device).byte()
         if self.input_type in ('depth_pred', 'depth_pointcloud'):
             encoder_inputs, _ = compose_inputs(data, mode='test', device=self.device, input_type=self.input_type,
                                                 use_gt_depth_map=self.use_gt_depth_map, depth_map_mix=False, 
-                                                with_img=self.with_img, depth_pointcloud_transfer=self.depth_pointcloud_transfer)
+                                                with_img=self.with_img, depth_pointcloud_transfer=self.depth_pointcloud_transfer,
+                                                local=self.local)
         else:
             # Preprocess if requires
             inputs = data.get('inputs').to(device)
+            gt_mask = data.get('inputs.mask').to(device).byte()
             if self.preprocessor is not None:
                 t0 = time.time()
                 with torch.no_grad():
@@ -101,18 +104,25 @@ class Generator3D(object):
         # Encode inputs
         t0 = time.time()
         with torch.no_grad():
-            c = self.model.encode(encoder_inputs)
+            if self.local:
+                c = self.model.encoder.forward_local_first_step(encoder_inputs)
+            else:
+                c = self.model.encode(encoder_inputs)
         stats_dict['time (encode)'] = time.time() - t0
 
         z = self.model.get_z_from_prior((1,), sample=self.sample).to(device)
-        mesh = self.generate_from_latent(z, c, stats_dict=stats_dict, **kwargs)
+
+        if self.local:
+            mesh = self.generate_from_latent(z, c, data=encoder_inputs, stats_dict=stats_dict, **kwargs)
+        else:
+            mesh = self.generate_from_latent(z, c, stats_dict=stats_dict, **kwargs)
 
         if return_stats:
             return mesh, stats_dict
         else:
             return mesh
 
-    def generate_from_latent(self, z, c=None, stats_dict={}, **kwargs):
+    def generate_from_latent(self, z, c=None, data=None, stats_dict={}, **kwargs):
         ''' Generates mesh from latent.
 
         Args:
@@ -132,7 +142,7 @@ class Generator3D(object):
             pointsf = box_size * make_3d_grid(
                 (-0.5,)*3, (0.5,)*3, (nx,)*3
             )
-            values = self.eval_points(pointsf, z, c, **kwargs).cpu().numpy()
+            values = self.eval_points(pointsf, z, c, data, **kwargs).cpu().numpy()
             value_grid = values.reshape(nx, nx, nx)
         else:
             mesh_extractor = MISE(
@@ -148,7 +158,7 @@ class Generator3D(object):
                 pointsf = box_size * (pointsf - 0.5)
                 # Evaluate model and update
                 values = self.eval_points(
-                    pointsf, z, c, **kwargs).cpu().numpy()
+                    pointsf, z, c, data, **kwargs).cpu().numpy()
                 values = values.astype(np.float64)
                 mesh_extractor.update(points, values)
                 points = mesh_extractor.query()
@@ -158,10 +168,10 @@ class Generator3D(object):
         # Extract mesh
         stats_dict['time (eval points)'] = time.time() - t0
 
-        mesh = self.extract_mesh(value_grid, z, c, stats_dict=stats_dict)
+        mesh = self.extract_mesh(value_grid, z, c, data=data, stats_dict=stats_dict)
         return mesh
 
-    def eval_points(self, p, z, c=None, **kwargs):
+    def eval_points(self, p, z, c=None, data=None, **kwargs):
         ''' Evaluates the occupancy values for the points.
 
         Args:
@@ -175,6 +185,9 @@ class Generator3D(object):
         for pi in p_split:
             pi = pi.unsqueeze(0).to(self.device)
             with torch.no_grad():
+                if self.local:
+                    assert data is not None
+                    c = self.model.encoder.forward_local_second_step(data, c[0], c[1], pi)
                 occ_hat = self.model.decode(pi, z, c, **kwargs).logits
 
             occ_hats.append(occ_hat.squeeze(0).detach().cpu())
@@ -183,7 +196,7 @@ class Generator3D(object):
 
         return occ_hat
 
-    def extract_mesh(self, occ_hat, z, c=None, stats_dict=dict()):
+    def extract_mesh(self, occ_hat, z, c=None, data=None, stats_dict=dict()):
         ''' Extracts the mesh from the predicted occupancy grid.
 
         Args:
@@ -217,7 +230,7 @@ class Generator3D(object):
         # Estimate normals if needed
         if self.with_normals and not vertices.shape[0] == 0:
             t0 = time.time()
-            normals = self.estimate_normals(vertices, z, c)
+            normals = self.estimate_normals(vertices, z, c, data)
             stats_dict['time (normals)'] = time.time() - t0
 
         else:
@@ -241,12 +254,12 @@ class Generator3D(object):
         # Refine mesh
         if self.refinement_step > 0:
             t0 = time.time()
-            self.refine_mesh(mesh, occ_hat, z, c)
+            self.refine_mesh(mesh, occ_hat, z, c, data=data)
             stats_dict['time (refine)'] = time.time() - t0
 
         return mesh
 
-    def estimate_normals(self, vertices, z, c=None):
+    def estimate_normals(self, vertices, z, c=None, data=None):
         ''' Estimates the normals by computing the gradient of the objective.
 
         Args:
@@ -263,6 +276,9 @@ class Generator3D(object):
         for vi in vertices_split:
             vi = vi.unsqueeze(0).to(device)
             vi.requires_grad_()
+            if self.local:
+                assert data is not None
+                c = self.model.encoder.forward_local_second_step(data, c[0], c[1], vi)
             occ_hat = self.model.decode(vi, z, c).logits
             out = occ_hat.sum()
             out.backward()
@@ -274,7 +290,7 @@ class Generator3D(object):
         normals = np.concatenate(normals, axis=0)
         return normals
 
-    def refine_mesh(self, mesh, occ_hat, z, c=None):
+    def refine_mesh(self, mesh, occ_hat, z, c=None, data=None):
         ''' Refines the predicted mesh.
 
         Args:   
@@ -316,8 +332,13 @@ class Generator3D(object):
             face_normal = torch.cross(face_v1, face_v2)
             face_normal = face_normal / \
                 (face_normal.norm(dim=1, keepdim=True) + 1e-10)
+
+            fp = face_point.unsqueeze(0)
+            if self.local:
+                assert data is not None
+                c = self.model.encoder.forward_local_second_step(data, c[0], c[1], fp) 
             face_value = torch.sigmoid(
-                self.model.decode(face_point.unsqueeze(0), z, c).logits
+                self.model.decode(fp, z, c).logits
             )
             normal_target = -autograd.grad(
                 [face_value.sum()], [face_point], create_graph=True)[0]
