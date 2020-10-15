@@ -187,8 +187,10 @@ class Generator3D(object):
             with torch.no_grad():
                 if self.local:
                     assert data is not None
-                    c = self.model.encoder.forward_local_second_step(data, c[0], c[1], pi)
-                occ_hat = self.model.decode(pi, z, c, **kwargs).logits
+                    c1 = self.model.encoder.forward_local_second_step(data, c[0], c[1], pi)
+                    occ_hat = self.model.decode(pi, z, c1, **kwargs).logits
+                else:
+                    occ_hat = self.model.decode(pi, z, c, **kwargs).logits
 
             occ_hats.append(occ_hat.squeeze(0).detach().cpu())
 
@@ -278,8 +280,10 @@ class Generator3D(object):
             vi.requires_grad_()
             if self.local:
                 assert data is not None
-                c = self.model.encoder.forward_local_second_step(data, c[0], c[1], vi)
-            occ_hat = self.model.decode(vi, z, c).logits
+                c1 = self.model.encoder.forward_local_second_step(data, c[0], c[1], vi)
+                occ_hat = self.model_decode(vi, z, c1).logits
+            else:
+                occ_hat = self.model.decode(vi, z, c).logits
             out = occ_hat.sum()
             out.backward()
             ni = -vi.grad
@@ -336,10 +340,14 @@ class Generator3D(object):
             fp = face_point.unsqueeze(0)
             if self.local:
                 assert data is not None
-                c = self.model.encoder.forward_local_second_step(data, c[0], c[1], fp) 
-            face_value = torch.sigmoid(
-                self.model.decode(fp, z, c).logits
-            )
+                c1 = self.model.encoder.forward_local_second_step(data, c[0], c[1], fp) 
+                face_value = torch.sigmoid(
+                    self.model.decode(fp, z, c1).logits
+                )
+            else:
+                face_value = torch.sigmoid(
+                    self.model.decode(fp, z, c).logits
+                )
             normal_target = -autograd.grad(
                 [face_value.sum()], [face_point], create_graph=True)[0]
 

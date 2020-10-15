@@ -32,7 +32,8 @@ class Depth_Resnet18(nn.Module):
 
         self.local = local
         if self.local:
-            self.local_fc = ResnetBlockFC(64+128+256+512, c_dim)
+            #self.local_fc = ResnetBlockFC(64+128+256+512, c_dim)
+            self.local_fc = nn.Linear(64+128+256+512, c_dim)
 
         if model_pretrained is not None:
             print('Loading depth encoder from ', model_pretrained)
