@@ -5,6 +5,7 @@ from im2mesh import onet, r2n2, psgn, pix2mesh, dmc
 from im2mesh import onet_m
 from im2mesh import onet_multi_layers_predict
 from im2mesh import onet_depth
+from im2mesh import point_completion
 from im2mesh import preprocess
 
 
@@ -16,7 +17,8 @@ method_dict = {
     'dmc': dmc,
     'onet_m': onet_m,
     'onet_multi_layers': onet_multi_layers_predict,
-    'onet_depth': onet_depth
+    'onet_depth': onet_depth,
+    'point_completion': point_completion
 }
 
 

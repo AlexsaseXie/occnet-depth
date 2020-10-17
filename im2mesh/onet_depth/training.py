@@ -394,19 +394,23 @@ def compose_inputs(data, mode='train', device=None, input_type='depth_pred',
         encoder_inputs = data.get('inputs').to(device)
 
         if depth_pointcloud_transfer is not None:
-            if depth_pointcloud_transfer == 'world':
+            if depth_pointcloud_transfer.startswith('world'):
                 world_mat = get_world_mat(data, transpose=[1,0,2], device=device)
                 R = world_mat['R']
                 # R's inverse is R^T
                 encoder_inputs = transform_points(encoder_inputs, R.transpose(1, 2))
                 # encoder_inputs = transform_points_back(encoder_inputs, R)
+
+                if depth_pointcloud_transfer == 'world_scale_model':
+                    t = world_mat['t']
+                    encoder_inputs = encoder_inputs * t[:,2:,:]
             elif depth_pointcloud_transfer == 'transpose_xy':
                 encoder_inputs = encoder_inputs[:, [1,0,2]]
             else:
                 raise NotImplementedError
 
         if local:
-            assert depth_pointcloud_transfer == 'world'
+            assert depth_pointcloud_transfer.startswith('world')
             encoder_inputs = {
                 None: encoder_inputs
             }
@@ -463,7 +467,7 @@ class Phase2HalfwayTrainer(BaseTrainer):
         if self.local:
             print('Predict using local features') 
 
-        assert depth_pointcloud_transfer in (None, 'world', 'transpose_xy')
+        assert depth_pointcloud_transfer in (None, 'world', 'world_scale_model', 'transpose_xy')
 
         if vis_dir is not None and not os.path.exists(vis_dir):
             os.makedirs(vis_dir)
