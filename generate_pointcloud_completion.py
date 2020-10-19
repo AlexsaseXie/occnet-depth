@@ -19,7 +19,7 @@ parser = argparse.ArgumentParser(
 parser.add_argument('config', type=str, help='Path to config file.')
 parser.add_argument('--out_folder_name', type=str, default='depth_pointcloud_completion.direct', 
                     help='Output folder name (under original dataset folder)')
-parser.add_argument('--batch_size', type=int, default=60, help='Generation batch size.')
+parser.add_argument('--batch_size', type=int, default=256, help='Generation batch size.')
 parser.add_argument('--combine_pc', action='store_true', help='Combine input and predict.')
 args = parser.parse_args()
 
@@ -73,7 +73,7 @@ for batch in tqdm(train_loader):
     it += 1
     model.eval()
 
-    encoder_inputs, _ = compose_inputs(data, mode='train', device=device, input_type='depth_pointcloud',
+    encoder_inputs, _ = compose_inputs(batch, mode='train', device=device, input_type='depth_pointcloud',
                                                 depth_pointcloud_transfer=depth_pointcloud_transfer)
     cur_batch_size = encoder_inputs.size(0)
     idxs = batch.get('idx')
