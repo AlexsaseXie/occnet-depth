@@ -46,7 +46,6 @@ class PointCompletionNetwork(nn.Module):
         if not self.preserve_input:
             self.decoder = PointDecoder(c_dim=c_dim, output_points_count=output_points_count).to(device)
         else:
-            raise NotImplementedError
             self.half_p = output_points_count // 2
             self.decoder = PointDecoder(c_dim=c_dim, output_points_count=self.half_p).to(device)
             # TODO: define a shortcut function
@@ -57,10 +56,10 @@ class PointCompletionNetwork(nn.Module):
         points_output = self.decoder(feats)
 
         if self.preserve_input:
-            raise NotImplementedError
             # TODO: make shortcut function work
+            x_flipped = x.transpose(1,2).contiguous()
             points_transferred_idx = pointnet2_utils.furthest_point_sample(x, self.half_p)
-            points_transferred = pointnet2_utils.gather_operation(x, points_transferred_idx)
+            points_transferred = pointnet2_utils.gather_operation(x_flipped, points_transferred_idx).transpose(1, 2).contiguous()
             points_output = torch.cat([points_output, points_transferred], dim=1)
         
         return points_output, trans_feature

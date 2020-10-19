@@ -84,6 +84,7 @@ class PointCompletionTrainer(BaseTrainer):
         device = self.device
 
         gt_pc = compose_pointcloud(data, device, self.gt_pointcloud_transfer)
+        batch_size = gt_pc.size(0)
         encoder_inputs,_ = compose_inputs(data, mode='train', device=self.device, input_type=self.input_type,
                                                 depth_pointcloud_transfer=self.depth_pointcloud_transfer,)
 
@@ -98,11 +99,14 @@ class PointCompletionTrainer(BaseTrainer):
 
             # chamfer distance loss
             loss = loss + chamfer_distance(out, gt_pc).mean()
+           
+            eval_dict = {}
+            if batch_size == 1:
+                pointcloud_hat = out.cpu().squeeze(0).numpy()
+                pointcloud_gt = gt_pc.cpu().squeeze(0).numpy()
             
-            pointcloud_hat = out.cpu().squeeze(0).numpy()
-            pointcloud_gt = gt_pc.cpu().squeeze(0).numpy()
-            
-            eval_dict = self.mesh_evaluator.eval_pointcloud(pointcloud_hat, pointcloud_gt)
+                eval_dict = self.mesh_evaluator.eval_pointcloud(pointcloud_hat, pointcloud_gt)
+
             eval_dict['chamfer'] = loss.item()
 
 
