@@ -6,6 +6,8 @@ from distutils.extension import Extension
 from Cython.Build import cythonize
 from torch.utils.cpp_extension import BuildExtension, CppExtension, CUDAExtension
 import numpy
+import os
+import glob
 
 
 # Get the numpy include directory.
@@ -91,6 +93,27 @@ dmc_cuda_module = CUDAExtension(
     ]
 )
 
+
+# added to compile pointnet2_op_lib
+this_dir = os.path.dirname(os.path.abspath(__file__))
+_ext_src_root = os.path.join("im2mesh","utils", "pointnet2_ops_lib","pointnet2_ops", "_ext-src")
+_ext_sources = glob.glob(os.path.join(_ext_src_root, "src", "*.cpp")) + glob.glob(
+    os.path.join(_ext_src_root, "src", "*.cu")
+)
+_ext_headers = glob.glob(os.path.join(_ext_src_root, "include", "*"))
+
+
+pointnet2_cuda_module = CUDAExtension(
+    name="im2mesh.utils.pointnet2_ops_lib.pointnet2_ops._ext",
+    sources=_ext_sources,
+    extra_compile_args={
+        "cxx": ["-O3"],
+        "nvcc": ["-O3", "-Xfatbin", "-compress-all"],
+    },
+    include_dirs=[os.path.join(this_dir, _ext_src_root, "include")],
+)
+
+
 # Gather all extension modules
 ext_modules = [
     pykdtree,
@@ -101,6 +124,7 @@ ext_modules = [
     voxelize_module,
     dmc_pred2mesh_module,
     dmc_cuda_module,
+    pointnet2_cuda_module
 ]
 
 setup(

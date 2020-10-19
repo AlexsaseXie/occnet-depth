@@ -2,7 +2,7 @@ import torch
 import torch.nn as nn
 from im2mesh.layers import ResnetBlockConv1d, ResnetBlockFC
 from im2mesh.encoder.pointnet import PointNetEncoder
-
+from im2mesh.utils.pointnet2_ops_lib.pointnet2_ops import pointnet2_utils
 
 
 
@@ -47,8 +47,8 @@ class PointCompletionNetwork(nn.Module):
             self.decoder = PointDecoder(c_dim=c_dim, output_points_count=output_points_count).to(device)
         else:
             raise NotImplementedError
-            half_p = output_points_count // 2
-            self.decoder = PointDecoder(c_dim=c_dim, output_points_count=half_p).to(device)
+            self.half_p = output_points_count // 2
+            self.decoder = PointDecoder(c_dim=c_dim, output_points_count=self.half_p).to(device)
             # TODO: define a shortcut function
             
 
@@ -59,7 +59,8 @@ class PointCompletionNetwork(nn.Module):
         if self.preserve_input:
             raise NotImplementedError
             # TODO: make shortcut function work
-            points_transferred = self.shortcut(x)
+            points_transferred_idx = pointnet2_utils.furthest_point_sample(x, self.half_p)
+            points_transferred = pointnet2_utils.gather_operation(x, points_transferred_idx)
             points_output = torch.cat([points_output, points_transferred], dim=1)
         
         return points_output, trans_feature
