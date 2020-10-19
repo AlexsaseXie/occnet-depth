@@ -33,6 +33,11 @@ def get_model(cfg, device=None, dataset=None, **kwargs):
     else:
         output_points_count = 2048
 
+    if 'preserve_input' in cfg['model']:
+        preserve_input = cfg['model']['preserve_input']
+    else:
+        preserve_input = False
+
     encoder = encoder_dict[encoder](
         c_dim=c_dim,
         **encoder_kwargs
@@ -42,7 +47,7 @@ def get_model(cfg, device=None, dataset=None, **kwargs):
     model = pc_model.PointCompletionNetwork(encoder, device=device, c_dim=c_dim,
         input_points_count=input_points_count, 
         output_points_count=output_points_count, 
-        preserve_input=False
+        preserve_input=preserve_input
     )
 
     return model
