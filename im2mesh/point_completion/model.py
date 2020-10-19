@@ -8,6 +8,7 @@ from im2mesh.encoder.pointnet import PointNetEncoder
 
 class PointDecoder(nn.Module):
     def __init__(self, c_dim=1024, output_points_count=2048):
+        super(PointDecoder, self).__init__()
         self.fc_1 = ResnetBlockFC(c_dim, 1024)
         self.fc_2 = ResnetBlockFC(1024, output_points_count)
         self.fc_out = nn.Linear(output_points_count, output_points_count * 3)

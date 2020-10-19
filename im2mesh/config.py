@@ -301,7 +301,7 @@ def get_inputs_field(mode, cfg):
         else:
             random_view = False
 
-        if 'depth_pointcloud_transfer' in cfg['model'] and cfg['model']['depth_pointcloud_transfer'] == 'world':
+        if 'depth_pointcloud_transfer' in cfg['model'] and cfg['model']['depth_pointcloud_transfer'].startswith('world'):
             with_camera = True
         else:
             with_camera = False

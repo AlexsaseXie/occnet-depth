@@ -9,7 +9,7 @@ from im2mesh.common import get_camera_args, get_world_mat, transform_points, tra
 from im2mesh.encoder.pointnet import feature_transform_reguliarzer, PointNetEncoder, PointNetResEncoder
 from im2mesh.onet_depth.training import compose_inputs
 from im2mesh.common import chamfer_distance
-
+from im2mesh.eval import MeshEvaluator
 
 def compose_pointcloud(data, device, pointcloud_transfer=None):
     gt_pc = data.get('pointcloud').to(device)
@@ -58,6 +58,7 @@ class PointCompletionTrainer(BaseTrainer):
 
         if vis_dir is not None and not os.path.exists(vis_dir):
             os.makedirs(vis_dir)
+        self.mesh_evaluator = MeshEvaluator() 
 
     def train_step(self, data):
         ''' Performs a training step.
@@ -81,12 +82,30 @@ class PointCompletionTrainer(BaseTrainer):
         self.model.eval()
 
         device = self.device
-        eval_dict = {}
+
+        gt_pc = compose_pointcloud(data, device, self.gt_pointcloud_transfer)
+        encoder_inputs,_ = compose_inputs(data, mode='train', device=self.device, input_type=self.input_type,
+                                                depth_pointcloud_transfer=self.depth_pointcloud_transfer,)
 
         with torch.no_grad():
-            loss = self.compute_loss(data)
+            loss = 0
+            out = self.model(encoder_inputs)
+            if isinstance(out, tuple):
+                out, trans_feat = out
 
-        eval_dict['chamfer distance'] = loss.item()
+                #if isinstance(self.model.encoder, PointNetEncoder) or isinstance(self.model.encoder, PointNetResEncoder):
+                #    loss = loss + 0.001 * feature_transform_reguliarzer(trans_feat)
+
+            # chamfer distance loss
+            loss = loss + chamfer_distance(out, gt_pc).mean()
+            
+            pointcloud_hat = out.cpu().squeeze(0).numpy()
+            pointcloud_gt = gt_pc.cpu().squeeze(0).numpy()
+            
+            eval_dict = self.mesh_evaluator.eval_pointcloud(pointcloud_hat, pointcloud_gt)
+            eval_dict['chamfer'] = loss.item()
+
+
         return eval_dict
 
     def visualize(self, data):
@@ -101,8 +120,10 @@ class PointCompletionTrainer(BaseTrainer):
         batch_size = gt_pc.size(0)
         encoder_inputs,_ = compose_inputs(data, mode='train', device=self.device, input_type=self.input_type,
                                                 depth_pointcloud_transfer=self.depth_pointcloud_transfer,)
-
-        out = self.model(encoder_inputs)
+        self.model.eval()
+        with torch.no_grad():
+            out = self.model(encoder_inputs)
+        
         if isinstance(out, tuple):
             out, _ = out        
 
@@ -138,5 +159,5 @@ class PointCompletionTrainer(BaseTrainer):
                 loss = loss + 0.001 * feature_transform_reguliarzer(trans_feat) 
 
         # chamfer distance loss
-        loss = loss + chamfer_distance(out, gt_pc)
+        loss = loss + chamfer_distance(out, gt_pc).mean()
         return loss
