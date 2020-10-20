@@ -45,7 +45,7 @@ def get_model(cfg, device=None, dataset=None, **kwargs):
     )
 
     if 'use_encoder_world_mat' in cfg['model']:
-        use_encoder_world_mat = cfg['model']['encoder_world_mat']
+        use_encoder_world_mat = cfg['model']['use_encoder_world_mat']
     else:
         use_encoder_world_mat = False
     
@@ -86,7 +86,7 @@ def get_trainer(model, optimizer, cfg, device, **kwargs):
         trainer_params['gt_pointcloud_transfer'] = cfg['model']['gt_pointcloud_transfer']
 
     if 'view_penalty' in cfg['training']:
-        trainer_params['view_penalty'] = cfg['model']['view_penalty']
+        trainer_params['view_penalty'] = cfg['training']['view_penalty']
 
     trainer = training.PointCompletionTrainer(model, optimizer,
         device=device, input_type=input_type,
