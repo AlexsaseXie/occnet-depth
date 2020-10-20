@@ -357,9 +357,11 @@ def compose_inputs(data, mode='train', device=None, input_type='depth_pred',
     local=False):
     
     assert mode in ('train', 'val', 'test')
-
+    raw_data = {}
     if input_type == 'depth_pred':
         gt_mask = data.get('inputs.mask').to(device).byte()
+        raw_data['gt_mask'] = gt_mask
+
         batch_size = gt_mask.size(0)
         if use_gt_depth_map:
             gt_depth_maps = data.get('inputs.depth').to(device)
@@ -388,24 +390,29 @@ def compose_inputs(data, mode='train', device=None, input_type='depth_pred',
                 'world_mat': Rt,
                 'camera_mat': K,
             }
+            raw_data['world_mat'] = Rt
+            raw_data['camera_mat'] = K
 
-        return encoder_inputs, gt_mask
+        return encoder_inputs, raw_data
     elif input_type == 'depth_pointcloud':
         encoder_inputs = data.get('inputs').to(device)
 
         if depth_pointcloud_transfer is not None:
             if depth_pointcloud_transfer.startswith('world'):
-                world_mat = get_world_mat(data, transpose=[1,0,2], device=device)
-                R = world_mat['R']
+                encoder_inputs = encoder_inputs[:, :, [1,0,2]]
+                world_mat = get_world_mat(data, transpose=None, device=device)
+                raw_data['world_mat'] = world_mat
+                
+                R = world_mat[:, :, :3]
                 # R's inverse is R^T
                 encoder_inputs = transform_points(encoder_inputs, R.transpose(1, 2))
-                # encoder_inputs = transform_points_back(encoder_inputs, R)
+                # or encoder_inputs = transform_points_back(encoder_inputs, R)
 
                 if depth_pointcloud_transfer == 'world_scale_model':
-                    t = world_mat['t']
+                    t = world_mat[:, :, 3:]
                     encoder_inputs = encoder_inputs * t[:,2:,:]
             elif depth_pointcloud_transfer == 'transpose_xy':
-                encoder_inputs = encoder_inputs[:, [1,0,2]]
+                encoder_inputs = encoder_inputs[:, :, [1,0,2]]
             else:
                 raise NotImplementedError
 
@@ -415,7 +422,7 @@ def compose_inputs(data, mode='train', device=None, input_type='depth_pred',
                 None: encoder_inputs
             }
 
-        return encoder_inputs, None
+        return encoder_inputs, raw_data
     else:
         raise NotImplementedError
     
@@ -565,7 +572,7 @@ class Phase2HalfwayTrainer(BaseTrainer):
         p = make_3d_grid([-0.5] * 3, [0.5] * 3, shape).to(device)
         p = p.expand(batch_size, *p.size())
 
-        encoder_inputs, gt_mask = compose_inputs(data, mode='val', device=self.device, input_type=self.input_type,
+        encoder_inputs, raw_data = compose_inputs(data, mode='val', device=self.device, input_type=self.input_type,
                                                 use_gt_depth_map=self.use_gt_depth_map, depth_map_mix=self.depth_map_mix, 
                                                 with_img=self.with_img, depth_pointcloud_transfer=self.depth_pointcloud_transfer,
                                                 local=self.local)
@@ -582,6 +589,7 @@ class Phase2HalfwayTrainer(BaseTrainer):
             encoder_inputs = encoder_inputs[None]
 
         if self.input_type == 'depth_pred':
+            gt_mask = raw_data['gt_mask']
             if self.with_img:
                 encoder_inputs = encoder_inputs['depth']
 

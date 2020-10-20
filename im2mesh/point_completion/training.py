@@ -5,10 +5,9 @@ from torch.nn import functional as F
 from im2mesh.utils import visualize as vis
 from im2mesh.training import BaseTrainer
 
-from im2mesh.common import get_camera_args, get_world_mat, transform_points, transform_points_back
 from im2mesh.encoder.pointnet import feature_transform_reguliarzer, PointNetEncoder, PointNetResEncoder
 from im2mesh.onet_depth.training import compose_inputs
-from im2mesh.common import chamfer_distance
+from im2mesh.common import chamfer_distance, get_camera_mat, transform_points, project_to_camera
 from im2mesh.eval import MeshEvaluator
 
 def compose_pointcloud(data, device, pointcloud_transfer=None):
@@ -42,6 +41,7 @@ class PointCompletionTrainer(BaseTrainer):
                  vis_dir=None, 
                  depth_pointcloud_transfer='world_scale_model',
                  gt_pointcloud_transfer='world_scale_model',
+                 view_penalty=False
                 ):
         self.model = model
         self.optimizer = optimizer
@@ -49,6 +49,8 @@ class PointCompletionTrainer(BaseTrainer):
         self.input_type = input_type
         assert input_type == 'depth_pointcloud'
         self.vis_dir = vis_dir
+        if vis_dir is not None and not os.path.exists(vis_dir):
+            os.makedirs(vis_dir)
 
         self.depth_pointcloud_transfer = depth_pointcloud_transfer
         assert depth_pointcloud_transfer in (None, 'world', 'world_scale_model', 'transpose_xy')
@@ -56,9 +58,9 @@ class PointCompletionTrainer(BaseTrainer):
         self.gt_pointcloud_transfer = gt_pointcloud_transfer
         assert gt_pointcloud_transfer in (None, 'world_scale_model')
 
-        if vis_dir is not None and not os.path.exists(vis_dir):
-            os.makedirs(vis_dir)
         self.mesh_evaluator = MeshEvaluator() 
+
+        self.view_penalty = view_penalty
 
     def train_step(self, data):
         ''' Performs a training step.
@@ -89,7 +91,6 @@ class PointCompletionTrainer(BaseTrainer):
                                                 depth_pointcloud_transfer=self.depth_pointcloud_transfer,)
 
         with torch.no_grad():
-            loss = 0
             out = self.model(encoder_inputs)
             if isinstance(out, tuple):
                 out, trans_feat = out
@@ -98,8 +99,8 @@ class PointCompletionTrainer(BaseTrainer):
                 #    loss = loss + 0.001 * feature_transform_reguliarzer(trans_feat)
 
             # chamfer distance loss
-            loss = loss + chamfer_distance(out, gt_pc).mean()
-           
+            loss = chamfer_distance(out, gt_pc).mean()
+
             eval_dict = {}
             if batch_size == 1:
                 pointcloud_hat = out.cpu().squeeze(0).numpy()
@@ -109,6 +110,23 @@ class PointCompletionTrainer(BaseTrainer):
 
             eval_dict['chamfer'] = loss.item()
 
+            # view penalty loss
+            if self.view_penalty:
+                gt_mask = data.get('inputs.mask').to(device) # B * 1 * H * W
+                camera_mat = get_camera_mat(data, device=device)
+
+                # projection use world mat & camera mat
+                out_pts = transform_points(out, world_mat)
+                out_pts_img = project_to_camera(out_pts, camera_mat)
+                out_pts_img = out_pts_img.unsqueeze(1) # B * 1 * n_pts * 2
+
+                out_mask = F.grid_sample(gt_mask, out_pts_img) # B * 1 * 1 * n_pts
+                out_mask = out_mask.squeeze() # B * n_pts
+                
+                loss_mask = (1. - out_mask).sum(dim=1).mean()
+                loss_mask = 0.001 * loss_mask
+
+                eval_dict['view_penalty'] = loss_mask.item()
 
         return eval_dict
 
@@ -151,8 +169,10 @@ class PointCompletionTrainer(BaseTrainer):
         device = self.device
         gt_pc = compose_pointcloud(data, device, self.gt_pointcloud_transfer)
 
-        encoder_inputs,_ = compose_inputs(data, mode='train', device=self.device, input_type=self.input_type,
+        encoder_inputs, raw_data = compose_inputs(data, mode='train', device=self.device, input_type=self.input_type,
                                                 depth_pointcloud_transfer=self.depth_pointcloud_transfer,)
+
+        world_mat = raw_data['world_mat']
 
         loss = 0
         out = self.model(encoder_inputs)
@@ -164,4 +184,21 @@ class PointCompletionTrainer(BaseTrainer):
 
         # chamfer distance loss
         loss = loss + chamfer_distance(out, gt_pc).mean()
+
+        # view penalty loss
+        if self.view_penalty:
+            gt_mask = data.get('inputs.mask').to(device) # B * 1 * H * W
+            camera_mat = get_camera_mat(data, device=device)
+
+            # projection use world mat & camera mat
+            out_pts = transform_points(out, world_mat)
+            out_pts_img = project_to_camera(out_pts, camera_mat)
+            out_pts_img = out_pts_img.unsqueeze(1) # B * 1 * n_pts * 2
+
+            out_mask = F.grid_sample(gt_mask, out_pts_img) # B * 1 * 1 * n_pts
+            out_mask = out_mask.squeeze() # B * n_pts
+            
+            loss_mask = (1. - out_mask).sum(dim=1).mean()
+            loss = loss + 0.001 * loss_mask
+            
         return loss

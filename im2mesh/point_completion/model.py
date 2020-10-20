@@ -33,7 +33,8 @@ class PointCompletionNetwork(nn.Module):
         device:
     '''
 
-    def __init__(self, encoder, device=None, c_dim=1024, input_points_count=2048, output_points_count=2048, preserve_input=False):
+    def __init__(self, encoder, device=None, c_dim=1024, input_points_count=2048, output_points_count=2048,
+     preserve_input=False, encoder_world_mat=None):
         super().__init__()
         self.device = device
         self.encoder = encoder.to(device)
@@ -49,10 +50,21 @@ class PointCompletionNetwork(nn.Module):
             self.half_p = output_points_count // 2
             self.decoder = PointDecoder(c_dim=c_dim, output_points_count=self.half_p).to(device)
             # TODO: define a shortcut function
+
+        if encoder_world_mat is not None:
+            self.encoder_world_mat = encoder_world_mat.to(device)
+        else:
+            self.encoder_world_mat = None
             
 
-    def forward(self, x):
+    def forward(self, x, world_mat=None):
         feats, trans_points, trans_feature = self.encoder(x)
+
+        if self.encoder_world_mat is not None:
+            feat_world_mat = self.encoder_world_mat(world_mat)
+            # TODO: try other functions to incorporate world_mat's feat
+            feats = feats + feat_world_mat
+
         points_output = self.decoder(feats)
 
         if self.preserve_input:

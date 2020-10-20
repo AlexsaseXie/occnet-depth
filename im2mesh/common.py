@@ -320,12 +320,18 @@ def fix_K_camera(K, img_size=137):
 def get_world_mat(data, transpose=None, device=None):
     Rt = data['inputs.world_mat'].to(device)
 
-    R = Rt[:, :, :3]
-    t = Rt[:, :, 3:]
-
     if transpose is not None:
+        R = Rt[:, :, :3]
+        t = Rt[:, :, 3:]
         assert isinstance(transpose, list)
         assert len(transpose) == 3
         R = R[:, transpose, :]
+        Rt = torch.cat((R,t), dim=2)
 
-    return {'R':R, 't':t}
+    return Rt
+
+
+def get_camera_mat(data, device=None):
+    K = data['inputs.camera_mat'].to(device)
+    K = fix_K_camera(K, img_size=137.)
+    return K

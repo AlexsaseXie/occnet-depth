@@ -7,6 +7,7 @@ from im2mesh import config
 from im2mesh.encoder import encoder_dict
 from im2mesh.point_completion import model as pc_model
 from im2mesh.point_completion import training
+from im2mesh.encoder.world_mat_encoder import WorldMatEncoder
 
 
 def get_model(cfg, device=None, dataset=None, **kwargs):
@@ -43,11 +44,21 @@ def get_model(cfg, device=None, dataset=None, **kwargs):
         **encoder_kwargs
     )
 
+    if 'use_encoder_world_mat' in cfg['model']:
+        use_encoder_world_mat = cfg['model']['encoder_world_mat']
+    else:
+        use_encoder_world_mat = False
+    
+    if use_encoder_world_mat:
+        encoder_world_mat = WorldMatEncoder(c_dim=c_dim)
+    else:
+        encoder_world_mat = None
 
     model = pc_model.PointCompletionNetwork(encoder, device=device, c_dim=c_dim,
         input_points_count=input_points_count, 
         output_points_count=output_points_count, 
-        preserve_input=preserve_input
+        preserve_input=preserve_input,
+        encoder_world_mat=encoder_world_mat
     )
 
     return model
@@ -73,6 +84,9 @@ def get_trainer(model, optimizer, cfg, device, **kwargs):
 
     if 'gt_pointcloud_transfer' in cfg['model']:
         trainer_params['gt_pointcloud_transfer'] = cfg['model']['gt_pointcloud_transfer']
+
+    if 'view_penalty' in cfg['training']:
+        trainer_params['view_penalty'] = cfg['model']['view_penalty']
 
     trainer = training.PointCompletionTrainer(model, optimizer,
         device=device, input_type=input_type,
