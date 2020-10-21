@@ -7,7 +7,7 @@ from im2mesh.training import BaseTrainer
 
 from im2mesh.encoder.pointnet import feature_transform_reguliarzer, PointNetEncoder, PointNetResEncoder
 from im2mesh.onet_depth.training import compose_inputs
-from im2mesh.common import chamfer_distance, get_camera_mat, transform_points, project_to_camera
+from im2mesh.common import chamfer_distance, get_camera_mat, transform_points, project_to_camera, get_world_mat
 from im2mesh.eval import MeshEvaluator
 
 def compose_pointcloud(data, device, pointcloud_transfer=None):
@@ -87,11 +87,20 @@ class PointCompletionTrainer(BaseTrainer):
 
         gt_pc = compose_pointcloud(data, device, self.gt_pointcloud_transfer)
         batch_size = gt_pc.size(0)
-        encoder_inputs,_ = compose_inputs(data, mode='train', device=self.device, input_type=self.input_type,
-                                                depth_pointcloud_transfer=self.depth_pointcloud_transfer,)
+        encoder_inputs, raw_data = compose_inputs(data, mode='train', device=self.device, input_type=self.input_type,
+                                                depth_pointcloud_transfer=self.depth_pointcloud_transfer)
 
         with torch.no_grad():
-            out = self.model(encoder_inputs)
+            world_mat = None
+            if self.model.encoder_world_mat is not None:
+                if 'world_mat' in raw_data:
+                    world_mat = raw_data['world_mat']
+                else:
+                    world_mat = get_world_mat(data, device=device)
+                out = self.model(encoder_inputs, world_mat = world_mat)
+            else:
+                out = self.model(encoder_inputs)
+
             if isinstance(out, tuple):
                 out, trans_feat = out
 
@@ -113,6 +122,8 @@ class PointCompletionTrainer(BaseTrainer):
             # view penalty loss
             if self.view_penalty:
                 gt_mask = data.get('inputs.mask').to(device) # B * 1 * H * W
+                if world_mat is None:
+                    world_mat = get_world_mat(data, device=device)
                 camera_mat = get_camera_mat(data, device=device)
 
                 # projection use world mat & camera mat
@@ -121,10 +132,10 @@ class PointCompletionTrainer(BaseTrainer):
                 out_pts_img = out_pts_img.unsqueeze(1) # B * 1 * n_pts * 2
 
                 out_mask = F.grid_sample(gt_mask, out_pts_img) # B * 1 * 1 * n_pts
-                out_mask = out_mask.squeeze() # B * n_pts
+                # B * n_pts
                 
-                loss_mask = (1. - out_mask).sum(dim=1).mean()
-                loss_mask = 0.001 * loss_mask
+                loss_mask = (1. - out_mask).sum(dim=3).mean()
+                loss_mask = 0.00001 * loss_mask
 
                 eval_dict['view_penalty'] = loss_mask.item()
 
@@ -140,11 +151,20 @@ class PointCompletionTrainer(BaseTrainer):
 
         gt_pc = compose_pointcloud(data, device, self.gt_pointcloud_transfer)
         batch_size = gt_pc.size(0)
-        encoder_inputs,_ = compose_inputs(data, mode='train', device=self.device, input_type=self.input_type,
+        encoder_inputs, raw_data = compose_inputs(data, mode='train', device=self.device, input_type=self.input_type,
                                                 depth_pointcloud_transfer=self.depth_pointcloud_transfer,)
         self.model.eval()
+
         with torch.no_grad():
-            out = self.model(encoder_inputs)
+            world_mat = None
+            if self.model.encoder_world_mat is not None:
+                if 'world_mat' in raw_data:
+                    world_mat = raw_data['world_mat']
+                else:
+                    world_mat = get_world_mat(data, device=device)
+                out = self.model(encoder_inputs, world_mat=world_mat)
+            else:
+                out = self.model(encoder_inputs)
         
         if isinstance(out, tuple):
             out, _ = out        
@@ -172,10 +192,18 @@ class PointCompletionTrainer(BaseTrainer):
         encoder_inputs, raw_data = compose_inputs(data, mode='train', device=self.device, input_type=self.input_type,
                                                 depth_pointcloud_transfer=self.depth_pointcloud_transfer,)
 
-        world_mat = raw_data['world_mat']
-
         loss = 0
-        out = self.model(encoder_inputs)
+
+        world_mat = None
+        if self.model.encoder_world_mat is not None:
+            if 'world_mat' in raw_data:
+                world_mat = raw_data['world_mat']
+            else:
+                world_mat = get_world_mat(data, device=device)
+            out = self.model(encoder_inputs, world_mat = world_mat)
+        else:
+            out = self.model(encoder_inputs)
+
         if isinstance(out, tuple):
             out, trans_feat = out
 
@@ -188,6 +216,8 @@ class PointCompletionTrainer(BaseTrainer):
         # view penalty loss
         if self.view_penalty:
             gt_mask = data.get('inputs.mask').to(device) # B * 1 * H * W
+            if world_mat is None:
+                world_mat = get_world_mat(data, device=device)
             camera_mat = get_camera_mat(data, device=device)
 
             # projection use world mat & camera mat
@@ -196,9 +226,9 @@ class PointCompletionTrainer(BaseTrainer):
             out_pts_img = out_pts_img.unsqueeze(1) # B * 1 * n_pts * 2
 
             out_mask = F.grid_sample(gt_mask, out_pts_img) # B * 1 * 1 * n_pts
-            out_mask = out_mask.squeeze() # B * n_pts
+            # B * n_pts
             
-            loss_mask = (1. - out_mask).sum(dim=1).mean()
-            loss = loss + 0.001 * loss_mask
+            loss_mask = (1. - out_mask).sum(dim=3).mean()
+            loss = loss + 0.00001 * loss_mask
             
         return loss

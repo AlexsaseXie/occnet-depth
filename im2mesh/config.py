@@ -318,10 +318,10 @@ def get_inputs_field(mode, cfg):
             data_params['with_mask'] = True
             data_params['mask_folder_name'] = 'mask'
             data_params['extension'] = 'png'
-            transform = transforms.Compose([
+            img_transform = transforms.Compose([
                 transforms.Resize((cfg['data']['img_size'])), transforms.ToTensor(),
             ])
-            data_params['img_transform'] = transform
+            data_params['img_transform'] = img_transform
         
         inputs_field = data.DepthPointCloudField(
             cfg['data']['depth_pointcloud_root'],
