@@ -113,6 +113,22 @@ pointnet2_cuda_module = CUDAExtension(
     include_dirs=[os.path.join(this_dir, _ext_src_root, "include")],
 )
 
+libpcd_src_root = os.path.join("im2mesh","utils", "lib_pointcloud_distance", )
+libpcd_ext_sources = glob.glob(os.path.join(libpcd_src_root, "src", "*.cpp")) + glob.glob(
+    os.path.join(libpcd_src_root, "src", "*.cu")
+)
+
+
+lib_pointcloud_distance_module = CUDAExtension(
+    name="im2mesh.utils.lib_pointcloud_distance._ext",
+    sources=libpcd_ext_sources,
+    extra_compile_args={
+        "cxx": ["-O3", '-std=c++11'],
+        "nvcc": ["-O3", "-Xfatbin", "-compress-all"],
+    },
+    include_dirs=[os.path.join(libpcd_src_root, "include")],
+)
+
 
 # Gather all extension modules
 ext_modules = [
@@ -124,7 +140,8 @@ ext_modules = [
     voxelize_module,
     dmc_pred2mesh_module,
     dmc_cuda_module,
-    pointnet2_cuda_module
+    pointnet2_cuda_module,
+    lib_pointcloud_distance_module
 ]
 
 setup(
