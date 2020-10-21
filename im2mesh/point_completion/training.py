@@ -9,6 +9,8 @@ from im2mesh.encoder.pointnet import feature_transform_reguliarzer, PointNetEnco
 from im2mesh.onet_depth.training import compose_inputs
 from im2mesh.common import chamfer_distance, get_camera_mat, transform_points, project_to_camera, get_world_mat
 from im2mesh.eval import MeshEvaluator
+from im2mesh.utils.lib_pointcloud_distance import emd
+
 
 def compose_pointcloud(data, device, pointcloud_transfer=None):
     gt_pc = data.get('pointcloud').to(device)
@@ -41,7 +43,8 @@ class PointCompletionTrainer(BaseTrainer):
                  vis_dir=None, 
                  depth_pointcloud_transfer='world_scale_model',
                  gt_pointcloud_transfer='world_scale_model',
-                 view_penalty=False
+                 view_penalty=False,
+                 loss_type='cd'
                 ):
         self.model = model
         self.optimizer = optimizer
@@ -59,8 +62,8 @@ class PointCompletionTrainer(BaseTrainer):
         assert gt_pointcloud_transfer in (None, 'world_scale_model')
 
         self.mesh_evaluator = MeshEvaluator() 
-
         self.view_penalty = view_penalty
+        self.loss_type = loss_type
 
     def train_step(self, data):
         ''' Performs a training step.
@@ -107,9 +110,6 @@ class PointCompletionTrainer(BaseTrainer):
                 #if isinstance(self.model.encoder, PointNetEncoder) or isinstance(self.model.encoder, PointNetResEncoder):
                 #    loss = loss + 0.001 * feature_transform_reguliarzer(trans_feat)
 
-            # chamfer distance loss
-            loss = chamfer_distance(out, gt_pc).mean()
-
             eval_dict = {}
             if batch_size == 1:
                 pointcloud_hat = out.cpu().squeeze(0).numpy()
@@ -117,7 +117,15 @@ class PointCompletionTrainer(BaseTrainer):
             
                 eval_dict = self.mesh_evaluator.eval_pointcloud(pointcloud_hat, pointcloud_gt)
 
-            eval_dict['chamfer'] = loss.item()
+            # chamfer distance loss
+            if self.loss_type == 'cd':
+                loss = chamfer_distance(out, gt_pc).mean()
+                eval_dict['chamfer'] = loss.item()
+            else:
+                out_pts_count = out.size(1)
+                loss = (emd.earth_mover_distance(out, gt_pc, transpose=False) / out_pts_count).mean()
+                eval_dict['emd'] = loss.item()
+            
 
             # view penalty loss
             if self.view_penalty:
@@ -211,7 +219,11 @@ class PointCompletionTrainer(BaseTrainer):
                 loss = loss + 0.001 * feature_transform_reguliarzer(trans_feat) 
 
         # chamfer distance loss
-        loss = loss + chamfer_distance(out, gt_pc).mean()
+        if self.loss_type == 'cd':
+            loss = loss + chamfer_distance(out, gt_pc).mean()
+        else:
+            out_pts_count = out.size(1)
+            loss = loss + (emd.earth_mover_distance(out, gt_pc, transpose=False) / out_pts_count).mean()
 
         # view penalty loss
         if self.view_penalty:
