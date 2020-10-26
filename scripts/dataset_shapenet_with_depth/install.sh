@@ -19,9 +19,11 @@ reorganize_img_with_depth() {
 
   img_dir="$img_path/$modelname/rendering_png"
   mask_dir="$img_path/$modelname/rendering_mask"
+  mask_flow_dir="$img_path/$modelname/rendering_mask"
   img_out_dir="$output_path/img"
   depth_out_dir="$output_path/depth"
   mask_out_dir="$output_path/mask"
+  mask_flow_out_dir="$img_path/$modelname/mask_flow"
 
   if [ ! -f "$img_dir/depth_range.txt" ]; then
     return
@@ -59,6 +61,11 @@ reorganize_img_with_depth() {
   # copy mask
   for f in $mask_dir/*_mask.png; do
     cp $f "$mask_out_dir/"
+  done
+
+  # copy mask flow
+  for f in $mask_flow_dir/*_mask_flow.png; do
+    cp $f "$mask_flow_out_dir/"
   done
 }
 

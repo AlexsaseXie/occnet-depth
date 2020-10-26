@@ -1,9 +1,6 @@
 import numpy
 import OpenEXR
-
-DIR_RENDERING_PATH = '/home2/xieyunwei/occupancy_networks/data/render_2'
-N_VIEWS = 24
-RENDERING_MAX_CAMERA_DIST = 1.75
+from rendering_config import *
 
 def norm(val):
     return val * 12.92 if val <= 0.0031308 else 1.055 * val**(1.0/2.4) - 0.055
@@ -148,7 +145,7 @@ def test():
     model_class = ['04090263']
     model_id = ['4a32519f44dc84aabafe26e2eb69ebf4']
     for i, curr_model_id in enumerate(model_id):
-        image_path = '%s/%s.exr' % (DIR_RENDERING_PATH, curr_model_id)
+        image_path = '%s/%s.exr' % (TEST_RENDERING_PATH, curr_model_id)
 
         x, y, img, depth, depth_min, depth_max = convert_OpenEXR_to_sRGB(image_path)
         img = (img * 255.0).astype(numpy.uint8)

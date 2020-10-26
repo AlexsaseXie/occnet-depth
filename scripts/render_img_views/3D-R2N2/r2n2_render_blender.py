@@ -11,6 +11,7 @@ import bpy
 
 SHAPENET_ROOT = '/home2/xieyunwei/occupancy_networks/external/ShapeNetCore.v1/'
 DIR_RENDERING_PATH = '/home2/xieyunwei/occupancy_networks/data/render_2'
+TEST_RENDERING_PATH = '/home2/xieyunwei/occupancy_networks/data/render_test'
 RENDERING_MAX_CAMERA_DIST = 1.75
 N_VIEWS = 24
 RENDERING_BLENDER_TMP_DIR = '/tmp/blender'
@@ -406,7 +407,7 @@ def test():
     renderer.initialize(file_paths, 224, 224)
     for i, curr_model_id in enumerate(model_id):
         start = time.time()
-        image_path = '%s/%s.exr' % (DIR_RENDERING_PATH, curr_model_id)
+        image_path = '%s/%s.exr' % (TEST_RENDERING_PATH, curr_model_id)
 
         az, el, depth_ratio = [360 * random.random(), 5 * random.random() + 25, 0.3 * random.random() + 0.65]
     

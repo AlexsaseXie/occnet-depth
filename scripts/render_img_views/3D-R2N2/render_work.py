@@ -4,30 +4,9 @@ import random
 import subprocess
 import multiprocessing
 import time
+from rendering_config import *
 
-SHAPENET_ROOT = '/home2/xieyunwei/occupancy_networks/external/ShapeNetCore.v1/'
-R2N2_ROOT = '/home2/xieyunwei/occupancy_networks/external/Choy2016/ShapeNetRendering/'
-DIR_RENDERING_PATH = '/home2/xieyunwei/occupancy_networks/data/render_2'
-
-CLASSES = [
-    '03001627',
-    '02958343',
-    '04256520',
-    '02691156',
-    '03636649',
-    '04401088',
-    '04530566',
-    '03691459',
-    '02933112',
-    '04379243',
-    '03211117',
-    '02828884',
-    '04090263',
-]
-
-TASK_SPLIT_ROOT = '/home2/xieyunwei/occupancy_networks/scripts/render_img_views/3D-R2N2/task_split'
 NPROC = 10
-N_VIEWS = 24
 
 def split_task():
     if not os.path.exists(DIR_RENDERING_PATH):
@@ -123,6 +102,16 @@ def get_mask(task_file, i):
     end_time = time.time()
     print('Save mask end:', i, ',cost:', end_time - start_time)
 
+def get_mask_flow(task_file, i):
+    start_time = time.time()
+    print('Save mask flow start:', i)
+
+    p = subprocess.Popen(['python', 'save_mask_flow.py', '--task_file', task_file],stdout=open('/dev/null','w'),stderr=subprocess.STDOUT)
+    p.wait()
+
+    end_time = time.time()
+    print('Save mask flow end:', i, ',cost:', end_time - start_time)
+
 
 if __name__ == '__main__':
     all_model_info = split_task()    
@@ -198,5 +187,22 @@ if __name__ == '__main__':
 
     mask_end_time = time.time()
     print('Save mask all finished in %f sec' % (mask_end_time - mask_start_time))    
+
+    # save mask flow
+    process_array = []
+    mask_start_time = time.time()
+
+    for i in range(NPROC):
+        task_file = str(os.path.join(TASK_SPLIT_ROOT, '%d.txt' % i))
+        print('save mask flow:', task_file)
+        p = multiprocessing.Process(target=get_mask_flow, args=(task_file,i))
+        p.start()
+        process_array.append(p)
+
+    for i in range(NPROC):
+        process_array[i].join()
+
+    mask_end_time = time.time()
+    print('Save mask flow all finished in %f sec' % (mask_end_time - mask_start_time))  
 
     print('finished!')   
