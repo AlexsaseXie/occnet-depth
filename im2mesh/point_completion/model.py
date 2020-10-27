@@ -23,7 +23,12 @@ class PointDecoder(nn.Module):
 
         x = x.reshape(-1, self.output_points_count, 3)
         return x
-        
+
+'''
+TODO: refine inputs
+class PointRefineDecoder(nn.Module):
+'''    
+
 class PointCompletionNetwork(nn.Module):
     ''' PointCompletionNetwork Network class.
 

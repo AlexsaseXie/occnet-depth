@@ -301,27 +301,23 @@ def get_inputs_field(mode, cfg):
         else:
             random_view = False
 
-        if 'depth_pointcloud_transfer' in cfg['model'] and \
-          cfg['model']['depth_pointcloud_transfer'] is not None and \
-          cfg['model']['depth_pointcloud_transfer'].startswith('world'):
-            with_camera = True
-        else:
-            with_camera = False
-
         data_params = {
             'random_view': random_view,
-            'with_camera': with_camera,
+            'with_camera': True,
             'img_folder_name': 'img'
         }
 
         if 'view_penalty' in cfg['training'] and cfg['training']['view_penalty']:
             data_params['with_mask'] = True
             data_params['mask_folder_name'] = 'mask'
+            data_params['mask_flow'] = 'mask_flow'
             data_params['extension'] = 'png'
             img_transform = transforms.Compose([
                 transforms.Resize((cfg['data']['img_size'])), transforms.ToTensor(),
             ])
             data_params['img_transform'] = img_transform
+            data_params['with_depth_pred'] = True
+            data_params['depth_pred_folder_name'] = 'depth_pred'
         
         inputs_field = data.DepthPointCloudField(
             cfg['data']['depth_pointcloud_root'],

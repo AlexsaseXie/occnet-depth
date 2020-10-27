@@ -398,11 +398,11 @@ def compose_inputs(data, mode='train', device=None, input_type='depth_pred',
         encoder_inputs = data.get('inputs').to(device)
 
         if depth_pointcloud_transfer is not None:
-            if depth_pointcloud_transfer.startswith('world'):
+            if depth_pointcloud_transfer in ('world', 'world_scale_model'):
                 encoder_inputs = encoder_inputs[:, :, [1,0,2]]
                 world_mat = get_world_mat(data, transpose=None, device=device)
                 raw_data['world_mat'] = world_mat
-                
+
                 R = world_mat[:, :, :3]
                 # R's inverse is R^T
                 encoder_inputs = transform_points(encoder_inputs, R.transpose(1, 2))
@@ -411,13 +411,19 @@ def compose_inputs(data, mode='train', device=None, input_type='depth_pred',
                 if depth_pointcloud_transfer == 'world_scale_model':
                     t = world_mat[:, :, 3:]
                     encoder_inputs = encoder_inputs * t[:,2:,:]
-            elif depth_pointcloud_transfer == 'transpose_xy':
+            elif depth_pointcloud_transfer in ('view', 'view_scale_model'):
                 encoder_inputs = encoder_inputs[:, :, [1,0,2]]
+
+                if depth_pointcloud_transfer == 'view_scale_model':
+                    world_mat = get_world_mat(data, transpose=None, device=device)
+                    raw_data['world_mat'] = world_mat
+                    t = world_mat[:, :, 3:]
+                    encoder_inputs = encoder_inputs * t[:,2:,:]
             else:
                 raise NotImplementedError
 
         if local:
-            assert depth_pointcloud_transfer.startswith('world')
+            #assert depth_pointcloud_transfer.startswith('world')
             encoder_inputs = {
                 None: encoder_inputs
             }
@@ -448,7 +454,7 @@ class Phase2HalfwayTrainer(BaseTrainer):
                  use_gt_depth_map=False,
                  depth_map_mix=False,
                  with_img=False,
-                 depth_pointcloud_transfer=None,
+                 depth_pointcloud_transfer='view',
                  local=False,
                 ):
         self.model = model
@@ -474,7 +480,7 @@ class Phase2HalfwayTrainer(BaseTrainer):
         if self.local:
             print('Predict using local features') 
 
-        assert depth_pointcloud_transfer in (None, 'world', 'world_scale_model', 'transpose_xy')
+        assert depth_pointcloud_transfer in ('world', 'world_scale_model', 'view', 'view_scale_model')
 
         if vis_dir is not None and not os.path.exists(vis_dir):
             os.makedirs(vis_dir)

@@ -87,6 +87,14 @@ def get_trainer(model, optimizer, cfg, device, **kwargs):
 
     if 'view_penalty' in cfg['training']:
         trainer_params['view_penalty'] = cfg['training']['view_penalty']
+        
+        if cfg['training']['view_penalty']:
+            if 'loss_mask_flow_ratio' in cfg['training']:
+                trainer_params['loss_mask_flow_ratio'] = cfg['training']['loss_mask_flow_ratio']         
+            if 'loss_depth_test_ratio' in cfg['training']:
+                trainer_params['loss_depth_test_ratio'] = cfg['training']['loss_depth_test_ratio']
+            if 'depth_test_eps' in cfg['training']:
+                trainer_params['depth_test_eps'] = cfg['training']['depth_test_eps']
 
     if 'loss_type' in cfg['training']:
         assert cfg['training']['loss_type'] in ('cd', 'emd')
