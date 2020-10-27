@@ -310,7 +310,7 @@ def get_inputs_field(mode, cfg):
         if 'view_penalty' in cfg['training'] and cfg['training']['view_penalty']:
             data_params['with_mask'] = True
             data_params['mask_folder_name'] = 'mask'
-            data_params['mask_flow'] = 'mask_flow'
+            data_params['mask_flow_folder_name'] = 'mask_flow'
             data_params['extension'] = 'png'
             img_transform = transforms.Compose([
                 transforms.Resize((cfg['data']['img_size'])), transforms.ToTensor(),

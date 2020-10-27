@@ -56,11 +56,11 @@ def get_mask_flow(mask_flow_folder, idx_img, transform=None, extension='png'):
     mask_flow_files = sorted(glob.glob(os.path.join(mask_flow_folder, '*.%s' % extension)))
     mask_flow_filename = mask_flow_files[idx_img]
 
-    depth_mask = Image.open(mask_filename).convert('L')
+    mask_flow = Image.open(mask_flow_filename).convert('L')
     if transform is not None:
-        depth_mask = transform(depth_mask)
+        mask_flow = transform(mask_flow)
 
-    return depth_mask
+    return mask_flow
 
 
 class IndexField(Field):

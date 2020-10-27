@@ -33,7 +33,7 @@ def compose_pointcloud(data, device, pointcloud_transfer=None, world_mat=None):
     if pointcloud_transfer in ('view'):
         assert world_mat is not None
         t = world_mat[:, :, 3:]
-        gt_pc = gt_pc * t[:,2:,:]
+        gt_pc = gt_pc / t[:,2:,:]
 
     return gt_pc
     
@@ -147,11 +147,25 @@ class PointCompletionTrainer(BaseTrainer):
 
             # chamfer distance loss
             if self.loss_type == 'cd':
-                loss = chamfer_distance(out, gt_pc).mean()
+                loss = chamfer_distance(out, gt_pc)
+            else:
+                loss = emd.earth_mover_distance(out, gt_pc, transpose=False)
+
+            if self.gt_pointcloud_transfer in ('world_scale_model', 'view_scale_model', 'view'):
+                pointcloud_scale = data.get('pointcloud.scale').to(device).view(batch_size, 1, 1)
+                loss = loss / (pointcloud_scale ** 2)
+                if self.gt_pointcloud_transfer == 'view':
+                    if world_mat is None:
+                        world_mat = get_world_mat(data, device=device)
+                    t_scale = world_mat[:, 2:, 3:]
+                    loss = loss * (t_scale ** 2)   
+ 
+            if self.loss_type == 'cd':
+                loss = loss.mean()
                 eval_dict['chamfer'] = loss.item()
             else:
                 out_pts_count = out.size(1)
-                loss = (emd.earth_mover_distance(out, gt_pc, transpose=False) / out_pts_count).mean()
+                loss = (loss / out_pts_count).mean()
                 eval_dict['emd'] = loss.item()
             
 
@@ -260,7 +274,7 @@ class PointCompletionTrainer(BaseTrainer):
                 world_mat = raw_data['world_mat']
             else:
                 world_mat = get_world_mat(data, device=device)
-        gt_pc = compose_pointcloud(data, device, self.gt_pointcloud_transfer)
+        gt_pc = compose_pointcloud(data, device, self.gt_pointcloud_transfer, world_mat=world_mat)
 
         if self.model.encoder_world_mat is not None:
             out = self.model(encoder_inputs, world_mat = world_mat)
