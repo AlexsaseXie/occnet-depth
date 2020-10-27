@@ -199,7 +199,7 @@ class PointCompletionTrainer(BaseTrainer):
 
                 if self.view_penalty == 'mask_flow_and_depth':
                     # depth test loss
-                    t_scale = world_mat[:, 2:, 3:]
+                    t_scale = world_mat[:, 2, 3].view(world_mat.size(0), 1, 1, 1)
                     gt_mask = data.get('inputs.mask').byte().to(device)
                     depth_pred = data.get('inputs.depth_pred').to(device) * t_scale
 
@@ -324,7 +324,7 @@ class PointCompletionTrainer(BaseTrainer):
 
             if self.view_penalty == 'mask_flow_and_depth':
                 # depth test loss
-                t_scale = world_mat[:, 2:, 3:]
+                t_scale = world_mat[:, 2, 3].view(world_mat.size(0),1, 1, 1)
                 gt_mask = data.get('inputs.mask').byte().to(device)
                 depth_pred = data.get('inputs.depth_pred').to(device) * t_scale # absolute depth from view
                 background_setting(depth_pred, gt_mask)
