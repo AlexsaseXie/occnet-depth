@@ -211,7 +211,7 @@ class PointCompletionTrainer(BaseTrainer):
                     # eps = 0.05
                     loss_depth_test = F.relu(depth_z - self.depth_test_eps - corresponding_z, inplace=True).mean()
                     loss = self.loss_depth_test_ratio * loss_depth_test
-                    eval_dict['loss_depth_test'] = loss
+                    eval_dict['loss_depth_test'] = loss.item()
 
         return eval_dict
 
