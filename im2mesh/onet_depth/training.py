@@ -360,25 +360,30 @@ def compose_inputs(data, mode='train', device=None, input_type='depth_pred',
     raw_data = {}
     if input_type == 'depth_pred':
         gt_mask = data.get('inputs.mask').to(device).byte()
-        raw_data['gt_mask'] = gt_mask
+        raw_data['mask'] = gt_mask
 
         batch_size = gt_mask.size(0)
         if use_gt_depth_map:
             gt_depth_maps = data.get('inputs.depth').to(device)
             background_setting(gt_depth_maps, gt_mask)
             encoder_inputs = gt_depth_maps
+            raw_data['depth'] = gt_depth_maps
         else:
             pr_depth_maps = data.get('inputs.depth_pred').to(device)
             background_setting(pr_depth_maps, gt_mask)
+            raw_data['depth_pred'] = pr_depth_maps
             if depth_map_mix and mode == 'train':
                 gt_depth_maps = data.get('inputs.depth').to(device)
                 background_setting(gt_depth_maps, gt_mask)
+                raw_data['depth'] = gt_depth_maps
+
                 alpha = torch.rand(batch_size,1,1,1).to(device)
                 pr_depth_maps = pr_depth_maps * alpha + gt_depth_maps * (1.0 - alpha)
             encoder_inputs = pr_depth_maps
 
         if with_img:
             img = data.get('inputs').to(device)
+            raw_data[None] = img
             encoder_inputs = {'img': img, 'depth': encoder_inputs}
         
         if local:
@@ -395,7 +400,7 @@ def compose_inputs(data, mode='train', device=None, input_type='depth_pred',
 
         return encoder_inputs, raw_data
     elif input_type == 'depth_pointcloud':
-        encoder_inputs = data.get('inputs').to(device)
+        encoder_inputs = data.get('inputs.depth_pointcloud').to(device)
 
         if depth_pointcloud_transfer is not None:
             if depth_pointcloud_transfer in ('world', 'world_scale_model'):
@@ -422,6 +427,7 @@ def compose_inputs(data, mode='train', device=None, input_type='depth_pred',
             else:
                 raise NotImplementedError
 
+        raw_data['depth_pointcloud'] = encoder_inputs
         if local:
             #assert depth_pointcloud_transfer.startswith('world')
             encoder_inputs = {
@@ -595,7 +601,7 @@ class Phase2HalfwayTrainer(BaseTrainer):
             encoder_inputs = encoder_inputs[None]
 
         if self.input_type == 'depth_pred':
-            gt_mask = raw_data['gt_mask']
+            gt_mask = raw_data['mask']
             if self.with_img:
                 encoder_inputs = encoder_inputs['depth']
 
@@ -616,7 +622,10 @@ class Phase2HalfwayTrainer(BaseTrainer):
                 input_pointcloud_file = os.path.join(self.vis_dir, '%03d_depth_pointcloud.png' % i)
                 
                 pc = encoder_inputs[i].cpu()
-                vis.visualize_pointcloud(pc, out_file=input_pointcloud_file, elev=15, azim=180)
+                if self.depth_pointcloud_transfer in ('view', 'view_scale_model'):
+                    vis.visualize_pointcloud(pc, out_file=input_pointcloud_file, elev=15, azim=180)
+                else:
+                    vis.visualize_pointcloud(pc, out_file=input_pointcloud_file)
                 vis.visualize_voxels(voxels_out[i], os.path.join(self.vis_dir, '%03d.png' % i))
    
     def compute_loss(self, data):

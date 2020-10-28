@@ -16,6 +16,10 @@ from im2mesh.data.real import (
     ImageDataset,
 )
 
+from im2mesh.data.input_mix_fields import (
+    MixedInputField
+)
+
 
 __all__ = [
     # Core
@@ -35,6 +39,7 @@ __all__ = [
     ImagesWithDepthField,
     DepthPredictedField,
     SdfH5Field,
+    MixedInputField,
     # Transforms
     PointcloudNoise,
     SubsamplePointcloud,

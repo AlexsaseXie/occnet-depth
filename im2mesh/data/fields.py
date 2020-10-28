@@ -1020,7 +1020,7 @@ class DepthPointCloudField(Field):
             depth_pointcloud = self.transform(depth_pointcloud)
 
         data = {
-            None: depth_pointcloud
+            'depth_pointcloud': depth_pointcloud
         }
 
         if self.with_camera:

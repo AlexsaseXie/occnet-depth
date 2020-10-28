@@ -190,6 +190,11 @@ def get_inputs_field(mode, cfg):
         cfg (dict): config dictionary
     '''
     input_type = cfg['data']['input_type']
+    if 'input_fields' in cfg['data']:
+        # Mixed input field settings
+        inputs_field_name = cfg['data']['input_fields']
+        inputs_field = data.MixedInputField(inputs_field_name, mode, cfg, n_views=24)
+        return inputs_field
     with_transforms = cfg['data']['with_transforms']
 
     if input_type is None:
