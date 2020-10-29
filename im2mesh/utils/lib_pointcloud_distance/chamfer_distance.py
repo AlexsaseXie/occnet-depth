@@ -51,3 +51,5 @@ class ChamferDistanceFunction(torch.autograd.Function):
 class ChamferDistance(torch.nn.Module):
     def forward(self, xyz1, xyz2):
         return ChamferDistanceFunction.apply(xyz1, xyz2)
+
+chamfer_distance = ChamferDistanceFunction.apply

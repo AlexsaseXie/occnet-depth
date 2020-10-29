@@ -7,9 +7,9 @@ from im2mesh.training import BaseTrainer
 
 from im2mesh.encoder.pointnet import feature_transform_reguliarzer, PointNetEncoder, PointNetResEncoder
 from im2mesh.onet_depth.training import compose_inputs
-from im2mesh.common import chamfer_distance, get_camera_mat, transform_points, project_to_camera, get_world_mat
+from im2mesh.common import get_camera_mat, transform_points, project_to_camera, get_world_mat
 from im2mesh.eval import MeshEvaluator
-from im2mesh.utils.lib_pointcloud_distance import emd
+from im2mesh.utils.lib_pointcloud_distance import emd, chamfer_distance as cd
 from im2mesh.onet_depth.models import background_setting
 
 
@@ -147,7 +147,8 @@ class PointCompletionTrainer(BaseTrainer):
 
             # chamfer distance loss
             if self.loss_type == 'cd':
-                loss = chamfer_distance(out, gt_pc)
+                dist1, dist2 = cd.chamfer_distance(out, gt_pc)
+                loss = (dist1.mean(1) + dist2.mean(1)) / 2.
             else:
                 loss = emd.earth_mover_distance(out, gt_pc, transpose=False)
 
@@ -290,7 +291,8 @@ class PointCompletionTrainer(BaseTrainer):
 
         # chamfer distance loss
         if self.loss_type == 'cd':
-            loss = loss + chamfer_distance(out, gt_pc).mean()
+            dist1, dist2 = cd.chamfer_distance(out, gt_pc)
+            loss = (dist1.mean(1) + dist2.mean(1)).mean() / 2.
         else:
             out_pts_count = out.size(1)
             loss = loss + (emd.earth_mover_distance(out, gt_pc, transpose=False) / out_pts_count).mean()
