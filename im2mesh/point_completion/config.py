@@ -90,7 +90,9 @@ def get_trainer(model, optimizer, cfg, device, **kwargs):
         
         if cfg['training']['view_penalty']:
             if 'loss_mask_flow_ratio' in cfg['training']:
-                trainer_params['loss_mask_flow_ratio'] = cfg['training']['loss_mask_flow_ratio']         
+                trainer_params['loss_mask_flow_ratio'] = cfg['training']['loss_mask_flow_ratio']
+            if 'mask_flow_eps' in cfg['training']:
+                trainer_params['mask_flow_eps'] = cfg['training']['mask_flow_eps']         
             if 'loss_depth_test_ratio' in cfg['training']:
                 trainer_params['loss_depth_test_ratio'] = cfg['training']['loss_depth_test_ratio']
             if 'depth_test_eps' in cfg['training']:

@@ -9,6 +9,7 @@ from im2mesh.utils import binvox_rw
 import torch
 from torchvision import transforms
 import h5py
+from tqdm import tqdm
 
 # read img functions
 def get_depth_image(depth_folder, idx_img, transform=None, extension='png'):
@@ -290,6 +291,45 @@ class PointsField(Field):
         self.input_range = input_range
         print('Points_field:', self.file_name)
 
+    def preload(self, dataset_folder, models_info):
+        '''
+            preload function
+        '''
+        print('Preloading PointsField')
+        self.model_data = []
+        for model_info in tqdm(models_info):
+            model = model_info['model']
+            category = model_info['category']
+            model_path = os.path.join(dataset_folder, category, model)
+
+            file_path = os.path.join(model_path, self.file_name)
+            points_dict = np.load(file_path)
+
+            points = points_dict['points']
+            if points.dtype == np.float16:
+                points = points.astype(np.float32)
+                points += 1e-4 * np.random.randn(*points.shape)
+            else:
+                points = points.astype(np.float32)
+
+            occupancies = points_dict['occupancies']
+            if self.unpackbits:
+                occupancies = np.unpackbits(occupancies)[:points.shape[0]]
+            occupancies = occupancies.astype(np.float32)
+
+            data = {
+                None: points,
+                'occ': occupancies,
+            }
+
+            if self.with_transforms:
+                data['loc'] = points_dict['loc'].astype(np.float32)
+                data['scale'] = points_dict['scale'].astype(np.float32)
+
+            self.model_data.append(data)
+        
+        self.preloaded = True
+
     def load(self, model_path, idx, category, view_id=None):
         ''' Loads the data point.
 
@@ -298,6 +338,9 @@ class PointsField(Field):
             idx (int): ID of data point
             category (int): index of category
         '''
+        if getattr(self, 'preloaded', False):
+            return load_preloaed(idx)
+
         file_path = os.path.join(model_path, self.file_name)
 
         points_dict = np.load(file_path)
@@ -330,6 +373,14 @@ class PointsField(Field):
         if self.with_transforms:
             data['loc'] = points_dict['loc'].astype(np.float32)
             data['scale'] = points_dict['scale'].astype(np.float32)
+
+        if self.transform is not None:
+            data = self.transform(data)
+
+        return data
+
+    def load_preloaed(self, idx):
+        data = self.model_data[idx].copy()
 
         if self.transform is not None:
             data = self.transform(data)
@@ -373,6 +424,47 @@ class PointsH5Field(Field):
 
         print('Points h5 field:', self.file_name)
 
+    def preload(self, dataset_folder, models_info):
+        '''
+            preload function
+        '''
+        print('Preloading PointsH5Field')
+        self.model_data = []
+        for model_info in tqdm(models_info):
+            model = model_info['model']
+            category = model_info['category']
+            model_path = os.path.join(dataset_folder, category, model)
+
+            file_path = os.path.join(model_path, self.file_name)
+            with h5py.File(file_path, 'r') as h5f:
+                self.total_length = h5f['points'].shape[0]
+                if self.N == 0:
+                    self.N = self.total_length
+
+                if self.input_range is None:
+                    self.input_range = [0, self.total_length]
+
+                points = h5f['points'][()]
+                occupancies = h5f['occupancies'][()].astype(np.float32)
+                if points.dtype == np.float16:
+                    points = points.astype(np.float32)
+                    points += 1e-4 * np.random.randn(*points.shape)
+                else:
+                    points = points.astype(np.float32)
+
+                data = {
+                    None: points,
+                    'occ': occupancies,
+                }
+
+                if self.with_transforms:
+                    data['loc'] = h5f['loc'].astype(np.float32)
+                    data['scale'] = h5f['scale'].astype(np.float32)
+
+                self.model_data.append(data)
+        
+        self.preloaded = True
+
     def load(self, model_path, idx, category, view_id=None):
         ''' Loads the data point.
 
@@ -381,6 +473,9 @@ class PointsH5Field(Field):
             idx (int): ID of data point
             category (int): index of category
         '''
+        if getattr(self, 'preloaded', False):
+            return self.load_preloaded(idx)
+
         if self.chunked:
             return self.load_chunked(model_path, idx, category, view_id)
 
@@ -474,6 +569,50 @@ class PointsH5Field(Field):
                 data['scale'] = h5f['scale'][()].astype(np.float32)
 
         return data
+
+    def load_preloaded(self, idx):
+        data = self.model_data[idx].copy()
+
+        low = self.input_range[0]
+        high = self.input_range[1]
+
+        if self.chunked:
+            assert self.N < self.total_length
+            total_chunk_count = self.total_length // self.N
+            if total_length % self.N != 0:
+                total_chunk_count += 1
+
+            choice = np.random.randint(0, total_chunk_count)
+            if choice == total_chunk_count - 1:
+                pt_idx = np.s_[total_length - self.N: total_length, :]
+                occ_idx = np.s_[total_length - self.N: total_length]
+            else:            
+                pt_idx = np.s_[choice * self.N: (choice+1) * self.N, :]
+                occ_idx = np.s_[choice * self.N: (choice+1) * self.N]
+        else:
+            if self.N < high - low:
+                if self.random_choice:
+                    #random choice
+                    idx = np.random.choice(range(low, high), self.N, False)
+                    idx.sort()
+                    pt_idx = np.s_[idx, :]
+                    occ_idx = list(idx)
+                else:
+                    #continuous
+                    start = np.random.randint(low, high - self.N)
+                    pt_idx = np.s_[start: start + self.N, :]
+                    occ_idx = np.s_[start: start + self.N]
+            else:
+                pt_idx = np.s_[low:high,:]
+                occ_idx = np.s_[low:high]
+
+        data.update({
+            None: data[None][pt_idx],
+            'occ': data['occ'][occ_idx]
+        })
+
+        return data
+
 
 class SdfH5Field(Field):
     ''' Point SDF using h5 Field.
@@ -678,6 +817,36 @@ class PointCloudField(Field):
         self.transform = transform
         self.with_transforms = with_transforms
 
+    def preload(self, dataset_folder, models_info):
+        '''
+            preload function
+        '''
+        print('Preloading PointsField')
+        self.model_data = []
+        for model_info in tqdm(models_info):
+            model = model_info['model']
+            category = model_info['category']
+            model_path = os.path.join(dataset_folder, category, model)
+
+            file_path = os.path.join(model_path, self.file_name)
+            pointcloud_dict = np.load(file_path)
+
+            points = pointcloud_dict['points'].astype(np.float32)
+            normals = pointcloud_dict['normals'].astype(np.float32)
+
+            data = {
+                None: points,
+                'normals': normals,
+            }
+
+            if self.with_transforms:
+                data['loc'] = pointcloud_dict['loc'].astype(np.float32)
+                data['scale'] = pointcloud_dict['scale'].astype(np.float32)
+
+            self.model_data.append(data)
+        
+        self.preloaded = True
+
     def load(self, model_path, idx, category, view_id=None):
         ''' Loads the data point.
 
@@ -686,6 +855,9 @@ class PointCloudField(Field):
             idx (int): ID of data point
             category (int): index of category
         '''
+        if getattr(self, 'preloaded', False):
+            return load_preloaded(idx)
+
         file_path = os.path.join(model_path, self.file_name)
 
         pointcloud_dict = np.load(file_path)
@@ -715,6 +887,14 @@ class PointCloudField(Field):
         '''
         complete = (self.file_name in files)
         return complete
+
+    def load_preloaed(self, idx):
+        data = self.model_data[idx].copy()
+
+        if self.transform is not None:
+            data = self.transform(data)
+
+        return data
 
 # NOTE: this will produce variable length output.
 # You need to specify collate_fn to make it work with a data laoder

@@ -59,6 +59,7 @@ class PointCompletionTrainer(BaseTrainer):
                  view_penalty=False,
                  loss_mask_flow_ratio=10,
                  loss_depth_test_ratio=5,
+                 mask_flow_eps=1e-2,
                  depth_test_eps=3e-3,
                  loss_type='cd'
                 ):
@@ -88,6 +89,7 @@ class PointCompletionTrainer(BaseTrainer):
         self.view_penalty = view_penalty
         if self.view_penalty:
             self.loss_mask_flow_ratio = loss_mask_flow_ratio
+            self.mask_flow_eps = mask_flow_eps
             if self.view_penalty == 'mask_flow_and_depth':
                 self.loss_depth_test_ratio = loss_depth_test_ratio
                 self.depth_test_eps = depth_test_eps
@@ -194,7 +196,7 @@ class PointCompletionTrainer(BaseTrainer):
                 out_pts_img = out_pts_img.unsqueeze(1) # B * 1 * n_pts * 2
 
                 out_mask_flow = F.grid_sample(gt_mask_flow, out_pts_img) # B * 1 * 1 * n_pts
-                loss_mask_flow = F.relu(1. - out_mask_flow, inplace=True).mean()
+                loss_mask_flow = F.relu(1. - self.mask_flow_eps - out_mask_flow, inplace=True).mean()
                 loss = self.loss_mask_flow_ratio * loss_mask_flow
                 eval_dict['loss_mask_flow'] = loss.item()
 
@@ -321,7 +323,7 @@ class PointCompletionTrainer(BaseTrainer):
             out_pts_img = out_pts_img.unsqueeze(1) # B * 1 * n_pts * 2
 
             out_mask_flow = F.grid_sample(gt_mask_flow, out_pts_img) # B * 1 * 1 * n_pts
-            loss_mask_flow = F.relu(1. - out_mask_flow, inplace=True).mean()
+            loss_mask_flow = F.relu(1. - self.mask_flow_eps - out_mask_flow, inplace=True).mean()
             loss = loss + self.loss_mask_flow_ratio * loss_mask_flow
 
             if self.view_penalty == 'mask_flow_and_depth':

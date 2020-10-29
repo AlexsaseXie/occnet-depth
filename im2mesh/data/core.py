@@ -37,7 +37,8 @@ class Shapes3dDataset(data.Dataset):
     '''
 
     def __init__(self, dataset_folder, fields, split=None,
-                 categories=None, no_except=True, transform=None):
+                 categories=None, no_except=True, transform=None,
+                 preload=False):
         ''' Initialization of the the 3D shape dataset.
 
         Args:
@@ -92,6 +93,9 @@ class Shapes3dDataset(data.Dataset):
                 for m in models_c
             ]
             self.models_count.append(len(models_c))
+
+        if preload:
+            self.preload_fields()
 
     def __len__(self):
         ''' Returns the length of the dataset.
@@ -156,6 +160,17 @@ class Shapes3dDataset(data.Dataset):
                 return False
 
         return True
+
+    def preload_fields(self):
+        '''
+            load several fields' data into memory before training
+        '''
+        dataset_folder = self.dataset_folder
+        models_info = self.models
+        for field_name, field in self.fields.items():
+            fi_preload_function = getattr(field, 'preload', None)
+            if fi_preload_function is not None:
+                field.preload(dataset_folder, models_info)
 
 
 def collate_remove_none(batch):
