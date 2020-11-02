@@ -33,21 +33,22 @@ class SpaceCarver(Function):
 
             cor_mask = F.grid_sample(reference, query_pts_img, mode='nearest')
             cor_mask = cor_mask.reshape(cor_mask.size(0), cor_mask.size(3)) # B * n_pts
-            remove_idx_bool = cor_mask < 1. - eps
+            remove_idx_bool = (cor_mask < (1. - eps))
         elif mode == 'depth':
-            if world_mat is not None:
-                query_pts_img = transform_points(query_pts_img, world_mat)
+            assert world_mat is not None
+            query_pts_img = transform_points(query_pts_img, world_mat)
 
             assert camera_mat is not None
             # need z values
             z = query_pts_img[:,:,2] # B * n_pts
+            scaled_z = z * (1. / world_mat[:,2:,3])
 
             query_pts_img = project_to_camera(query_pts_img, camera_mat)
             query_pts_img = query_pts_img.unsqueeze(1) # B * 1 * n_pts * 2
 
             cor_z = F.grid_sample(reference, query_pts_img, mode='nearest')
             cor_z = cor_z.reshape(cor_z.size(0), cor_z.size(3)) # B * n_pts
-            remove_idx_bool = z < cor_z - eps
+            remove_idx_bool = (scaled_z < (cor_z - eps)) | (cor_z == 0.)
         else:
             raise NotImplementedError
 
@@ -80,8 +81,8 @@ class SpaceCarverModule(nn.Module):
             during training phase, this function will modify query_pts & cor_occ by inplace operations
         '''
         remove_idx_bool = space_carver(query_pts, reference, 
-            world_mat=world_mat, camera_mat=camera_mat, 
-            mode=self.mode, eps=self.eps
+            world_mat, camera_mat, 
+            self.mode, self.eps
         )
 
         if self.training:
@@ -94,12 +95,13 @@ class SpaceCarverModule(nn.Module):
                 # replace with negative points
                 batch_remove_idx_bool = remove_idx_bool[i, :] # 1D: n_pts
                 preserve_idx = torch.nonzero(batch_remove_idx_bool == 0).squeeze(1) # 1D: preserve_count
-                remove_count = batch_remove_idx_bool.size(0) - preserve_idx.size(0)
+                preserve_count = preserve_idx.size(0)
+                remove_count = batch_remove_idx_bool.size(0) - preserve_count
                 if remove_count == 0:
                     continue
 
                 # random choose negative pts 
-                exchange_idx = torch.randint(0, preserve_idx, (remove_count,)).long() # 1D: remove_count
+                exchange_idx = torch.randint(0, preserve_count, (remove_count,)).long().cuda() # 1D: remove_count
                 exchange_idx = torch.index_select(preserve_idx, 0, exchange_idx) # 1D: remove_count
 
                 # replace ( inplace operation )

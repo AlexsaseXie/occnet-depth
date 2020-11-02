@@ -613,7 +613,7 @@ class Phase2HalfwayTrainer(BaseTrainer):
             data (dict): data dictionary
         '''
         device = self.device
-
+        self.model.eval()
         batch_size = data['points'].size(0)
         
         shape = (32, 32, 32)
