@@ -9,7 +9,7 @@ from im2mesh.common import make_3d_grid
 from im2mesh.utils.libsimplify import simplify_mesh
 from im2mesh.utils.libmise import MISE
 from im2mesh.onet_depth.models import background_setting
-from im2mesh.onet_depth.training import compose_inputs
+from im2mesh.onet_depth.training import compose_inputs, organize_space_carver_kwargs
 import time
 
 
@@ -79,7 +79,7 @@ class Generator3D(object):
         stats_dict = {}
 
         if self.input_type in ('depth_pred', 'depth_pointcloud'):
-            encoder_inputs, _ = compose_inputs(data, mode='test', device=self.device, input_type=self.input_type,
+            encoder_inputs, raw_data = compose_inputs(data, mode='test', device=self.device, input_type=self.input_type,
                                                 use_gt_depth_map=self.use_gt_depth_map, depth_map_mix=False, 
                                                 with_img=self.with_img, depth_pointcloud_transfer=self.depth_pointcloud_transfer,
                                                 local=self.local)
@@ -101,6 +101,10 @@ class Generator3D(object):
             encoder_inputs = depth
 
         kwargs = {}
+        if self.model.space_carver_mode:
+            kwargs = organize_space_carver_kwargs(self.model.space_carver_mode, kwargs, 
+                raw_data, data, device)
+
         # Encode inputs
         t0 = time.time()
         with torch.no_grad():
@@ -168,7 +172,7 @@ class Generator3D(object):
         # Extract mesh
         stats_dict['time (eval points)'] = time.time() - t0
 
-        mesh = self.extract_mesh(value_grid, z, c, data=data, stats_dict=stats_dict)
+        mesh = self.extract_mesh(value_grid, z, c, data=data, stats_dict=stats_dict, **kwargs)
         return mesh
 
     def eval_points(self, p, z, c=None, data=None, **kwargs):
@@ -198,7 +202,7 @@ class Generator3D(object):
 
         return occ_hat
 
-    def extract_mesh(self, occ_hat, z, c=None, data=None, stats_dict=dict()):
+    def extract_mesh(self, occ_hat, z, c=None, data=None, stats_dict=dict(), **kwargs):
         ''' Extracts the mesh from the predicted occupancy grid.
 
         Args:
@@ -232,7 +236,7 @@ class Generator3D(object):
         # Estimate normals if needed
         if self.with_normals and not vertices.shape[0] == 0:
             t0 = time.time()
-            normals = self.estimate_normals(vertices, z, c, data)
+            normals = self.estimate_normals(vertices, z, c, data, **kwargs)
             stats_dict['time (normals)'] = time.time() - t0
 
         else:
@@ -256,12 +260,12 @@ class Generator3D(object):
         # Refine mesh
         if self.refinement_step > 0:
             t0 = time.time()
-            self.refine_mesh(mesh, occ_hat, z, c, data=data)
+            self.refine_mesh(mesh, occ_hat, z, c, data=data, **kwargs)
             stats_dict['time (refine)'] = time.time() - t0
 
         return mesh
 
-    def estimate_normals(self, vertices, z, c=None, data=None):
+    def estimate_normals(self, vertices, z, c=None, data=None, **kwargs):
         ''' Estimates the normals by computing the gradient of the objective.
 
         Args:
@@ -281,9 +285,9 @@ class Generator3D(object):
             if self.local:
                 assert data is not None
                 c1 = self.model.encoder.forward_local_second_step(data, c[0], c[1], vi)
-                occ_hat = self.model_decode(vi, z, c1).logits
+                occ_hat = self.model.decode(vi, z, c1, **kwargs).logits
             else:
-                occ_hat = self.model.decode(vi, z, c).logits
+                occ_hat = self.model.decode(vi, z, c, **kwargs).logits
             out = occ_hat.sum()
             out.backward()
             ni = -vi.grad
@@ -294,7 +298,7 @@ class Generator3D(object):
         normals = np.concatenate(normals, axis=0)
         return normals
 
-    def refine_mesh(self, mesh, occ_hat, z, c=None, data=None):
+    def refine_mesh(self, mesh, occ_hat, z, c=None, data=None, **kwargs):
         ''' Refines the predicted mesh.
 
         Args:   
@@ -342,11 +346,11 @@ class Generator3D(object):
                 assert data is not None
                 c1 = self.model.encoder.forward_local_second_step(data, c[0], c[1], fp) 
                 face_value = torch.sigmoid(
-                    self.model.decode(fp, z, c1).logits
+                    self.model.decode(fp, z, c1, **kwargs).logits
                 )
             else:
                 face_value = torch.sigmoid(
-                    self.model.decode(fp, z, c).logits
+                    self.model.decode(fp, z, c, **kwargs).logits
                 )
             normal_target = -autograd.grad(
                 [face_value.sum()], [face_point], create_graph=True)[0]

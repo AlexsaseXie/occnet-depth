@@ -1,6 +1,7 @@
 import torch
 import torch.nn as nn
 from torch import distributions as dist
+from im2mesh.onet_depth.models.space_carver import *
 from im2mesh.onet.models import encoder_latent, decoder as decoder2
 from im2mesh.onet_multi_layers_predict.models import decoder as decoder1
 
@@ -43,7 +44,7 @@ class OccupancyWithDepthNetwork(nn.Module):
     '''
 
     def __init__(self, depth_predictor=None, decoder=None, encoder=None, encoder_latent=None, p0_z=None,
-                 device=None, decoder_local=None, local_logit_ratio=1.):
+                 device=None, decoder_local=None, local_logit_ratio=1., space_carver_mode=None, space_carver_eps=None):
         super().__init__()
         if p0_z is None:
             p0_z = dist.Normal(torch.tensor([]), torch.tensor([]))
@@ -72,6 +73,13 @@ class OccupancyWithDepthNetwork(nn.Module):
             self.decoder_local = decoder_local.to(device)
         else:
             self.decoder_local = None
+
+        self.space_carver_mode = space_carver_mode
+        if self.space_carver_mode:
+            if space_carver_eps is not None:
+                self.space_carver = SpaceCarverModule(mode=self.space_carver_mode, eps=space_carver_eps)
+            else:
+                self.space_carver = SpaceCarverModule(mode=self.space_carver_mode)
 
         self._device = device
         self.p0_z = p0_z
@@ -114,6 +122,7 @@ class OccupancyWithDepthNetwork(nn.Module):
         batch_size = p.size(0)   
         c = self.encode(encoder_input, p=p)
         z = self.get_z_from_prior((batch_size,), sample=sample)
+        # warning: **kwargs is used in space carver
         p_r = self.decode(p, z, c, **kwargs)
         return p_r
 
@@ -183,6 +192,17 @@ class OccupancyWithDepthNetwork(nn.Module):
             z (tensor): latent code z
             c (tensor): latent conditioned code c
         '''
+        if self.space_carver_mode:
+            assert 'reference' in kwargs
+            space_carver_kwargs = { 'reference': kwargs['reference']}
+            if 'cor_occ' in kwargs:
+                space_carver_kwargs['cor_occ'] = kwargs['cor_occ']
+            if 'world_mat' in kwargs:
+                space_carver_kwargs['world_mat'] = kwargs['world_mat']
+            if 'camera_mat' in kwargs:
+                space_carver_kwargs['camera_mat'] = kwargs['camera_mat']
+
+            remove_idx_bool = self.space_carver(p, **space_carver_kwargs)
 
         if self.decoder_local is None:
             logits = self.decoder(p, z, c, **kwargs)
@@ -190,6 +210,12 @@ class OccupancyWithDepthNetwork(nn.Module):
             logits_global = self.decoder(p, z, c[0], **kwargs)
             logits_local = self.decoder_local(p, z, c[1], **kwargs)
             logits = logits_global + self.local_logit_ratio * logits_local
+
+        if self.space_carver_mode and not self.training:
+            # eval phase behaviour
+            # give very large negative value
+            logits[remove_idx_bool] = -50.
+
         p_r = dist.Bernoulli(logits=logits)
         return p_r
 

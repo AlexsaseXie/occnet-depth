@@ -395,7 +395,7 @@ def compose_inputs(data, mode='train', device=None, input_type='depth_pred',
                 'world_mat': Rt,
                 'camera_mat': K,
             }
-            raw_data['world_mat'] = Rt
+            raw_data['world_mat_fixed'] = Rt
             raw_data['camera_mat'] = K
 
         return encoder_inputs, raw_data
@@ -437,7 +437,39 @@ def compose_inputs(data, mode='train', device=None, input_type='depth_pred',
         return encoder_inputs, raw_data
     else:
         raise NotImplementedError
-    
+
+def organize_space_carver_kwargs(space_carver_mode, kwargs, raw_data, data, device, occ=None):
+        if space_carver_mode == 'mask':
+            if 'mask' in raw_data:
+                reference = raw_data['mask'].float()
+            else:
+                reference = data.get('inputs.mask').to(device)
+        elif space_carver_mode == 'depth':
+            if 'depth_pred' in raw_data:
+                reference = raw_data['depth_pred']
+            else:
+                reference = data.get('inputs.depth_pred').to(device)
+                mask = data.get('inputs.mask').to(device).byte()
+                background_setting(reference, mask)
+        else:
+            raise NotImplementedError
+
+        assert reference is not None
+        kwargs['reference'] = reference
+        if occ is not None:
+            kwargs['cor_occ'] = occ
+        if 'world_mat_fixed' in raw_data and 'camera_mat' in raw_data:
+            world_mat = raw_data['world_mat_fixed']
+            camera_mat = raw_data['camera_mat']
+        else:
+            camera_args = get_camera_args(data, 'points.loc', 'points.scale', device=device)
+            world_mat = camera_args['Rt']
+            camera_mat = camera_args['K']
+        kwargs['world_mat'] = world_mat
+        kwargs['camera_mat'] = camera_mat
+
+        return kwargs
+
 class Phase2HalfwayTrainer(BaseTrainer):
     ''' Phase2HalfwayTrainer object for the Occupancy Network.
 
@@ -525,10 +557,14 @@ class Phase2HalfwayTrainer(BaseTrainer):
 
         kwargs = {}
 
-        encoder_inputs, _ = compose_inputs(data, mode='val', device=self.device, input_type=self.input_type,
+        encoder_inputs, raw_data = compose_inputs(data, mode='val', device=self.device, input_type=self.input_type,
                                                 use_gt_depth_map=self.use_gt_depth_map, depth_map_mix=self.depth_map_mix, 
                                                 with_img=self.with_img, depth_pointcloud_transfer=self.depth_pointcloud_transfer,
                                                 local=self.local)
+
+        if self.model.space_carver_mode:
+            kwargs = organize_space_carver_kwargs(self.model.space_carver_mode, kwargs, 
+                raw_data, data, device)
 
         with torch.no_grad():
             elbo, rec_error, kl = self.model.compute_elbo_halfway(
@@ -590,6 +626,10 @@ class Phase2HalfwayTrainer(BaseTrainer):
                                                 local=self.local)
 
         kwargs = {}
+        if self.model.space_carver_mode:
+            kwargs = organize_space_carver_kwargs(self.model.space_carver_mode, kwargs, 
+                raw_data, data, device)
+
         with torch.no_grad():
             p_r = self.model.forward_halfway(p, encoder_inputs, sample=self.eval_sample, **kwargs)
 
@@ -639,7 +679,7 @@ class Phase2HalfwayTrainer(BaseTrainer):
         batch_size = p.size(0)
         occ = data.get('points.occ').to(device)
 
-        encoder_inputs,_ = compose_inputs(data, mode='train', device=self.device, input_type=self.input_type,
+        encoder_inputs, raw_data = compose_inputs(data, mode='train', device=self.device, input_type=self.input_type,
                                                 use_gt_depth_map=self.use_gt_depth_map, depth_map_mix=self.depth_map_mix, 
                                                 with_img=self.with_img, depth_pointcloud_transfer=self.depth_pointcloud_transfer,
                                                 local=self.local)
@@ -665,6 +705,10 @@ class Phase2HalfwayTrainer(BaseTrainer):
                 loss = loss + 0.001 * feature_transform_reguliarzer(trans_feature) 
 
         # General points
+        if self.model.space_carver_mode:
+            kwargs = kwargs = organize_space_carver_kwargs(self.model.space_carver_mode, kwargs, 
+                raw_data, data, device, occ=occ)
+            
         p_r = self.model.decode(p, z, c, **kwargs)
         logits = p_r.logits
         probs = p_r.probs

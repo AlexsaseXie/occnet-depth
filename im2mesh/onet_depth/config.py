@@ -48,12 +48,16 @@ def get_model(cfg, device=None, dataset=None, **kwargs):
     encoder_latent_kwargs = cfg['model']['encoder_latent_kwargs']
     input_type = cfg['data']['input_type']
 
-    
+    p0_z = get_prior_z(cfg, device)
     if training_phase == 1:
         depth_predictor = get_depth_predictor(cfg)
         decoder = None
         encoder = None
         encoder_latent = None
+
+        model = models.OccupancyWithDepthNetwork(
+            depth_predictor, decoder, encoder, encoder_latent, p0_z=p0_z, device=device, 
+        )
     else:
         if input_type == 'img_with_depth':
             depth_predictor = get_depth_predictor(cfg)
@@ -112,12 +116,23 @@ def get_model(cfg, device=None, dataset=None, **kwargs):
         else:
             encoder = None
 
-    p0_z = get_prior_z(cfg, device)
-    model = models.OccupancyWithDepthNetwork(
-        depth_predictor, decoder, encoder, encoder_latent, p0_z=p0_z, device=device, 
-        decoder_local=decoder_local,
-        local_logit_ratio=local_logit_ratio
-    )
+        if 'space_carver_mode' in cfg['model']:
+            space_carver_mode = cfg['model']['space_carver_mode']
+        else:
+            space_carver_mode = None
+
+        if 'space_carver_eps' in cfg['model']:
+            space_carver_eps = cfg['model']['space_carver_eps']
+        else:
+            space_carver_eps = None
+        
+        model = models.OccupancyWithDepthNetwork(
+            depth_predictor, decoder, encoder, encoder_latent, p0_z=p0_z, device=device, 
+            decoder_local=decoder_local,
+            local_logit_ratio=local_logit_ratio,
+            space_carver_mode=space_carver_mode,
+            space_carver_eps=space_carver_eps
+        )
 
     return model
 
