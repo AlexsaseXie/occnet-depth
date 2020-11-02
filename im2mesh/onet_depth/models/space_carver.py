@@ -3,6 +3,7 @@ from torch import nn
 from torch.nn import functional as F
 from im2mesh.common import project_to_camera, transform_points
 from torch.autograd import Function
+import random
 
 class SpaceCarver(Function):
     '''
@@ -70,10 +71,11 @@ class SpaceCarverModule(nn.Module):
 
     Warning: shouldn't be used during backward
     '''
-    def __init__(self, mode='mask', eps=3e-2):
+    def __init__(self, mode='mask', eps=3e-2, training_drop_carving_p=0.1):
         super(SpaceCarverModule, self).__init__()
         self.mode = mode
         self.eps = eps
+        self.training_drop_carving_p = training_drop_carving_p
         assert self.mode in ('mask', 'depth')
 
     def forward(self, query_pts, reference, cor_occ=None, world_mat=None, camera_mat=None):
@@ -85,7 +87,7 @@ class SpaceCarverModule(nn.Module):
             self.mode, self.eps
         )
 
-        if self.training:
+        if self.training and random.random() > self.training_drop_carving_p:
             # training phase behaviour
             assert cor_occ is not None
             # need to consider BN layers
@@ -97,7 +99,7 @@ class SpaceCarverModule(nn.Module):
                 preserve_idx = torch.nonzero(batch_remove_idx_bool == 0).squeeze(1) # 1D: preserve_count
                 preserve_count = preserve_idx.size(0)
                 remove_count = batch_remove_idx_bool.size(0) - preserve_count
-                if remove_count == 0:
+                if remove_count == 0 or preserve_count <= 100:
                     continue
 
                 # random choose negative pts 
