@@ -44,7 +44,8 @@ class OccupancyWithDepthNetwork(nn.Module):
     '''
 
     def __init__(self, depth_predictor=None, decoder=None, encoder=None, encoder_latent=None, p0_z=None,
-                 device=None, decoder_local=None, local_logit_ratio=1., space_carver_mode=None, space_carver_eps=None):
+                 device=None, decoder_local=None, local_logit_ratio=1., space_carver_mode=None, space_carver_eps=None,
+                 space_carver_drop_p=None):
         super().__init__()
         if p0_z is None:
             p0_z = dist.Normal(torch.tensor([]), torch.tensor([]))
@@ -76,10 +77,13 @@ class OccupancyWithDepthNetwork(nn.Module):
 
         self.space_carver_mode = space_carver_mode
         if self.space_carver_mode:
+            additional_params = {}
             if space_carver_eps is not None:
-                self.space_carver = SpaceCarverModule(mode=self.space_carver_mode, eps=space_carver_eps)
-            else:
-                self.space_carver = SpaceCarverModule(mode=self.space_carver_mode)
+                additional_params['eps'] = space_carver_eps
+            if space_carver_drop_p is not None:
+                additional_params['training_drop_carving_p'] = space_carver_drop_p
+
+            self.space_carver = SpaceCarverModule(mode=self.space_carver_mode, **additional_params)
 
         self._device = device
         self.p0_z = p0_z

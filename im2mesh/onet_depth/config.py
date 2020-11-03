@@ -125,13 +125,20 @@ def get_model(cfg, device=None, dataset=None, **kwargs):
             space_carver_eps = cfg['model']['space_carver_eps']
         else:
             space_carver_eps = None
+
+        if 'space_carver_drop_p' in cfg['model']:
+            space_carver_drop_p = cfg['model']['space_carver_drop_p']
+        else:
+            space_carver_drop_p = None
+
         
         model = models.OccupancyWithDepthNetwork(
             depth_predictor, decoder, encoder, encoder_latent, p0_z=p0_z, device=device, 
             decoder_local=decoder_local,
             local_logit_ratio=local_logit_ratio,
             space_carver_mode=space_carver_mode,
-            space_carver_eps=space_carver_eps
+            space_carver_eps=space_carver_eps,
+            space_carver_drop_p=space_carver_drop_p
         )
 
     return model

@@ -87,7 +87,7 @@ class SpaceCarverModule(nn.Module):
             self.mode, self.eps
         )
 
-        if self.training and random.random() > self.training_drop_carving_p:
+        if self.training and random.random() >= self.training_drop_carving_p:
             # training phase behaviour
             assert cor_occ is not None
             # need to consider BN layers
