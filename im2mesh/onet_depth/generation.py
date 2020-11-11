@@ -353,7 +353,7 @@ class Generator3D(object):
                     self.model.decode(fp, z, c, **kwargs).logits
                 )
             normal_target = -autograd.grad(
-                [face_value.sum()], [face_point], create_graph=True)[0]
+                [face_value.sum()], [face_point], retain_graph=True)[0]
 
             normal_target = \
                 normal_target / \
