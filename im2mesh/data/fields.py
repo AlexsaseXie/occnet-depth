@@ -856,7 +856,7 @@ class PointCloudField(Field):
             category (int): index of category
         '''
         if getattr(self, 'preloaded', False):
-            return load_preloaded(idx)
+            return self.load_preloaded(idx)
 
         file_path = os.path.join(model_path, self.file_name)
 
@@ -888,7 +888,7 @@ class PointCloudField(Field):
         complete = (self.file_name in files)
         return complete
 
-    def load_preloaed(self, idx):
+    def load_preloaded(self, idx):
         data = self.model_data[idx].copy()
 
         if self.transform is not None:
