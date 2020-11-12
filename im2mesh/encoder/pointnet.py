@@ -265,6 +265,7 @@ class PointNetEncoder(nn.Module):
             return x, trans_point, trans_feat
 
     def forward_local(self, data, pts, K=5):
+        #TODO: this function needs rework
         assert self.local
         x = data[None]
 
@@ -407,3 +408,51 @@ def feature_transform_reguliarzer(trans):
     # mse loss
     loss = torch.pow(torch.bmm(trans, trans.transpose(2, 1)) - I, 2).mean()
     return loss
+
+
+class StackedPointnet(nn.Module):
+    def __init__(self, c_dim=1024, channel=3):
+        self.c_dim = c_dim
+        self.channel = channel
+
+        self.stn = STN3d(channel)
+
+        self.pn1 = nn.ModuleList(
+            nn.Conv1d(channel, 128, 1),
+            nn.BatchNorm1d(128),
+            nn.ReLU(),
+            nn.Conv1d(128, 256, 1),
+        )
+
+        self.pn2 = nn.ModuleList([
+            nn.Conv1d(256, 512, 1),
+            nn.BatchNorm1d(512),
+            nn.ReLU(),
+            nn.Conv1d(512, 1024, 1),
+        ])
+
+    def forward(self, x):
+        # match the input of pointnet
+        x = x.transpose(2, 1) # x: batch * 3 * n_pts
+        B, D, N = x.size()
+
+        # STN3d
+        trans_point = self.stn(x)
+        x = x.transpose(2, 1)
+        if D > 3:
+            x, feature = x.split(3,dim=2)
+        x = torch.bmm(x, trans_point)
+        if D > 3:
+            x = torch.cat([x,feature],dim=2)
+        x = x.transpose(2, 1)
+
+        feat = self.pn1(x)
+        feat_global = torch.max(feat, 2, keepdim=True)[0]
+        feat_global = feat_global.repeat((1,1,N))
+        feat = torch.cat(([feat, feat_global]), dim=1)
+
+        feat = self.pn2(x)
+        feat_global = torch.max(feat, 2, keepdim=True)[0]
+        feat_global = feat_global.view(-1, self.c_dim)
+
+        return feat_global

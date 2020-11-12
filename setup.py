@@ -129,6 +129,22 @@ lib_pointcloud_distance_module = CUDAExtension(
     include_dirs=[os.path.join(libpcd_src_root, "include")],
 )
 
+MSN_utils_src_root = os.path.join("im2mesh","point_completion", "MSN_utils", )
+MSN_utils_ext_sources = glob.glob(os.path.join(MSN_utils_src_root, "src", "*.cpp")) + glob.glob(
+    os.path.join(MSN_utils_src_root, "src", "*.cu")
+)
+
+
+lib_pointcloud_distance_module = CUDAExtension(
+    name="im2mesh.point_completion.MSN_utils._ext",
+    sources=MSN_utils_ext_sources,
+    extra_compile_args={
+        "cxx": ["-O3", '-std=c++11'],
+        "nvcc": ["-O3", "-Xfatbin", "-compress-all"],
+    },
+    include_dirs=[os.path.join(MSN_utils_src_root, "include")],
+)
+
 
 # Gather all extension modules
 ext_modules = [

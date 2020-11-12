@@ -5,12 +5,11 @@ from im2mesh.encoder.pointnet import PointNetEncoder
 from im2mesh.utils.pointnet2_ops_lib.pointnet2_ops import pointnet2_utils
 
 
-
 class PointDecoder(nn.Module):
-    def __init__(self, c_dim=1024, output_points_count=2048):
+    def __init__(self, c_dim=1024, output_points_count=2048, hidden_size=1024):
         super(PointDecoder, self).__init__()
-        self.fc_1 = ResnetBlockFC(c_dim, 1024)
-        self.fc_2 = ResnetBlockFC(1024, output_points_count)
+        self.fc_1 = ResnetBlockFC(c_dim, hidden_size)
+        self.fc_2 = ResnetBlockFC(hidden_size, output_points_count)
         self.fc_out = nn.Linear(output_points_count, output_points_count * 3)
 
         self.output_points_count = output_points_count
@@ -63,7 +62,12 @@ class PointCompletionNetwork(nn.Module):
             
 
     def forward(self, x, world_mat=None):
-        feats, trans_points, trans_feature = self.encoder(x)
+        pointnet_encoder = False
+        feats = self.encoder(x)
+
+        if isinstance(feats, tuple):
+            feats, _, trans_feature = feats
+            pointnet_encoder = True
 
         if self.encoder_world_mat is not None:
             feat_world_mat = self.encoder_world_mat(world_mat)
@@ -79,7 +83,10 @@ class PointCompletionNetwork(nn.Module):
             points_transferred = pointnet2_utils.gather_operation(x_flipped, points_transferred_idx).transpose(1, 2).contiguous()
             points_output = torch.cat([points_output, points_transferred], dim=1)
         
-        return points_output, trans_feature
+        if pointnet_encoder:
+            return points_output, trans_feature
+        else:
+            return points_output
 
     def to(self, device):
         model = super().to(device)

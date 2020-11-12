@@ -20,4 +20,5 @@ encoder_dict = {
 
     'depth_resnet18': depth_conv.Depth_Resnet18,
     'pointnet': pointnet.PointNetEncoder
+    'stacked_pointnet': pointnet.StackedPointnet
 }

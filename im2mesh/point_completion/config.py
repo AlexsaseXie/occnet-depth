@@ -5,7 +5,7 @@ import os
 from im2mesh import data
 from im2mesh import config
 from im2mesh.encoder import encoder_dict
-from im2mesh.point_completion import model as pc_model
+from im2mesh.point_completion.models import FCAE_model
 from im2mesh.point_completion import training
 from im2mesh.encoder.world_mat_encoder import WorldMatEncoder
 
@@ -54,7 +54,7 @@ def get_model(cfg, device=None, dataset=None, **kwargs):
     else:
         encoder_world_mat = None
 
-    model = pc_model.PointCompletionNetwork(encoder, device=device, c_dim=c_dim,
+    model = FCAE_model.PointCompletionNetwork(encoder, device=device, c_dim=c_dim,
         input_points_count=input_points_count, 
         output_points_count=output_points_count, 
         preserve_input=preserve_input,
