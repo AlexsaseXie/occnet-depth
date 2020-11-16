@@ -19,6 +19,7 @@ encoder_dict = {
     'pixel2mesh_cond': pix2mesh_cond.Pix2mesh_Cond,
 
     'depth_resnet18': depth_conv.Depth_Resnet18,
-    'pointnet': pointnet.PointNetEncoder
-    'stacked_pointnet': pointnet.StackedPointnet
+    'pointnet': pointnet.PointNetEncoder,
+    'stacked_pointnet': pointnet.StackedPointnet,
+    'msn_pointnet': pointnet.MSNPointNetFeat
 }

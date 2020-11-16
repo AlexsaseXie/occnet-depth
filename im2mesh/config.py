@@ -18,7 +18,9 @@ method_dict = {
     'onet_m': onet_m,
     'onet_multi_layers': onet_multi_layers_predict,
     'onet_depth': onet_depth,
-    'point_completion': point_completion
+    'point_completion': point_completion,
+    'FCAE': point_completion,
+    'MSN': point_completion
 }
 
 

@@ -5,24 +5,37 @@ import os
 from im2mesh import data
 from im2mesh import config
 from im2mesh.encoder import encoder_dict
-from im2mesh.point_completion.models import FCAE_model
+from im2mesh.point_completion.models import FCAE_model, MSN_model
 from im2mesh.point_completion import training
 from im2mesh.encoder.world_mat_encoder import WorldMatEncoder
 
 
 def get_model(cfg, device=None, dataset=None, **kwargs):
-    ''' Return the OccupancyWithDepth Network model.
+    ''' Return the Point Completion Network model.
 
     Args:
         cfg (dict): imported yaml config 
         device (device): pytorch device
         dataset (dataset): dataset
     '''
-    encoder = cfg['model']['encoder']
-    assert encoder.startswith('point')
+    method = cfg['method']
+    if method == 'point_completion':
+        method = 'FCAE'
 
+    # encoder
+    encoder = cfg['model']['encoder']
+    if method == 'MSN':
+        # assert
+        encoder = 'msn_pointnet'
+
+    # c_dim
     c_dim = cfg['model']['c_dim']
     encoder_kwargs = cfg['model']['encoder_kwargs']
+
+    encoder = encoder_dict[encoder](
+        c_dim=c_dim,
+        **encoder_kwargs
+    )
 
     if 'input_points_count' in cfg['model']:
         input_points_count = cfg['model']['input_points_count']
@@ -34,32 +47,40 @@ def get_model(cfg, device=None, dataset=None, **kwargs):
     else:
         output_points_count = 2048
 
-    if 'preserve_input' in cfg['model']:
-        preserve_input = cfg['model']['preserve_input']
-    else:
-        preserve_input = False
+    if method == 'FCAE':
+        if 'preserve_input' in cfg['model']:
+            preserve_input = cfg['model']['preserve_input']
+        else:
+            preserve_input = False
 
-    encoder = encoder_dict[encoder](
-        c_dim=c_dim,
-        **encoder_kwargs
-    )
+        if 'use_encoder_world_mat' in cfg['model']:
+            use_encoder_world_mat = cfg['model']['use_encoder_world_mat']
+        else:
+            use_encoder_world_mat = False
+        
+        if use_encoder_world_mat:
+            encoder_world_mat = WorldMatEncoder(c_dim=c_dim)
+        else:
+            encoder_world_mat = None
 
-    if 'use_encoder_world_mat' in cfg['model']:
-        use_encoder_world_mat = cfg['model']['use_encoder_world_mat']
-    else:
-        use_encoder_world_mat = False
-    
-    if use_encoder_world_mat:
-        encoder_world_mat = WorldMatEncoder(c_dim=c_dim)
-    else:
-        encoder_world_mat = None
+        model = FCAE_model.PointCompletionNetwork(encoder, device=device, c_dim=c_dim,
+            input_points_count=input_points_count, 
+            output_points_count=output_points_count, 
+            preserve_input=preserve_input,
+            encoder_world_mat=encoder_world_mat
+        )
+    elif method == 'MSN':
+        if 'n_primitives' in cfg['model']:
+            n_primitives = cfg['model']['n_primitives']
+        else:
+            n_primitives = 16
 
-    model = FCAE_model.PointCompletionNetwork(encoder, device=device, c_dim=c_dim,
-        input_points_count=input_points_count, 
-        output_points_count=output_points_count, 
-        preserve_input=preserve_input,
-        encoder_world_mat=encoder_world_mat
-    )
+        model = MSN_model.MSN(encoder, num_points = output_points_count, n_primitives = n_primitives)
+        # using multiple gpu
+        model = torch.nn.DataParallel(model)
+        model = model.to(device)
+    else:
+        raise NotImplementedError
 
     return model
 
@@ -73,6 +94,10 @@ def get_trainer(model, optimizer, cfg, device, **kwargs):
         cfg (dict): imported yaml config
         device (device): pytorch device
     '''
+    method = cfg['method']
+    if method == 'point_completion':
+        method = 'FCAE'
+
     out_dir = cfg['training']['out_dir']
     vis_dir = os.path.join(out_dir, 'vis')
     input_type = cfg['data']['input_type']
@@ -85,27 +110,36 @@ def get_trainer(model, optimizer, cfg, device, **kwargs):
     if 'gt_pointcloud_transfer' in cfg['model']:
         trainer_params['gt_pointcloud_transfer'] = cfg['model']['gt_pointcloud_transfer']
 
-    if 'view_penalty' in cfg['training']:
-        trainer_params['view_penalty'] = cfg['training']['view_penalty']
-        
-        if cfg['training']['view_penalty']:
-            if 'loss_mask_flow_ratio' in cfg['training']:
-                trainer_params['loss_mask_flow_ratio'] = cfg['training']['loss_mask_flow_ratio']
-            if 'mask_flow_eps' in cfg['training']:
-                trainer_params['mask_flow_eps'] = cfg['training']['mask_flow_eps']         
-            if 'loss_depth_test_ratio' in cfg['training']:
-                trainer_params['loss_depth_test_ratio'] = cfg['training']['loss_depth_test_ratio']
-            if 'depth_test_eps' in cfg['training']:
-                trainer_params['depth_test_eps'] = cfg['training']['depth_test_eps']
+    if method == 'FCAE':
+        if 'view_penalty' in cfg['training']:
+            trainer_params['view_penalty'] = cfg['training']['view_penalty']
+            
+            if cfg['training']['view_penalty']:
+                if 'loss_mask_flow_ratio' in cfg['training']:
+                    trainer_params['loss_mask_flow_ratio'] = cfg['training']['loss_mask_flow_ratio']
+                if 'mask_flow_eps' in cfg['training']:
+                    trainer_params['mask_flow_eps'] = cfg['training']['mask_flow_eps']         
+                if 'loss_depth_test_ratio' in cfg['training']:
+                    trainer_params['loss_depth_test_ratio'] = cfg['training']['loss_depth_test_ratio']
+                if 'depth_test_eps' in cfg['training']:
+                    trainer_params['depth_test_eps'] = cfg['training']['depth_test_eps']
 
-    if 'loss_type' in cfg['training']:
-        assert cfg['training']['loss_type'] in ('cd', 'emd')
-        trainer_params['loss_type'] = cfg['training']['loss_type']
+        if 'loss_type' in cfg['training']:
+            assert cfg['training']['loss_type'] in ('cd', 'emd')
+            trainer_params['loss_type'] = cfg['training']['loss_type']
 
-    trainer = training.PointCompletionTrainer(model, optimizer,
-        device=device, input_type=input_type,
-        vis_dir=vis_dir, **trainer_params
-    )
+        trainer = training.PointCompletionTrainer(model, optimizer,
+            device=device, input_type=input_type,
+            vis_dir=vis_dir, **trainer_params
+        )
+    elif method == 'MSN':
+        trainer = training.MSNTrainer(model, optimizer,
+            device=device, input_type=input_type,
+            vis_dir=vis_dir, **trainer_params
+        )
+    else:
+        raise NotImplementedError
+
     return trainer
 
 

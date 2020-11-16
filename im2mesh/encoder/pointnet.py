@@ -456,3 +456,35 @@ class StackedPointnet(nn.Module):
         feat_global = feat_global.view(-1, self.c_dim)
 
         return feat_global
+
+
+class MSNPointNetFeat(nn.Module):
+    def __init__(self, num_points = 8192, global_feat = True, bottleneck_size=1024):
+        super(MSNPointNetFeat, self).__init__()
+        self.stn = STN3d(channel=3)
+        self.conv1 = torch.nn.Conv1d(3, 64, 1)
+        self.conv2 = torch.nn.Conv1d(64, 128, 1)
+        self.conv3 = torch.nn.Conv1d(128, 1024, 1)
+
+        self.bn1 = torch.nn.BatchNorm1d(64)
+        self.bn2 = torch.nn.BatchNorm1d(128)
+        self.bn3 = torch.nn.BatchNorm1d(1024)
+
+        self.num_points = num_points
+        self.global_feat = global_feat
+
+        self.bottleneck_size = bottleneck_size
+        self.li = nn.Linear(1024, self.bottleneck_size),
+        self.li_bn = nn.BatchNorm1d(self.bottleneck_size),
+        self.li_relu = nn.ReLU()
+    def forward(self, x):
+        # x: B * 3 * n_pts
+        batchsize = x.size()[0]
+        x = F.relu(self.bn1(self.conv1(x)))
+        x = F.relu(self.bn2(self.conv2(x)))
+        x = self.bn3(self.conv3(x))
+        x,_ = torch.max(x, 2)
+        x = x.view(-1, 1024)
+
+        x = self.li_relu(self.li_bn(self.li(x)))
+        return x

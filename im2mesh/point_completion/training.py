@@ -11,6 +11,7 @@ from im2mesh.common import get_camera_mat, transform_points, project_to_camera, 
 from im2mesh.eval import MeshEvaluator
 from im2mesh.utils.lib_pointcloud_distance import emd, chamfer_distance as cd
 from im2mesh.onet_depth.models import background_setting
+from im2mesh.point_completion.MSN_utils import emd_module as MSN_emd
 
 
 def compose_pointcloud(data, device, pointcloud_transfer=None, world_mat=None):
@@ -341,4 +342,168 @@ class PointCompletionTrainer(BaseTrainer):
                 loss = loss + self.loss_depth_test_ratio * loss_depth_test
                    
             
+        return loss
+
+
+MSN_TRAINING_EMD_EPS=0.005
+MSN_TRAINING_EMD_ITER=50
+MSN_EVAL_EMD_EPS=0.002
+MSN_EVAL_EMD_ITER=10000
+
+class MSNTrainer(BaseTrainer):
+    def __init__(self, model, optimizer, device=None, input_type='depth_pointcloud',
+                 vis_dir=None, 
+                 depth_pointcloud_transfer='world_scale_model',
+                 gt_pointcloud_transfer='world_scale_model',
+                ):
+        self.model = model
+        self.optimizer = optimizer
+        self.device = device
+        self.input_type = input_type
+        assert input_type == 'depth_pointcloud'
+        self.vis_dir = vis_dir
+        if vis_dir is not None and not os.path.exists(vis_dir):
+            os.makedirs(vis_dir)
+
+        self.depth_pointcloud_transfer = depth_pointcloud_transfer
+        assert depth_pointcloud_transfer in ('world', 'world_scale_model', 'view', 'view_scale_model')
+
+        self.gt_pointcloud_transfer = gt_pointcloud_transfer
+        assert gt_pointcloud_transfer in ('world_normalized', 'world_scale_model', 'view', 'view_scale_model')
+
+        if depth_pointcloud_transfer != gt_pointcloud_transfer:
+            print('Warning: using different transfer for depth_pc & gt_pc.')
+            print('Depth pc transfer: %s' % depth_pointcloud_transfer)
+            print('Gt pc transfer: %s' % gt_pointcloud_transfer)
+        else:
+            print('Using %s for depth_pc & gt_pc' % depth_pointcloud_transfer)
+
+        self.mesh_evaluator = MeshEvaluator() 
+        self.MSN_EMD = MSN_emd.emdModule()
+
+    def train_step(self, data):
+        ''' Performs a training step.
+
+        Args:
+            data (dict): data dictionary
+        '''
+        self.model.train()
+        self.optimizer.zero_grad()
+        loss = self.compute_loss(data)
+        loss.backward()
+        self.optimizer.step()
+        return loss.item()
+
+    def eval_step(self, data):
+        ''' Performs an evaluation step.
+
+        Args:
+            data (dict): data dictionary
+        '''
+        self.model.eval()
+
+        device = self.device
+
+        encoder_inputs, raw_data = compose_inputs(data, mode='train', device=self.device, input_type=self.input_type,
+                                                depth_pointcloud_transfer=self.depth_pointcloud_transfer)
+        world_mat = None
+        if (self.model.encoder_world_mat is not None) \
+            or self.gt_pointcloud_transfer in ('view', 'view_scale_model'):
+            if 'world_mat' in raw_data:
+                world_mat = raw_data['world_mat']
+            else:
+                world_mat = get_world_mat(data, device=device)
+        gt_pc = compose_pointcloud(data, device, self.gt_pointcloud_transfer, world_mat=world_mat)
+        batch_size = gt_pc.size(0)
+
+        with torch.no_grad():
+            _, out, _ = self.model(encoder_inputs)
+
+            eval_dict = {}
+            if batch_size == 1:
+                pointcloud_hat = out.cpu().squeeze(0).numpy()
+                pointcloud_gt = gt_pc.cpu().squeeze(0).numpy()
+            
+                eval_dict = self.mesh_evaluator.eval_pointcloud(pointcloud_hat, pointcloud_gt)
+
+            loss, _ = self.MSN_EMD(out, gt_pc, MSN_EVAL_EMD_EPS, MSN_EVAL_EMD_ITER)
+
+            if self.gt_pointcloud_transfer in ('world_scale_model', 'view_scale_model', 'view'):
+                pointcloud_scale = data.get('pointcloud.scale').to(device).view(batch_size, 1, 1)
+                loss = loss / (pointcloud_scale ** 2)
+                if self.gt_pointcloud_transfer == 'view':
+                    if world_mat is None:
+                        world_mat = get_world_mat(data, device=device)
+                    t_scale = world_mat[:, 2:, 3:]
+                    loss = loss * (t_scale ** 2)   
+
+                loss = loss.mean()
+                eval_dict['emd'] = loss.item()
+ 
+        return eval_dict
+
+    def visualize(self, data):
+        ''' Performs a visualization step for the data.
+
+        Args:
+            data (dict): data dictionary
+        '''
+        device = self.device
+
+        encoder_inputs, raw_data = compose_inputs(data, mode='train', device=self.device, input_type=self.input_type,
+                                                depth_pointcloud_transfer=self.depth_pointcloud_transfer,)
+        world_mat = None
+        if (self.model.encoder_world_mat is not None) \
+            or self.gt_pointcloud_transfer in ('view', 'view_scale_model'):
+            if 'world_mat' in raw_data:
+                world_mat = raw_data['world_mat']
+            else:
+                world_mat = get_world_mat(data, device=device)
+        gt_pc = compose_pointcloud(data, device, self.gt_pointcloud_transfer, world_mat=world_mat)
+        batch_size = gt_pc.size(0)
+
+        self.model.eval()
+        with torch.no_grad():
+            _, out, _ = self.model(encoder_inputs)
+              
+        for i in trange(batch_size):
+            pc = gt_pc[i].cpu()
+            vis.visualize_pointcloud(pc, out_file=os.path.join(self.vis_dir, '%03d_gt_pc.png' % i))
+
+            pc = out[i].cpu()
+            vis.visualize_pointcloud(pc, out_file=os.path.join(self.vis_dir, '%03d_pr_pc.png' % i))
+
+            pc = encoder_inputs[i].cpu()
+            vis.visualize_pointcloud(pc, out_file=os.path.join(self.vis_dir, '%03d_input_half_pc.png' % i))
+
+    def compute_loss(self, data):
+        ''' Computes the loss.
+
+        Args:
+            data (dict): data dictionary
+        '''
+        device = self.device
+
+        encoder_inputs, raw_data = compose_inputs(data, mode='train', device=self.device, input_type=self.input_type,
+                                                depth_pointcloud_transfer=self.depth_pointcloud_transfer,)
+
+        world_mat = None
+        if (self.model.encoder_world_mat is not None) \
+            or self.gt_pointcloud_transfer in ('view', 'view_scale_model'):
+            if 'world_mat' in raw_data:
+                world_mat = raw_data['world_mat']
+            else:
+                world_mat = get_world_mat(data, device=device)
+        gt_pc = compose_pointcloud(data, device, self.gt_pointcloud_transfer, world_mat=world_mat)
+
+
+        output1, output2, expansion_penalty = self.model(encoder_inputs)
+
+        dist, _ = self.MSN_EMD(output1, gt_pc, MSN_TRAINING_EMD_EPS, MSN_TRAINING_EMD_ITER)
+        emd1 = torch.mean(1)
+
+        dist, _ = self.MSN_EMD(output2, gt_pc, MSN_TRAINING_EMD_EPS, MSN_TRAINING_EMD_ITER)
+        emd2 = torch.mean(1)
+
+        loss = emd1.mean() + emd2.mean() + expansion_penalty.mean() * 0.1
         return loss
