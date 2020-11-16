@@ -459,7 +459,7 @@ class StackedPointnet(nn.Module):
 
 
 class MSNPointNetFeat(nn.Module):
-    def __init__(self, num_points = 8192, global_feat = True, bottleneck_size=1024):
+    def __init__(self, c_dim=1024, num_points = 8192, global_feat = True):
         super(MSNPointNetFeat, self).__init__()
         self.stn = STN3d(channel=3)
         self.conv1 = torch.nn.Conv1d(3, 64, 1)
@@ -473,9 +473,9 @@ class MSNPointNetFeat(nn.Module):
         self.num_points = num_points
         self.global_feat = global_feat
 
-        self.bottleneck_size = bottleneck_size
-        self.li = nn.Linear(1024, self.bottleneck_size),
-        self.li_bn = nn.BatchNorm1d(self.bottleneck_size),
+        self.bottleneck_size = c_dim
+        self.li = nn.Linear(1024, self.bottleneck_size)
+        self.li_bn = nn.BatchNorm1d(self.bottleneck_size)
         self.li_relu = nn.ReLU()
     def forward(self, x):
         # x: B * 3 * n_pts

@@ -407,8 +407,7 @@ class MSNTrainer(BaseTrainer):
         encoder_inputs, raw_data = compose_inputs(data, mode='train', device=self.device, input_type=self.input_type,
                                                 depth_pointcloud_transfer=self.depth_pointcloud_transfer)
         world_mat = None
-        if (self.model.encoder_world_mat is not None) \
-            or self.gt_pointcloud_transfer in ('view', 'view_scale_model'):
+        if self.gt_pointcloud_transfer in ('view', 'view_scale_model'):
             if 'world_mat' in raw_data:
                 world_mat = raw_data['world_mat']
             else:
@@ -426,7 +425,7 @@ class MSNTrainer(BaseTrainer):
             
                 eval_dict = self.mesh_evaluator.eval_pointcloud(pointcloud_hat, pointcloud_gt)
 
-            loss, _ = self.MSN_EMD(out, gt_pc, MSN_EVAL_EMD_EPS, MSN_EVAL_EMD_ITER)
+            loss = emd.earth_mover_distance(out, gt_pc, transpose=False)
 
             if self.gt_pointcloud_transfer in ('world_scale_model', 'view_scale_model', 'view'):
                 pointcloud_scale = data.get('pointcloud.scale').to(device).view(batch_size, 1, 1)
@@ -437,7 +436,8 @@ class MSNTrainer(BaseTrainer):
                     t_scale = world_mat[:, 2:, 3:]
                     loss = loss * (t_scale ** 2)   
 
-                loss = loss.mean()
+                out_pts_count = out.size(1)
+                loss = (loss / out_pts_count).mean()
                 eval_dict['emd'] = loss.item()
  
         return eval_dict
@@ -453,8 +453,7 @@ class MSNTrainer(BaseTrainer):
         encoder_inputs, raw_data = compose_inputs(data, mode='train', device=self.device, input_type=self.input_type,
                                                 depth_pointcloud_transfer=self.depth_pointcloud_transfer,)
         world_mat = None
-        if (self.model.encoder_world_mat is not None) \
-            or self.gt_pointcloud_transfer in ('view', 'view_scale_model'):
+        if self.gt_pointcloud_transfer in ('view', 'view_scale_model'):
             if 'world_mat' in raw_data:
                 world_mat = raw_data['world_mat']
             else:
@@ -488,8 +487,7 @@ class MSNTrainer(BaseTrainer):
                                                 depth_pointcloud_transfer=self.depth_pointcloud_transfer,)
 
         world_mat = None
-        if (self.model.encoder_world_mat is not None) \
-            or self.gt_pointcloud_transfer in ('view', 'view_scale_model'):
+        if  self.gt_pointcloud_transfer in ('view', 'view_scale_model'):
             if 'world_mat' in raw_data:
                 world_mat = raw_data['world_mat']
             else:
@@ -500,10 +498,10 @@ class MSNTrainer(BaseTrainer):
         output1, output2, expansion_penalty = self.model(encoder_inputs)
 
         dist, _ = self.MSN_EMD(output1, gt_pc, MSN_TRAINING_EMD_EPS, MSN_TRAINING_EMD_ITER)
-        emd1 = torch.mean(1)
+        emd1 = dist.mean(1)
 
         dist, _ = self.MSN_EMD(output2, gt_pc, MSN_TRAINING_EMD_EPS, MSN_TRAINING_EMD_ITER)
-        emd2 = torch.mean(1)
+        emd2 = dist.mean(1)
 
         loss = emd1.mean() + emd2.mean() + expansion_penalty.mean() * 0.1
         return loss
