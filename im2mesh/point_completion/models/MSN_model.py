@@ -81,7 +81,7 @@ class MSN(nn.Module):
         self.expansion = expansion.expansionPenaltyModule()
         self.MSN_EMD = MSN_emd.emdModule()
 
-    def forward(self, x):
+    def forward(self, x, gt_pc=None, eps=None, it=None):
         # x : B * n_pts * 3
         x = x.transpose(2, 1)
 
@@ -111,17 +111,14 @@ class MSN(nn.Module):
         xx = MDS_module.gather_operation(xx, resampled_idx)
         delta = self.res(xx)
         xx = xx[:, 0:3, :] 
-        out2 = (xx + delta).transpose(2,1).contiguous()  
-        return out1, out2, loss_mst
+        out2 = (xx + delta).transpose(2,1).contiguous() 
 
-    def compute_loss(self, x, gt_pc, eps, it):
-        #for data parallel
-        output1, output2, loss_mst = self.module.forward(x)
+        if gt_pc is not None:
+            dist, _ = self.MSN_EMD(out1, gt_pc, eps, it)
+            emd1 = dist.mean(1)
 
-        dist, _ = self.MSN_EMD(output1, gt_pc, eps, it)
-        emd1 = dist.mean(1)
-
-        dist, _ = self.MSN_EMD(output2, gt_pc, eps, it)
-        emd2 = dist.mean(1)
-
-        return emd1, emd2, loss_mst
+            dist, _ = self.MSN_EMD(out2, gt_pc, eps, it)
+            emd2 = dist.mean(1)
+            return emd1, emd2, loss_mst
+        else:
+            return out1, out2, loss_mst
