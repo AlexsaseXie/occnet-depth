@@ -494,14 +494,8 @@ class MSNTrainer(BaseTrainer):
                 world_mat = get_world_mat(data, device=device)
         gt_pc = compose_pointcloud(data, device, self.gt_pointcloud_transfer, world_mat=world_mat)
 
-
-        output1, output2, expansion_penalty = self.model(encoder_inputs)
-
-        dist, _ = self.MSN_EMD(output1, gt_pc, MSN_TRAINING_EMD_EPS, MSN_TRAINING_EMD_ITER)
-        emd1 = dist.mean(1)
-
-        dist, _ = self.MSN_EMD(output2, gt_pc, MSN_TRAINING_EMD_EPS, MSN_TRAINING_EMD_ITER)
-        emd2 = dist.mean(1)
+        # data parallel
+        emd1, emd2, expansion_penalty = self.model.module.compute_loss(encoder_inputs, gt_pc, MSN_TRAINING_EMD_EPS, MSN_TRAINING_EMD_ITER)
 
         loss = emd1.mean() + emd2.mean() + expansion_penalty.mean() * 0.1
         return loss

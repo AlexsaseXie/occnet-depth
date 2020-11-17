@@ -6,6 +6,7 @@ import torch.nn as nn
 import torch.nn.functional as F
 from im2mesh.point_completion.MSN_utils import expansion_penalty_module as expansion
 from im2mesh.point_completion.MSN_utils import MDS_module
+from im2mesh.point_completion.MSN_utils import emd_module as MSN_emd
 
 class PointGenCon(nn.Module):
     def __init__(self, bottleneck_size = 8192):
@@ -78,6 +79,7 @@ class MSN(nn.Module):
         self.decoder = nn.ModuleList([PointGenCon(bottleneck_size = 2 +self.bottleneck_size) for i in range(0,self.n_primitives)])
         self.res = PointNetRes()
         self.expansion = expansion.expansionPenaltyModule()
+        self.MSN_EMD = MSN_emd.emdModule()
 
     def forward(self, x):
         # x : B * n_pts * 3
@@ -111,3 +113,15 @@ class MSN(nn.Module):
         xx = xx[:, 0:3, :] 
         out2 = (xx + delta).transpose(2,1).contiguous()  
         return out1, out2, loss_mst
+
+    def compute_loss(self, x, gt_pc, eps, it):
+        #for data parallel
+        output1, output2, loss_mst = self.module.forward(x)
+
+        dist, _ = self.MSN_EMD(output1, gt_pc, eps, it)
+        emd1 = dist.mean(1)
+
+        dist, _ = self.MSN_EMD(output2, gt_pc, eps, it)
+        emd2 = dist.mean(1)
+
+        return emd1, emd2, loss_mst
