@@ -7,6 +7,7 @@ import torch.nn.functional as F
 from im2mesh.point_completion.MSN_utils import expansion_penalty_module as expansion
 from im2mesh.point_completion.MSN_utils import MDS_module
 from im2mesh.point_completion.MSN_utils import emd_module as MSN_emd
+from im2mesh.onet_depth.models.space_carver import SpaceCarverModule
 
 class PointGenCon(nn.Module):
     def __init__(self, bottleneck_size = 8192):
@@ -69,7 +70,8 @@ class PointNetRes(nn.Module):
         return x
 
 class MSN(nn.Module):
-    def __init__(self, encoder, num_points = 8192, bottleneck_size = 1024, n_primitives = 16):
+    def __init__(self, encoder, num_points = 8192, bottleneck_size = 1024, n_primitives = 16, 
+                    space_carver_mode=False, space_carver_eps=3e-2):
         super(MSN, self).__init__()
         self.num_points = num_points
         self.bottleneck_size = bottleneck_size
@@ -81,7 +83,11 @@ class MSN(nn.Module):
         self.expansion = expansion.expansionPenaltyModule()
         self.MSN_EMD = MSN_emd.emdModule()
 
-    def forward(self, x, gt_pc=None, eps=None, it=None):
+        self.space_carver_mode = space_carver_mode
+        if space_carver_mode:
+            self.space_carver = SpaceCarverModule(mode=self.space_carver_mode, eps=space_carver_eps, training_drop_carving_p=1.)
+
+    def forward(self, x, gt_pc=None, eps=None, it=None, reference=None, world_mat=None, camera_mat=None):
         # x : B * n_pts * 3
         x = x.transpose(2, 1)
 
@@ -121,4 +127,9 @@ class MSN(nn.Module):
             emd2 = dist.mean(1)
             return emd1, emd2, loss_mst
         else:
+            # eval phase space-carving
+            if (not self.training) and self.space_carver_mode:
+                assert reference is not None
+                #_ = self.space_carver(out1, reference, cor_occ=None, world_mat=world_mat, camera_mat=camera_mat, replace=True)
+                _ = self.space_carver(out2, reference, cor_occ=None, world_mat=world_mat, camera_mat=camera_mat, replace=True)
             return out1, out2, loss_mst

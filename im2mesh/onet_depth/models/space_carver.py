@@ -78,7 +78,7 @@ class SpaceCarverModule(nn.Module):
         self.training_drop_carving_p = training_drop_carving_p
         assert self.mode in ('mask', 'depth')
 
-    def forward(self, query_pts, reference, cor_occ=None, world_mat=None, camera_mat=None):
+    def forward(self, query_pts, reference, cor_occ=None, world_mat=None, camera_mat=None, replace=False):
         '''
             during training phase, this function will modify query_pts & cor_occ by inplace operations
         '''
@@ -87,9 +87,8 @@ class SpaceCarverModule(nn.Module):
             self.mode, self.eps
         )
 
-        if self.training and random.random() >= self.training_drop_carving_p:
+        if replace or (self.training and random.random() >= self.training_drop_carving_p):
             # training phase behaviour
-            assert cor_occ is not None
             # need to consider BN layers
             batch_size = query_pts.size(0)
             #TODO: remove this for
@@ -108,7 +107,8 @@ class SpaceCarverModule(nn.Module):
 
                 # replace ( inplace operation )
                 query_pts[i, batch_remove_idx_bool, :] = torch.index_select(query_pts[i], 0, exchange_idx)
-                cor_occ[i, batch_remove_idx_bool] = torch.index_select(cor_occ[i], 0, exchange_idx)
+                if cor_occ is not None:
+                    cor_occ[i, batch_remove_idx_bool] = torch.index_select(cor_occ[i], 0, exchange_idx)
         else:
             # eval phase behaviour
             pass

@@ -69,6 +69,7 @@ def get_model(cfg, device=None, dataset=None, **kwargs):
             preserve_input=preserve_input,
             encoder_world_mat=encoder_world_mat
         )
+        model = model.to(device)
     elif method == 'MSN':
         if 'n_primitives' in cfg['model']:
             n_primitives = cfg['model']['n_primitives']
@@ -133,6 +134,12 @@ def get_trainer(model, optimizer, cfg, device, **kwargs):
             vis_dir=vis_dir, **trainer_params
         )
     elif method == 'MSN':
+        if 'space_carver_mode' in cfg['model']:
+            trainer_params['space_carver_mode'] = cfg['model']['space_carver_mode']
+
+        if 'space_carver_eps' in cfg['model']:
+            trainer_params['space_carver_eps'] = cfg['model']['space_carver_eps']
+
         trainer = training.MSNTrainer(model, optimizer,
             device=device, input_type=input_type,
             vis_dir=vis_dir, **trainer_params

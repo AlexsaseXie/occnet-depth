@@ -103,7 +103,7 @@ class OccupancyWithDepthNetwork(nn.Module):
         assert self.depth_predictor is not None
         return self.depth_predictor.fetch_minmax()
 
-    def forward(self, p, inputs, gt_mask, sample=True, **kwargs):
+    def forward(self, p, inputs, gt_mask=None, sample=True, halfway=False, **kwargs):
         ''' Performs a forward pass through the network.
 
         only predict depth map and encode
@@ -113,7 +113,11 @@ class OccupancyWithDepthNetwork(nn.Module):
             p (tensor): sampled points
             inputs (tensor): conditioning input
             sample (bool): whether to sample for z
+            halfway: whether to forward from intermediate inputs
         '''
+        if halfway:
+            return self.forward_halfway(p, inputs, sample=sample, **kwargs)
+
         batch_size = p.size(0)
         depth_map = self.predict_depth_map(inputs)
         background_setting(depth_map, gt_mask)       

@@ -41,7 +41,7 @@ class PointCompletionNetwork(nn.Module):
      preserve_input=False, encoder_world_mat=None):
         super().__init__()
         self.device = device
-        self.encoder = encoder.to(device)
+        self.encoder = encoder
 
         self.output_points_count = output_points_count
         assert output_points_count % 2 == 0
@@ -49,14 +49,14 @@ class PointCompletionNetwork(nn.Module):
         self.preserve_input = preserve_input
 
         if not self.preserve_input:
-            self.decoder = PointDecoder(c_dim=c_dim, output_points_count=output_points_count).to(device)
+            self.decoder = PointDecoder(c_dim=c_dim, output_points_count=output_points_count)
         else:
             self.half_p = output_points_count // 2
-            self.decoder = PointDecoder(c_dim=c_dim, output_points_count=self.half_p).to(device)
+            self.decoder = PointDecoder(c_dim=c_dim, output_points_count=self.half_p)
             # TODO: define a shortcut function
 
         if encoder_world_mat is not None:
-            self.encoder_world_mat = encoder_world_mat.to(device)
+            self.encoder_world_mat = encoder_world_mat
         else:
             self.encoder_world_mat = None
             
@@ -88,7 +88,3 @@ class PointCompletionNetwork(nn.Module):
         else:
             return points_output
 
-    def to(self, device):
-        model = super().to(device)
-        model._device = device
-        return model

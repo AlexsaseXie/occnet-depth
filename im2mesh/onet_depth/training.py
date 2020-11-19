@@ -706,7 +706,7 @@ class Phase2HalfwayTrainer(BaseTrainer):
 
         # General points
         if self.model.space_carver_mode:
-            kwargs = kwargs = organize_space_carver_kwargs(self.model.space_carver_mode, kwargs, 
+            kwargs = organize_space_carver_kwargs(self.model.space_carver_mode, kwargs, 
                 raw_data, data, device, occ=occ)
             
         p_r = self.model.decode(p, z, c, **kwargs)
