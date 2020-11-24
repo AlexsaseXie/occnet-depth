@@ -6,7 +6,7 @@ from im2mesh.utils import visualize as vis
 from im2mesh.training import BaseTrainer
 
 from im2mesh.encoder.pointnet import feature_transform_reguliarzer, PointNetEncoder, PointNetResEncoder
-from im2mesh.onet_depth.training import compose_inputs
+from im2mesh.onet_depth.training import compose_inputs, organize_space_carver_kwargs
 from im2mesh.common import get_camera_mat, transform_points, project_to_camera, get_world_mat
 from im2mesh.eval import MeshEvaluator
 from im2mesh.utils.lib_pointcloud_distance import emd, chamfer_distance as cd
@@ -415,8 +415,13 @@ class MSNTrainer(BaseTrainer):
         gt_pc = compose_pointcloud(data, device, self.gt_pointcloud_transfer, world_mat=world_mat)
         batch_size = gt_pc.size(0)
 
+        kwargs = {}
+        if self.model.space_carver_mode:
+            kwargs = organize_space_carver_kwargs(self.model.space_carver_mode, kwargs, 
+                raw_data, data, device)
+
         with torch.no_grad():
-            _, out, _ = self.model(encoder_inputs)
+            _, out, _ = self.model(encoder_inputs, **kwargs)
 
             eval_dict = {}
             if batch_size == 1:
@@ -461,9 +466,14 @@ class MSNTrainer(BaseTrainer):
         gt_pc = compose_pointcloud(data, device, self.gt_pointcloud_transfer, world_mat=world_mat)
         batch_size = gt_pc.size(0)
 
+        kwargs = {}
+        if self.model.space_carver_mode:
+            kwargs = organize_space_carver_kwargs(self.model.space_carver_mode, kwargs, 
+                raw_data, data, device)
+
         self.model.eval()
         with torch.no_grad():
-            _, out, _ = self.model(encoder_inputs)
+            _, out, _ = self.model(encoder_inputs, **kwargs)
               
         for i in trange(batch_size):
             pc = gt_pc[i].cpu()
@@ -495,7 +505,7 @@ class MSNTrainer(BaseTrainer):
         gt_pc = compose_pointcloud(data, device, self.gt_pointcloud_transfer, world_mat=world_mat)
 
         # data parallel
-        emd1, emd2, expansion_penalty = self.model(encoder_inputs, gt_pc, MSN_TRAINING_EMD_EPS, MSN_TRAINING_EMD_ITER)
+        emd1, emd2, expansion_penalty = self.model(encoder_inputs, gt_pc=gt_pc, eps=MSN_TRAINING_EMD_EPS, it=MSN_TRAINING_EMD_ITER)
 
         loss = emd1.mean() + emd2.mean() + expansion_penalty.mean() * 0.1
         return loss

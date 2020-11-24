@@ -8,7 +8,7 @@ import argparse
 import time
 from im2mesh import config, data
 from im2mesh.checkpoints import CheckpointIO
-from im2mesh.point_completion.training import compose_inputs, compose_pointcloud
+from im2mesh.point_completion.training import compose_inputs, compose_pointcloud, organize_space_carver_kwargs
 from im2mesh.utils.pointnet2_ops_lib.pointnet2_ops import pointnet2_utils
 from tqdm import tqdm
 
@@ -73,14 +73,21 @@ for batch in tqdm(train_loader):
     it += 1
     model.eval()
 
-    encoder_inputs, _ = compose_inputs(batch, mode='train', device=device, input_type='depth_pointcloud',
+    encoder_inputs, raw_data = compose_inputs(batch, mode='train', device=device, input_type='depth_pointcloud',
                                                 depth_pointcloud_transfer=depth_pointcloud_transfer)
     cur_batch_size = encoder_inputs.size(0)
     idxs = batch.get('idx')
     viewids = batch.get('viewid')
 
+    kwargs = {}
+    if model.space_carver_mode:
+        kwargs = organize_space_carver_kwargs(
+            model.space_carver_mode, kwargs, 
+            raw_data, batch, device
+        )
+
     with torch.no_grad():
-        pointcloud_hat = model(encoder_inputs)
+        pointcloud_hat = model(encoder_inputs, **kwargs)
 
         if isinstance(pointcloud_hat, tuple):
             pointcloud_hat,_ = pointcloud_hat

@@ -439,36 +439,36 @@ def compose_inputs(data, mode='train', device=None, input_type='depth_pred',
         raise NotImplementedError
 
 def organize_space_carver_kwargs(space_carver_mode, kwargs, raw_data, data, device, occ=None):
-        if space_carver_mode == 'mask':
-            if 'mask' in raw_data:
-                reference = raw_data['mask'].float()
-            else:
-                reference = data.get('inputs.mask').to(device)
-        elif space_carver_mode == 'depth':
-            if 'depth_pred' in raw_data:
-                reference = raw_data['depth_pred']
-            else:
-                reference = data.get('inputs.depth_pred').to(device)
-                mask = data.get('inputs.mask').to(device).byte()
-                background_setting(reference, mask)
+    if space_carver_mode == 'mask':
+        if 'mask' in raw_data:
+            reference = raw_data['mask'].float()
         else:
-            raise NotImplementedError
-
-        assert reference is not None
-        kwargs['reference'] = reference
-        if occ is not None:
-            kwargs['cor_occ'] = occ
-        if 'world_mat_fixed' in raw_data and 'camera_mat' in raw_data:
-            world_mat = raw_data['world_mat_fixed']
-            camera_mat = raw_data['camera_mat']
+            reference = data.get('inputs.mask').to(device)
+    elif space_carver_mode == 'depth':
+        if 'depth_pred' in raw_data:
+            reference = raw_data['depth_pred']
         else:
-            camera_args = get_camera_args(data, 'points.loc', 'points.scale', device=device)
-            world_mat = camera_args['Rt']
-            camera_mat = camera_args['K']
-        kwargs['world_mat'] = world_mat
-        kwargs['camera_mat'] = camera_mat
+            reference = data.get('inputs.depth_pred').to(device)
+            mask = data.get('inputs.mask').to(device).byte()
+            background_setting(reference, mask)
+    else:
+        raise NotImplementedError
 
-        return kwargs
+    assert reference is not None
+    kwargs['reference'] = reference
+    if occ is not None:
+        kwargs['cor_occ'] = occ
+    if 'world_mat_fixed' in raw_data and 'camera_mat' in raw_data:
+        world_mat = raw_data['world_mat_fixed']
+        camera_mat = raw_data['camera_mat']
+    else:
+        camera_args = get_camera_args(data, 'points.loc', 'points.scale', device=device)
+        world_mat = camera_args['Rt']
+        camera_mat = camera_args['K']
+    kwargs['world_mat'] = world_mat
+    kwargs['camera_mat'] = camera_mat
+
+    return kwargs
 
 class Phase2HalfwayTrainer(BaseTrainer):
     ''' Phase2HalfwayTrainer object for the Occupancy Network.

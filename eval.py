@@ -25,19 +25,24 @@ out_dir = cfg['training']['out_dir']
 out_file = os.path.join(out_dir, 'eval_full.pkl')
 out_file_class = os.path.join(out_dir, 'eval.csv')
 
+out_vis_dir = os.path.join(out_dir, 'eval_vis')
+if not os.path.exists(out_vis_dir):
+    os.mkdir(out_vis_dir)
+
 # Dataset
 dataset = config.get_dataset('test', cfg, return_idx=True)
 model = config.get_model(cfg, device=device, dataset=dataset)
 
 checkpoint_io = CheckpointIO(out_dir, model=model)
 try:
-    checkpoint_io.load(cfg['test']['model_file'])
+    checkpoint_io.load(cfg['test']['model_file'], strict=False)
 except FileExistsError:
     print('Model file does not exist. Exiting.')
     exit()
 
 # Trainer
 trainer = config.get_trainer(model, None, cfg, device=device)
+trainer.vis_dir = 'eval_vis'
 
 # Print model
 nparameters = sum(p.numel() for p in model.parameters())
@@ -53,6 +58,11 @@ print('Evaluating networks...')
 
 test_loader = torch.utils.data.DataLoader(
     dataset, batch_size=1, shuffle=False,
+    collate_fn=data.collate_remove_none,
+    worker_init_fn=data.worker_init_fn)
+
+vis_loader = torch.utils.data.DataLoader(
+    dataset, batch_size=12, shuffle=True,
     collate_fn=data.collate_remove_none,
     worker_init_fn=data.worker_init_fn)
 
@@ -100,3 +110,8 @@ eval_df_class.to_csv(out_file_class)
 # Print results
 eval_df_class.loc['mean'] = eval_df_class.mean()
 print(eval_df_class)
+
+for i in range(3):
+    data_vis = next(vis_loader)
+
+    trainer.visualize(data_vis)

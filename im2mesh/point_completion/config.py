@@ -76,7 +76,18 @@ def get_model(cfg, device=None, dataset=None, **kwargs):
         else:
             n_primitives = 16
 
-        model = MSN_model.MSN(encoder, num_points = output_points_count, n_primitives = n_primitives)
+        if 'space_carver_mode' in cfg['model']:
+            space_carver_mode = cfg['model']['space_carver_mode']
+        else:
+            space_carver_mode = None
+
+        if 'space_carver_eps' in cfg['model']:
+            space_carver_eps = cfg['model']['space_carver_eps']
+        else:
+            space_carver_eps = None
+
+        model = MSN_model.MSN(encoder, num_points = output_points_count, n_primitives = n_primitives,
+                space_carver_mode=space_carver_mode, space_carver_eps=space_carver_eps)
         # using multiple gpu
         model = torch.nn.DataParallel(model)
         model = model.to(device)
