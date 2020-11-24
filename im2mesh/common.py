@@ -277,7 +277,7 @@ def get_camera_args(data, loc_field=None, scale_field=None, device=None):
     if scale_field is not None:
         scale = data[scale_field].to(device)
     else:
-        scale = torch.zeros(K.size(0), device=K.device, dtype=K.dtype)
+        scale = torch.ones(K.size(0), device=K.device, dtype=K.dtype)
 
     Rt = fix_Rt_camera(Rt, loc, scale)
     K = fix_K_camera(K, img_size=137.)
