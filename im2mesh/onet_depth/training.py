@@ -11,7 +11,7 @@ from im2mesh.training import BaseTrainer
 from im2mesh.onet_depth.models import background_setting
 
 from im2mesh.onet.loss_functions import get_occ_loss, occ_loss_postprocess
-from im2mesh.common import get_camera_args, get_world_mat, transform_points, transform_points_back
+from im2mesh.common import get_camera_args, get_world_mat, get_camera_mat, transform_points, transform_points_back
 from im2mesh.encoder.pointnet import feature_transform_reguliarzer, PointNetEncoder, PointNetResEncoder
 
 def depth_to_L(pr_depth_map, gt_mask):
@@ -438,7 +438,7 @@ def compose_inputs(data, mode='train', device=None, input_type='depth_pred',
     else:
         raise NotImplementedError
 
-def organize_space_carver_kwargs(space_carver_mode, kwargs, raw_data, data, device, occ=None):
+def organize_space_carver_kwargs(space_carver_mode, kwargs, raw_data, data, device, target_space='world_normalized', occ=None):
     if space_carver_mode == 'mask':
         if 'mask' in raw_data:
             reference = raw_data['mask'].float()
@@ -458,13 +458,45 @@ def organize_space_carver_kwargs(space_carver_mode, kwargs, raw_data, data, devi
     kwargs['reference'] = reference
     if occ is not None:
         kwargs['cor_occ'] = occ
-    if 'world_mat_fixed' in raw_data and 'camera_mat' in raw_data:
-        world_mat = raw_data['world_mat_fixed']
-        camera_mat = raw_data['camera_mat']
+    
+    assert target_space in ('world_normalized', 'world_scale_model', 'view_scale_model')
+
+    if target_space == 'world_normalized':
+        if 'world_mat_fixed' in raw_data and 'camera_mat' in raw_data:
+            world_mat = raw_data['world_mat_fixed']
+            camera_mat = raw_data['camera_mat']
+        else:
+            camera_args = get_camera_args(data, 'points.loc', 'points.scale', device=device)
+            world_mat = camera_args['Rt']
+            camera_mat = camera_args['K']
+    elif target_space == 'world_scale_model':
+        if 'world_mat' in raw_data and 'camera_mat' in raw_data:
+            world_mat = raw_data['world_mat']
+            camera_mat = raw_data['camera_mat']
+        else:
+            camera_args = get_camera_args(data, None, None, device=device)
+            world_mat = camera_args['Rt']
+            camera_mat = camera_args['K']
+    elif target_space == 'view_scale_model':
+        if 'camera_mat' in raw_data:
+            camera_mat = raw_data['camera_mat']
+        else:
+            camera_mat = get_camera_mat(data, device=device)
+        
+        if 'world_mat' in raw_data:
+            world_mat = raw_data['world_mat']
+        else:
+            world_mat = get_world_mat(data, device=device)
+
+        # Iden 
+        world_mat[:, :, :3] = 0.
+        world_mat[:, 0, 0] = 1.
+        world_mat[:, 1, 1] = 1.
+        world_mat[:, 2, 2] = 1.
     else:
-        camera_args = get_camera_args(data, 'points.loc', 'points.scale', device=device)
-        world_mat = camera_args['Rt']
-        camera_mat = camera_args['K']
+        raise NotImplementedError
+
+
     kwargs['world_mat'] = world_mat
     kwargs['camera_mat'] = camera_mat
 

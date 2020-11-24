@@ -416,9 +416,14 @@ class MSNTrainer(BaseTrainer):
         batch_size = gt_pc.size(0)
 
         kwargs = {}
-        if self.model.space_carver_mode:
-            kwargs = organize_space_carver_kwargs(self.model.space_carver_mode, kwargs, 
-                raw_data, data, device)
+        space_carver_mode = getattr(self.model, 'space_carver_mode', False) or \
+           getattr(self.model.module, 'space_carver_mode', False)
+        if space_carver_mode:
+            kwargs = organize_space_carver_kwargs(
+                space_carver_mode, kwargs, 
+                raw_data, data, device,
+                target_space=self.gt_pointcloud_transfer
+            )
 
         with torch.no_grad():
             _, out, _ = self.model(encoder_inputs, **kwargs)
@@ -467,9 +472,14 @@ class MSNTrainer(BaseTrainer):
         batch_size = gt_pc.size(0)
 
         kwargs = {}
-        if self.model.space_carver_mode:
-            kwargs = organize_space_carver_kwargs(self.model.space_carver_mode, kwargs, 
-                raw_data, data, device)
+        space_carver_mode = getattr(self.model, 'space_carver_mode', False) or \
+           getattr(self.model.module, 'space_carver_mode', False)
+        if space_carver_mode:
+            kwargs = organize_space_carver_kwargs(
+                space_carver_mode, kwargs, 
+                raw_data, data, device,
+                target_space=self.gt_pointcloud_transfer
+            )
 
         self.model.eval()
         with torch.no_grad():
