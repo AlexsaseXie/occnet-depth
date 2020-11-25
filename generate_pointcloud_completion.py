@@ -95,8 +95,7 @@ for batch in tqdm(train_loader):
     space_carver_mode = getattr(model, 'space_carver_mode', False) or \
         getattr(model.module, 'space_carver_mode', False)
     if space_carver_mode:
-        target_space = getattr(model, 'gt_pointcloud_transfer', False) or \
-            getattr(model.module, 'gt_pointcloud_transfer', False)
+        target_space = getattr(cfg['model'], 'gt_pointcloud_transfer', 'world_scale_model')
         kwargs = organize_space_carver_kwargs(
             space_carver_mode, kwargs, 
             raw_data, batch, device,
