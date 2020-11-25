@@ -68,6 +68,10 @@ try:
 except FileExistsError:
     load_dict = dict()
 
+method = cfg['method']
+if method == 'point_completion':
+    method = 'FCAE'
+
 it = 0
 for batch in tqdm(train_loader):
     it += 1
@@ -80,17 +84,28 @@ for batch in tqdm(train_loader):
     viewids = batch.get('viewid')
 
     kwargs = {}
-    if model.space_carver_mode:
+    space_carver_mode = getattr(model, 'space_carver_mode', False) or \
+        getattr(model.module, 'space_carver_mode', False)
+    if space_carver_mode:
+        target_space = getattr(model, 'gt_pointcloud_transfer', False) or \
+            getattr(model.module, 'gt_pointcloud_transfer', False)
         kwargs = organize_space_carver_kwargs(
-            model.space_carver_mode, kwargs, 
-            raw_data, batch, device
+            space_carver_mode, kwargs, 
+            raw_data, batch, device,
+            target_space=target_space
         )
 
     with torch.no_grad():
         pointcloud_hat = model(encoder_inputs, **kwargs)
 
-        if isinstance(pointcloud_hat, tuple):
-            pointcloud_hat,_ = pointcloud_hat
+        if method == 'FCAE':
+            if isinstance(pointcloud_hat, tuple):
+                pointcloud_hat,_ = pointcloud_hat
+        elif method == 'MSN': 
+            if isinstance(pointcloud_hat, tuple):
+                _, pointcloud_hat, _ = pointcloud_hat
+        else:
+            raise NotImplementedError
 
         if args.combine_pc:
             pointcloud_hat = torch.cat([pointcloud_hat, encoder_inputs], dim=1)

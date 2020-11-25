@@ -264,10 +264,11 @@ class S_DepthPointCloudField(Field):
         random_view (bool): whether a random view should be used
     '''
     def __init__(self, depth_pointcloud_root=None, depth_pointcloud_folder_name='depth_pointcloud',
-                  transform=None):
+                  transform=None, mixed=False):
         self.depth_pointcloud_root = depth_pointcloud_root
         self.depth_pointcloud_folder_name = depth_pointcloud_folder_name
         self.transform = transform
+        self.mixed = mixed
 
     def load(self, model_path, idx, category, view_id=None):
         ''' Loads the data point.
@@ -277,11 +278,19 @@ class S_DepthPointCloudField(Field):
             idx (int): ID of data point
             category (int): index of category
         '''
-        if self.depth_pointcloud_root is not None:
-            paths = model_path.split('/')
-            depth_pointcloud_folder = os.path.join(self.depth_pointcloud_root, paths[-2], paths[-1], self.depth_pointcloud_folder_name)
+        if not self.mixed:
+            if self.depth_pointcloud_root is not None:
+                paths = model_path.split('/')
+                depth_pointcloud_folder = os.path.join(self.depth_pointcloud_root, paths[-2], paths[-1], self.depth_pointcloud_folder_name)
+            else:
+                depth_pointcloud_folder = os.path.join(model_path, self.depth_pointcloud_folder_name)
         else:
-            depth_pointcloud_folder = os.path.join(model_path, self.depth_pointcloud_folder_name)
+            assert self.depth_pointcloud_root is not None
+            if random.random() >= 0.5:
+                paths = model_path.split('/')
+                depth_pointcloud_folder = os.path.join(self.depth_pointcloud_root, paths[-2], paths[-1], self.depth_pointcloud_folder_name)
+            else:
+                depth_pointcloud_folder = os.path.join(model_path, self.depth_pointcloud_folder_name)
 
         depth_pointcloud_files = sorted(glob.glob(os.path.join(depth_pointcloud_folder, '*.npz')))
 
@@ -386,10 +395,16 @@ class MixedInputField(Field):
                     t_lst.append(PointcloudNoise(cfg['data']['depth_pointcloud_noise']))
                 pc_transform = transforms.Compose(t_lst)
 
+                if 'depth_pointcloud_mix' in cfg['training']:
+                    mixed = cfg['training']['depth_pointcloud_mix']
+                else:
+                    mixed = False
+
                 field = S_DepthPointCloudField(
                     cfg['data']['depth_pointcloud_root'],
                     cfg['data']['depth_pointcloud_folder'],
-                    transform= pc_transform
+                    transform = pc_transform,
+                    mixed = mixed
                 )
             elif fi == 'view_id':
                 field = ViewIdField()
