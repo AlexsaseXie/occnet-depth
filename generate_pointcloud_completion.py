@@ -40,7 +40,7 @@ if args.out_dir == 'default':
 else:
     out_dir = args.out_dir
 
-if not os.exists(out_dir):
+if not os.path.exists(out_dir):
     os.mkdir(out_dir)
 
 if 'depth_pointcloud_transfer' in cfg['model']:
