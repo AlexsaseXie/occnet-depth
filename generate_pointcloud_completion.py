@@ -35,6 +35,9 @@ assert cfg['data']['input_type'] == 'depth_pointcloud'
 depth_pc_dir = cfg['data']['depth_pointcloud_root']
 out_dir = depth_pc_dir
 
+if not os.exists(out_dir):
+    os.mkdir(out_dir)
+
 if 'depth_pointcloud_transfer' in cfg['model']:
     depth_pointcloud_transfer = cfg['model']['depth_pointcloud_transfer']
 else:
@@ -118,6 +121,12 @@ for batch in tqdm(train_loader):
 
         cur_model_info = train_dataset.get_model_dict(idxs[i]) # category & model
         cur_viewid = viewids[i]
+
+        if not os.path.exists(os.path.join(out_dir, cur_model_info['category'])):
+            os.mkdir(os.path.join(out_dir, cur_model_info['category']))
+        
+        if not os.path.exists(os.path.join(out_dir, cur_model_info['category'], cur_model_info['model'])):
+            os.mkdir(os.path.join(out_dir, cur_model_info['category'], cur_model_info['model']))
 
         if not os.path.exists(os.path.join(out_dir, cur_model_info['category'], cur_model_info['model'], out_folder_name)):
             os.mkdir(os.path.join(out_dir, cur_model_info['category'], cur_model_info['model'], out_folder_name))
