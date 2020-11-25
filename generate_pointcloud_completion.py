@@ -17,6 +17,8 @@ parser = argparse.ArgumentParser(
     description='Generate pointcloud completion results.'
 )
 parser.add_argument('config', type=str, help='Path to config file.')
+parser.add_argument('--out_dir', type=str, default='default',
+                    help='Output dir name (default is the same as depth pointcloud folder)')
 parser.add_argument('--out_folder_name', type=str, default='depth_pointcloud_completion.direct', 
                     help='Output folder name (under original dataset folder)')
 parser.add_argument('--batch_size', type=int, default=256, help='Generation batch size.')
@@ -33,7 +35,10 @@ device = torch.device("cuda" if is_cuda else "cpu")
 print('input_type:', cfg['data']['input_type'])
 assert cfg['data']['input_type'] == 'depth_pointcloud'
 depth_pc_dir = cfg['data']['depth_pointcloud_root']
-out_dir = depth_pc_dir
+if args.out_dir == 'default':
+    out_dir = depth_pc_dir
+else:
+    out_dir = args.out_dir
 
 if not os.exists(out_dir):
     os.mkdir(out_dir)
