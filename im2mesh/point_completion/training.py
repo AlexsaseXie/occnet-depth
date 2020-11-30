@@ -390,8 +390,10 @@ class MSNTrainer(BaseTrainer):
         batch_size = gt_pc.size(0)
 
         kwargs = {}
-        space_carver_mode = getattr(self.model, 'space_carver_mode', False) or \
-           getattr(self.model.module, 'space_carver_mode', False)
+        if getattr(self.model, 'module', False):
+            space_carver_mode = getattr(self.model.module, 'space_carver_mode', False)
+        else:
+            space_carver_mode = getattr(self.model, 'space_carver_mode', False)
         if space_carver_mode:
             kwargs = organize_space_carver_kwargs(
                 space_carver_mode, kwargs, 
@@ -446,8 +448,10 @@ class MSNTrainer(BaseTrainer):
         batch_size = gt_pc.size(0)
 
         kwargs = {}
-        space_carver_mode = getattr(self.model, 'space_carver_mode', False) or \
-           getattr(self.model.module, 'space_carver_mode', False)
+        if getattr(self.model, 'module', False):
+            space_carver_mode = getattr(self.model.module, 'space_carver_mode', False)
+        else:
+            space_carver_mode = getattr(self.model, 'space_carver_mode', False)
         if space_carver_mode:
             kwargs = organize_space_carver_kwargs(
                 space_carver_mode, kwargs, 

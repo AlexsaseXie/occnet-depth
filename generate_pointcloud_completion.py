@@ -92,8 +92,10 @@ for batch in tqdm(train_loader):
     viewids = batch.get('viewid')
 
     kwargs = {}
-    space_carver_mode = getattr(model, 'space_carver_mode', False) or \
-        getattr(model.module, 'space_carver_mode', False)
+    if getattr(model, 'module', False):
+        space_carver_mode = getattr(model.module, 'space_carver_mode', False)
+    else:
+        space_carver_mode = getattr(model, 'space_carver_mode', False)
     if space_carver_mode:
         target_space = getattr(cfg['model'], 'gt_pointcloud_transfer', 'world_scale_model')
         kwargs = organize_space_carver_kwargs(

@@ -103,8 +103,12 @@ class Generator3D(object):
             encoder_inputs = depth
 
         kwargs = {}
-        if self.model.space_carver_mode:
-            kwargs = organize_space_carver_kwargs(self.model.space_carver_mode, kwargs, 
+        if getattr(self.model, 'module', False):
+            space_carver_mode = getattr(self.model.module, 'space_carver_mode', False)
+        else:
+            space_carver_mode = getattr(self.model, 'space_carver_mode', False)
+        if space_carver_mode:
+            kwargs = organize_space_carver_kwargs(space_carver_mode, kwargs, 
                 raw_data, data, device)
 
         # Encode inputs

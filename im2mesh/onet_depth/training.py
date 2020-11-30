@@ -222,7 +222,10 @@ class Phase2Trainer(BaseTrainer):
         occ_iou = data.get('points_iou.occ').to(device)
 
         kwargs = {}
-        space_carver_mode = getattr(self.model, 'space_carver_mode', False) or getattr(self.model.module, 'space_carver_mode', False)
+        if getattr(self.model, 'module', False):
+            space_carver_mode = getattr(self.model.module, 'space_carver_mode', False)
+        else:
+            space_carver_mode = getattr(self.model, 'space_carver_mode', False)
         if space_carver_mode:
             kwargs = organize_space_carver_kwargs(
                 space_carver_mode, kwargs, 
@@ -287,7 +290,10 @@ class Phase2Trainer(BaseTrainer):
         p = p.expand(batch_size, *p.size())
 
         kwargs = {}
-        space_carver_mode = getattr(self.model, 'space_carver_mode', False) or getattr(self.model.module, 'space_carver_mode', False)
+        if getattr(self.model, 'module', False):
+            space_carver_mode = getattr(self.model.module, 'space_carver_mode', False)
+        else:
+            space_carver_mode = getattr(self.model, 'space_carver_mode', False)
         if space_carver_mode:
             kwargs = organize_space_carver_kwargs(
                 space_carver_mode, kwargs, 
@@ -343,7 +349,10 @@ class Phase2Trainer(BaseTrainer):
             pr_depth_maps = pr_depth_maps * alpha + gt_depth_maps * (1.0 - alpha)
 
         kwargs = {}
-        space_carver_mode = getattr(self.model, 'space_carver_mode', False) or getattr(self.model.module, 'space_carver_mode', False)
+        if getattr(self.model, 'module', False):
+            space_carver_mode = getattr(self.model.module, 'space_carver_mode', False)
+        else:
+            space_carver_mode = getattr(self.model, 'space_carver_mode', False)
         if space_carver_mode:
             kwargs = organize_space_carver_kwargs(
                 space_carver_mode, kwargs, 
@@ -600,7 +609,10 @@ class Phase2HalfwayTrainer(BaseTrainer):
                                                 with_img=self.with_img, depth_pointcloud_transfer=self.depth_pointcloud_transfer,
                                                 local=self.local)
 
-        space_carver_mode = getattr(self.model, 'space_carver_mode', False) or getattr(self.model.module, 'space_carver_mode', False)
+        if getattr(self.model, 'module', False):
+            space_carver_mode = getattr(self.model.module, 'space_carver_mode', False)
+        else:
+            space_carver_mode = getattr(self.model, 'space_carver_mode', False)
         if space_carver_mode:
             kwargs = organize_space_carver_kwargs(
                 space_carver_mode, kwargs, 
@@ -667,7 +679,10 @@ class Phase2HalfwayTrainer(BaseTrainer):
                                                 local=self.local)
 
         kwargs = {}
-        space_carver_mode = getattr(self.model, 'space_carver_mode', False) or getattr(self.model.module, 'space_carver_mode', False)
+        if getattr(self.model, 'module', False):
+            space_carver_mode = getattr(self.model.module, 'space_carver_mode', False)
+        else:
+            space_carver_mode = getattr(self.model, 'space_carver_mode', False)
         if space_carver_mode:
             kwargs = organize_space_carver_kwargs(
                 space_carver_mode, kwargs, 
@@ -730,7 +745,10 @@ class Phase2HalfwayTrainer(BaseTrainer):
                                                 local=self.local)
 
         kwargs = {}
-        space_carver_mode = getattr(self.model, 'space_carver_mode', False) or getattr(self.model.module, 'space_carver_mode', False)
+        if getattr(self.model, 'module', False):
+            space_carver_mode = getattr(self.model.module, 'space_carver_mode', False)
+        else:
+            space_carver_mode = getattr(self.model, 'space_carver_mode', False)
         if space_carver_mode:
             kwargs = organize_space_carver_kwargs(
                 space_carver_mode, kwargs, 
