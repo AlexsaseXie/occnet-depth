@@ -69,7 +69,6 @@ def get_model(cfg, device=None, dataset=None, **kwargs):
             preserve_input=preserve_input,
             encoder_world_mat=encoder_world_mat
         )
-        model = model.to(device)
     elif method == 'MSN':
         if 'n_primitives' in cfg['model']:
             n_primitives = cfg['model']['n_primitives']
@@ -88,12 +87,23 @@ def get_model(cfg, device=None, dataset=None, **kwargs):
 
         model = MSN_model.MSN(encoder, num_points = output_points_count, n_primitives = n_primitives,
                 space_carver_mode=space_carver_mode, space_carver_eps=space_carver_eps)
-        # using multiple gpu
-        model = torch.nn.DataParallel(model)
-        model = model.to(device)
     else:
         raise NotImplementedError
 
+    if 'data_parallel' in cfg:
+        data_parallel = cfg['data_parallel']
+    else:
+        data_parallel = None
+    assert data_parallel in (None, 'DP', 'DDP')
+
+    # using multiple gpu
+    if data_parallel == 'DP':
+        model = torch.nn.DataParallel(model)
+    elif data_parallel == 'DDP':
+        #TODO: construct DDP module
+        raise NotImplementedError
+
+    model = model.to(device)
     return model
 
 

@@ -11,7 +11,6 @@ from im2mesh.common import get_camera_mat, transform_points, project_to_camera, 
 from im2mesh.eval import MeshEvaluator
 from im2mesh.utils.lib_pointcloud_distance import emd, chamfer_distance as cd
 from im2mesh.onet_depth.models import background_setting
-from im2mesh.point_completion.MSN_utils import emd_module as MSN_emd
 
 
 def compose_pointcloud(data, device, pointcloud_transfer=None, world_mat=None):
@@ -38,7 +37,8 @@ def compose_pointcloud(data, device, pointcloud_transfer=None, world_mat=None):
 
     return gt_pc
     
-
+# TODO: calc view penalty loss during FCAE module forward
+# in order to fit DP/DDP
 class PointCompletionTrainer(BaseTrainer):
     ''' Trainer object for the Occupancy Network.
 
@@ -134,12 +134,11 @@ class PointCompletionTrainer(BaseTrainer):
 
         with torch.no_grad():
             if self.model.encoder_world_mat is not None:
-                out = self.model(encoder_inputs, world_mat = world_mat)
+                loss, out = self.model(encoder_inputs, world_mat=world_mat, gt_pc=gt_pc, 
+                    loss_type=self.loss_type, train_loss=False)
             else:
-                out = self.model(encoder_inputs)
-
-            if isinstance(out, tuple):
-                out, trans_feat = out
+                loss, out = self.model(encoder_inputs, gt_pc=gt_pc, 
+                    loss_type=self.loss_type, train_loss=False)
 
             eval_dict = {}
             if batch_size == 1:
@@ -147,13 +146,6 @@ class PointCompletionTrainer(BaseTrainer):
                 pointcloud_gt = gt_pc.cpu().squeeze(0).numpy()
             
                 eval_dict = self.mesh_evaluator.eval_pointcloud(pointcloud_hat, pointcloud_gt)
-
-            # chamfer distance loss
-            if self.loss_type == 'cd':
-                dist1, dist2 = cd.chamfer_distance(out, gt_pc)
-                loss = (dist1.mean(1) + dist2.mean(1)) / 2.
-            else:
-                loss = emd.earth_mover_distance(out, gt_pc, transpose=False)
 
             if self.gt_pointcloud_transfer in ('world_scale_model', 'view_scale_model', 'view'):
                 pointcloud_scale = data.get('pointcloud.scale').to(device).view(batch_size, 1, 1)
@@ -164,12 +156,10 @@ class PointCompletionTrainer(BaseTrainer):
                     t_scale = world_mat[:, 2:, 3:]
                     loss = loss * (t_scale ** 2)   
  
+            loss = loss.mean()
             if self.loss_type == 'cd':
-                loss = loss.mean()
                 eval_dict['chamfer'] = loss.item()
             else:
-                out_pts_count = out.size(1)
-                loss = (loss / out_pts_count).mean()
                 eval_dict['emd'] = loss.item()
             
 
@@ -242,14 +232,10 @@ class PointCompletionTrainer(BaseTrainer):
         self.model.eval()
         with torch.no_grad():
             if self.model.encoder_world_mat is not None:
-                out = self.model(encoder_inputs, world_mat=world_mat)
+                out = self.model(encoder_inputs, world_mat=world_mat, train_loss=False)
             else:
-                out = self.model(encoder_inputs)
-        
-        if isinstance(out, tuple):
-            out, _ = out        
-
-
+                out = self.model(encoder_inputs, train_loss=False)
+               
         for i in trange(batch_size):
             pc = gt_pc[i].cpu()
             vis.visualize_pointcloud(pc, out_file=os.path.join(self.vis_dir, '%03d_gt_pc.png' % i))
@@ -281,24 +267,14 @@ class PointCompletionTrainer(BaseTrainer):
         gt_pc = compose_pointcloud(data, device, self.gt_pointcloud_transfer, world_mat=world_mat)
 
         if self.model.encoder_world_mat is not None:
-            out = self.model(encoder_inputs, world_mat = world_mat)
+            loss, out = self.model(encoder_inputs, world_mat=world_mat, gt_pc=gt_pc, 
+                loss_type=self.loss_type, train_loss=True)
         else:
-            out = self.model(encoder_inputs)
+            loss, out = self.model(encoder_inputs, gt_pc=gt_pc, 
+                loss_type=self.loss_type, train_loss=True)
 
-        loss = 0
-        if isinstance(out, tuple):
-            out, trans_feat = out
-
-            if isinstance(self.model.encoder, PointNetEncoder) or isinstance(self.model.encoder, PointNetResEncoder):
-                loss = loss + 0.001 * feature_transform_reguliarzer(trans_feat) 
-
-        # chamfer distance loss
-        if self.loss_type == 'cd':
-            dist1, dist2 = cd.chamfer_distance(out, gt_pc)
-            loss = (dist1.mean(1) + dist2.mean(1)).mean() / 2.
-        else:
-            out_pts_count = out.size(1)
-            loss = loss + (emd.earth_mover_distance(out, gt_pc, transpose=False) / out_pts_count).mean()
+        # Make sure loss is still working under DP
+        loss = loss.mean()
 
         # view penalty loss
         if self.view_penalty:
@@ -340,8 +316,7 @@ class PointCompletionTrainer(BaseTrainer):
                 # eps
                 loss_depth_test = F.relu(depth_z - self.depth_test_eps - corresponding_z, inplace=True).mean()
                 loss = loss + self.loss_depth_test_ratio * loss_depth_test
-                   
-            
+                    
         return loss
 
 
@@ -378,8 +353,7 @@ class MSNTrainer(BaseTrainer):
         else:
             print('Using %s for depth_pc & gt_pc' % depth_pointcloud_transfer)
 
-        self.mesh_evaluator = MeshEvaluator() 
-        self.MSN_EMD = MSN_emd.emdModule()
+        self.mesh_evaluator = MeshEvaluator()
 
     def train_step(self, data):
         ''' Performs a training step.

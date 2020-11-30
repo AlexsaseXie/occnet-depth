@@ -3,6 +3,8 @@ import torch.nn as nn
 from im2mesh.layers import ResnetBlockConv1d, ResnetBlockFC
 from im2mesh.encoder.pointnet import PointNetEncoder
 from im2mesh.utils.pointnet2_ops_lib.pointnet2_ops import pointnet2_utils
+from im2mesh.utils.lib_pointcloud_distance import emd, chamfer_distance as cd
+from im2mesh.encoder.pointnet import feature_transform_reguliarzer
 
 
 class PointDecoder(nn.Module):
@@ -61,7 +63,7 @@ class PointCompletionNetwork(nn.Module):
             self.encoder_world_mat = None
             
 
-    def forward(self, x, world_mat=None):
+    def forward(self, x, world_mat=None, gt_pc=None, loss_type='cd', train_loss=False):
         pointnet_encoder = False
         feats = self.encoder(x)
 
@@ -83,8 +85,26 @@ class PointCompletionNetwork(nn.Module):
             points_transferred = pointnet2_utils.gather_operation(x_flipped, points_transferred_idx).transpose(1, 2).contiguous()
             points_output = torch.cat([points_output, points_transferred], dim=1)
         
-        if pointnet_encoder:
-            return points_output, trans_feature
+        if gt_pc is None:
+            if train_loss and pointnet_encoder:
+                return points_output, trans_feature
+            else:
+                return points_output
         else:
-            return points_output
+            assert loss_type in ('cd', 'emd')
+            if loss_type == 'cd':
+                dist1, dist2 = cd.chamfer_distance(points_output, gt_pc)
+                loss = (dist1.mean(1) + dist2.mean(1)) / 2.
+            else:
+                loss = emd.earth_mover_distance(points_output, gt_pc, transpose=False)
+                out_pts_count = points_output.size(1)
+                loss = loss / out_pts_count
+
+            if train_loss and pointnet_encoder:
+                loss = loss.mean()
+                loss = loss + 0.001 * feature_transform_reguliarzer(trans_feature)
+                return loss, points_output
+            else:
+                return loss, points_output
+        
 

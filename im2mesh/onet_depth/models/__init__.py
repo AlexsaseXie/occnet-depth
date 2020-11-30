@@ -4,6 +4,8 @@ from torch import distributions as dist
 from im2mesh.onet_depth.models.space_carver import *
 from im2mesh.onet.models import encoder_latent, decoder as decoder2
 from im2mesh.onet_multi_layers_predict.models import decoder as decoder1
+from im2mesh.onet.loss_functions import get_occ_loss, occ_loss_postprocess
+from im2mesh.encoder.pointnet import feature_transform_reguliarzer
 
 # Encoder latent dictionary
 encoder_latent_dict = {
@@ -51,27 +53,27 @@ class OccupancyWithDepthNetwork(nn.Module):
             p0_z = dist.Normal(torch.tensor([]), torch.tensor([]))
 
         if depth_predictor is not None:
-            self.depth_predictor = depth_predictor.to(device)
+            self.depth_predictor = depth_predictor
         else:
             self.depth_predictor = None
         
         if decoder is not None: 
-            self.decoder = decoder.to(device)
+            self.decoder = decoder
         else:
             self.decoder = None
 
         if encoder_latent is not None:
-            self.encoder_latent = encoder_latent.to(device)
+            self.encoder_latent = encoder_latent
         else:
             self.encoder_latent = None
 
         if encoder is not None:
-            self.encoder = encoder.to(device)
+            self.encoder = encoder
         else:
             self.encoder = None
 
         if decoder_local is not None:
-            self.decoder_local = decoder_local.to(device)
+            self.decoder_local = decoder_local
         else:
             self.decoder_local = None
 
@@ -103,41 +105,128 @@ class OccupancyWithDepthNetwork(nn.Module):
         assert self.depth_predictor is not None
         return self.depth_predictor.fetch_minmax()
 
-    def forward(self, p, inputs, gt_mask=None, sample=True, halfway=False, **kwargs):
+    def forward(self, p, inputs, gt_mask=None, sample=True, 
+        func='forward', halfway=False,
+        # following params are for forward func 
+        train_loss=False, return_depth_map=False,
+        occ=None, loss_type='cross_entropy', loss_tolerance_episolon=0., 
+        sign_lambda=0., threshold=0.5, surface_loss_weight=1., **kwargs):
         ''' Performs a forward pass through the network.
 
-        only predict depth map and encode
+        its own function only predicts depth map and encodes
         not supporting decoder_local
 
+        new: made to be the entrance for all functions to support DP
         Args:
             p (tensor): sampled points
             inputs (tensor): conditioning input
             sample (bool): whether to sample for z
             halfway: whether to forward from intermediate inputs
         '''
-        if halfway:
-            return self.forward_halfway(p, inputs, sample=sample, **kwargs)
+
+        # default forward: forward_full
+        assert func in ('forward', 'compute_elbo', 
+            'encode', 'encode_first_step', 'encode_second_step', 
+            'decode')
+
+        if func == 'compute_elbo':
+            assert occ is not None
+            if halfway == False:
+                return self.compute_elbo(p, occ, inputs, gt_mask=gt_mask, **kwargs)
+            else:
+                return self.compute_elbo_halfway(p, occ, inputs, gt_mask=gt_mask, **kwargs)
+        elif func == 'forward':
+            if halfway:
+                return self.forward_halfway(p, inputs, sample=sample, train_loss=train_loss, 
+                            occ=occ, loss_type=loss_type, loss_tolerance_episolon=loss_tolerance_episolon, 
+                            sign_lambda=sign_lambda, threshold=threshold, surface_loss_weight=surface_loss_weight,
+                            **kwargs)
+            else:
+                return self.forward_full(p, inputs, sample=sample, train_loss=train_loss, 
+                            occ=occ, loss_type=loss_type, loss_tolerance_episolon=loss_tolerance_episolon, 
+                            sign_lambda=sign_lambda, threshold=threshold, surface_loss_weight=surface_loss_weight,
+                            **kwargs)
+        else:
+            raise NotImplementedError
+
+    def forward_full(self, p, inputs, gt_mask=None, sample=True, 
+            train_loss=False, return_depth_map=False,
+            occ=None, loss_type='cross_entropy', loss_tolerance_episolon=0., 
+            sign_lambda=0., threshold=0.5, surface_loss_weight=1., **kwargs):
+        ### here begins its own function
+        if train_loss:
+            assert occ is not None
 
         batch_size = p.size(0)
         depth_map = self.predict_depth_map(inputs)
-        background_setting(depth_map, gt_mask)       
+        background_setting(depth_map, gt_mask) 
         c = self.encode(depth_map)
-        z = self.get_z_from_prior((batch_size,), sample=sample)
-        p_r = self.decode(p, z, c, **kwargs)
-        return p_r
 
-    def forward_halfway(self, p, encoder_input, sample=True, **kwargs):
-        batch_size = p.size(0)   
-        c = self.encode(encoder_input, p=p)
-        z = self.get_z_from_prior((batch_size,), sample=sample)
+        if train_loss:
+            q_z = self.infer_z(p, occ, c, **kwargs)
+            z = q_z.rsample()
+        else:
+            z = self.get_z_from_prior((batch_size,), sample=sample)
+        
+        p_r = self.decode(p, z, c, **kwargs)
+
+        if train_loss:
+            loss = self.calc_loss(p_r, occ, q_z=q_z, trans_feature=None, loss_type=loss_type,
+                loss_tolerance_episolon=loss_tolerance_episolon, sign_lambda=sign_lambda, 
+                threshold=threshold, surface_loss_weight=surface_loss_weight)
+
+            if not return_depth_map:
+                return loss, p_r
+            else:
+                return loss, depth_map, p_r
+        else:
+            if not return_depth_map:
+                return p_r
+            else:
+                return depth_map, p_r
+
+    def forward_halfway(self, p, encoder_input, sample=True, train_loss=False, 
+        occ=None, loss_type='cross_entropy', loss_tolerance_episolon=0., 
+        sign_lambda=0., threshold=0.5, surface_loss_weight=1., **kwargs):
+
+        batch_size = p.size(0)
+        if train_loss:
+            assert occ is not None
+            c = self.encode(encoder_input, only_feature=False, p=p)
+
+            if isinstance(c, tuple):
+                trans_feature = c[-1]
+                if self.decoder_local is None:
+                    c = c[0]
+                else:
+                    c = (c[0], c[1])
+            else:
+                trans_feature = None
+        else:
+            c = self.encode(encoder_input, only_feature=True, p=p)
+
+        if train_loss:
+            q_z = self.infer_z(p, occ, c, **kwargs)
+            z = q_z.rsample()
+        else:
+            z = self.get_z_from_prior((batch_size,), sample=sample)
+
         # warning: **kwargs is used in space carver
         p_r = self.decode(p, z, c, **kwargs)
-        return p_r
+
+        if train_loss:
+            loss = self.calc_loss(p_r, occ, q_z=q_z, trans_feature=trans_feature, loss_type=loss_type,
+                loss_tolerance_episolon=loss_tolerance_episolon, sign_lambda=sign_lambda, 
+                threshold=threshold, surface_loss_weight=surface_loss_weight)
+
+            return loss, p_r
+        else:
+            return p_r
 
     def compute_elbo(self, p, occ, inputs, gt_mask, **kwargs):
         ''' Computes the expectation lower bound.
 
-        only predict depth map and encode
+        its own function only predicts depth map and encodes
         not supporting decoder_local
 
         Args:
@@ -260,12 +349,27 @@ class OccupancyWithDepthNetwork(nn.Module):
 
         return z
 
-    def to(self, device):
-        ''' Puts the model to the device.
+    def calc_loss(self, p_r, occ, q_z=None, trans_feature=None, loss_type='cross_entropy',
+        loss_tolerance_episolon=0., sign_lambda=0., threshold=0.5, surface_loss_weight=1.):
+        logits = p_r.logits
+        probs = p_r.probs
 
-        Args:
-            device (device): pytorch device
-        '''
-        model = super().to(device)
-        model._device = device
-        return model
+        loss = 0
+
+        if q_z is not None:
+            kl = dist.kl_divergence(q_z, self.p0_z).sum(dim=-1)
+            loss = loss + kl.mean()
+
+        if trans_feature is not None:
+            loss = loss + 0.001 * feature_transform_reguliarzer(trans_feature) 
+
+        loss_i = get_occ_loss(logits, occ, loss_type=loss_type)
+
+        loss_i = occ_loss_postprocess(loss_i, occ, probs, 
+            loss_tolerance_episolon=loss_tolerance_episolon, 
+            sign_lambda=sign_lambda, threshold=threshold, 
+            surface_loss_weight=surface_loss_weight
+        )
+
+        loss = loss + loss_i.sum(-1).mean()
+        return loss 

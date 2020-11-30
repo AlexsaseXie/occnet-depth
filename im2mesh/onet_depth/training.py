@@ -10,7 +10,6 @@ from im2mesh.utils import visualize as vis
 from im2mesh.training import BaseTrainer
 from im2mesh.onet_depth.models import background_setting
 
-from im2mesh.onet.loss_functions import get_occ_loss, occ_loss_postprocess
 from im2mesh.common import get_camera_args, get_world_mat, get_camera_mat, transform_points, transform_points_back
 from im2mesh.encoder.pointnet import feature_transform_reguliarzer, PointNetEncoder, PointNetResEncoder
 
@@ -22,6 +21,7 @@ def depth_to_L(pr_depth_map, gt_mask):
     pr_depth_map = (pr_depth_map - pr_depth_map_min) / (pr_depth_map_max - pr_depth_map_min)
     return pr_depth_map
 
+#TODO: make model.predict_depth_maps into model.forward
 class Phase1Trainer(BaseTrainer):
     ''' Phase1Trainer object for the Occupancy Network.
 
@@ -222,10 +222,16 @@ class Phase2Trainer(BaseTrainer):
         occ_iou = data.get('points_iou.occ').to(device)
 
         kwargs = {}
+        space_carver_mode = getattr(self.model, 'space_carver_mode', False) or getattr(self.model.module, 'space_carver_mode', False)
+        if space_carver_mode:
+            kwargs = organize_space_carver_kwargs(
+                space_carver_mode, kwargs, 
+                {}, data, device
+            )
 
         with torch.no_grad():
-            elbo, rec_error, kl = self.model.compute_elbo(
-                points, occ, inputs, gt_mask,  **kwargs)
+            elbo, rec_error, kl = self.model(points, occ, inputs, gt_mask, 
+                                    func='compute_elbo', halfway=False, **kwargs)
 
         eval_dict['loss'] = -elbo.mean().item()
         eval_dict['rec_error'] = rec_error.mean().item()
@@ -235,8 +241,8 @@ class Phase2Trainer(BaseTrainer):
         batch_size = points.size(0)
 
         with torch.no_grad():
-            p_out = self.model(points_iou, inputs, gt_mask,
-                               sample=self.eval_sample, **kwargs)
+            p_out = self.model(points_iou, inputs, gt_mask, sample=self.eval_sample,
+                                halfway=False, **kwargs)
 
         occ_iou_np = (occ_iou >= 0.5).cpu().numpy()
         occ_iou_hat_np = (p_out.probs >= threshold).cpu().numpy()
@@ -252,8 +258,8 @@ class Phase2Trainer(BaseTrainer):
                 batch_size, *points_voxels.size())
             points_voxels = points_voxels.to(device)
             with torch.no_grad():
-                p_out = self.model(points_voxels, inputs, gt_mask,
-                                   sample=self.eval_sample, **kwargs)
+                p_out = self.model(points_voxels, inputs, gt_mask, sample=self.eval_sample,
+                                    halfway=False, **kwargs)
 
             voxels_occ_np = (voxels_occ >= 0.5).cpu().numpy()
             occ_hat_np = (p_out.probs >= threshold).cpu().numpy()
@@ -281,10 +287,16 @@ class Phase2Trainer(BaseTrainer):
         p = p.expand(batch_size, *p.size())
 
         kwargs = {}
+        space_carver_mode = getattr(self.model, 'space_carver_mode', False) or getattr(self.model.module, 'space_carver_mode', False)
+        if space_carver_mode:
+            kwargs = organize_space_carver_kwargs(
+                space_carver_mode, kwargs, 
+                {}, data, device
+            )
+
         with torch.no_grad():
-            pr_depth_maps = self.model.predict_depth_map(inputs)
-            background_setting(pr_depth_maps, gt_mask)
-            p_r = self.model.forward_halfway(p, pr_depth_maps, sample=self.eval_sample, **kwargs)
+            pr_depth_maps, p_r = self.model(p, inputs, sample=self.eval_sample,
+                            halfway=False, train_loss=False, return_depth_map=True, **kwargs)
 
         occ_hat = p_r.probs.view(batch_size, *shape)
         voxels_out = (occ_hat >= self.threshold).cpu().numpy()
@@ -316,6 +328,7 @@ class Phase2Trainer(BaseTrainer):
         inputs = data.get('inputs').to(device)
         gt_mask = data.get('inputs.mask').to(device).byte()
 
+        # TODO: make the following steps into model.forward function
         if self.training_detach:
             with torch.no_grad():
                 pr_depth_maps = self.model.predict_depth_map(inputs)
@@ -330,25 +343,18 @@ class Phase2Trainer(BaseTrainer):
             pr_depth_maps = pr_depth_maps * alpha + gt_depth_maps * (1.0 - alpha)
 
         kwargs = {}
-        c = self.model.encode(pr_depth_maps)
-        q_z = self.model.infer_z(p, occ, c, **kwargs)
-        z = q_z.rsample()
+        space_carver_mode = getattr(self.model, 'space_carver_mode', False) or getattr(self.model.module, 'space_carver_mode', False)
+        if space_carver_mode:
+            kwargs = organize_space_carver_kwargs(
+                space_carver_mode, kwargs, 
+                {}, data, device, occ=occ
+            )
 
-        # KL-divergence
-        kl = dist.kl_divergence(q_z, self.model.p0_z).sum(dim=-1)
-        loss = kl.mean()
-
-        # General points
-        p_r = self.model.decode(p, z, c, **kwargs)
-        logits = p_r.logits
-        probs = p_r.probs
-        
-        # loss
-        loss_i = get_occ_loss(logits, occ, self.loss_type)
-        # loss strategies
-        loss_i = occ_loss_postprocess(loss_i, occ, probs, self.loss_tolerance_episolon, self.sign_lambda, self.threshold, self.surface_loss_weight)
-
-        loss = loss + loss_i.sum(-1).mean()
+        loss = self.model(p, pr_depth_maps, gt_mask=None, sample=True, 
+            halfway=True, train_loss=True,
+            occ=occ, loss_type=self.loss_type, loss_tolerance_episolon=self.loss_tolerance_episolon, 
+            sign_lambda=self.sign_lambda, threshold=self.threshold, 
+            surface_loss_weight=self.surface_loss_weight, **kwargs)
 
         return loss
 
@@ -594,13 +600,16 @@ class Phase2HalfwayTrainer(BaseTrainer):
                                                 with_img=self.with_img, depth_pointcloud_transfer=self.depth_pointcloud_transfer,
                                                 local=self.local)
 
-        if self.model.space_carver_mode:
-            kwargs = organize_space_carver_kwargs(self.model.space_carver_mode, kwargs, 
-                raw_data, data, device)
+        space_carver_mode = getattr(self.model, 'space_carver_mode', False) or getattr(self.model.module, 'space_carver_mode', False)
+        if space_carver_mode:
+            kwargs = organize_space_carver_kwargs(
+                space_carver_mode, kwargs, 
+                raw_data, data, device
+            )
 
         with torch.no_grad():
-            elbo, rec_error, kl = self.model.compute_elbo_halfway(
-                points, occ, encoder_inputs, **kwargs)
+            elbo, rec_error, kl = self.model(points, occ, encoder_inputs, 
+                                    func='compute_elbo', halfway=True, **kwargs)
 
         eval_dict['loss'] = -elbo.mean().item()
         eval_dict['rec_error'] = rec_error.mean().item()
@@ -610,8 +619,8 @@ class Phase2HalfwayTrainer(BaseTrainer):
         batch_size = points.size(0)
 
         with torch.no_grad():
-            p_out = self.model.forward_halfway(points_iou, encoder_inputs,
-                               sample=self.eval_sample, **kwargs)
+            p_out = self.model(points_iou, encoder_inputs, sample=self.eval_sample, 
+                                halfway=True, train_loss=False, **kwargs)
 
         occ_iou_np = (occ_iou >= 0.5).cpu().numpy()
         occ_iou_hat_np = (p_out.probs >= threshold).cpu().numpy()
@@ -627,8 +636,8 @@ class Phase2HalfwayTrainer(BaseTrainer):
                 batch_size, *points_voxels.size())
             points_voxels = points_voxels.to(device)
             with torch.no_grad():
-                p_out = self.model.forward_halfway(points_voxels, encoder_inputs,
-                                   sample=self.eval_sample, **kwargs)
+                p_out = self.model(points_voxels, encoder_inputs, sample=self.eval_sample, 
+                                    halfway=True, train_loss=False, **kwargs)
 
             voxels_occ_np = (voxels_occ >= 0.5).cpu().numpy()
             occ_hat_np = (p_out.probs >= threshold).cpu().numpy()
@@ -658,12 +667,16 @@ class Phase2HalfwayTrainer(BaseTrainer):
                                                 local=self.local)
 
         kwargs = {}
-        if self.model.space_carver_mode:
-            kwargs = organize_space_carver_kwargs(self.model.space_carver_mode, kwargs, 
-                raw_data, data, device)
+        space_carver_mode = getattr(self.model, 'space_carver_mode', False) or getattr(self.model.module, 'space_carver_mode', False)
+        if space_carver_mode:
+            kwargs = organize_space_carver_kwargs(
+                space_carver_mode, kwargs, 
+                raw_data, data, device
+            )
 
         with torch.no_grad():
-            p_r = self.model.forward_halfway(p, encoder_inputs, sample=self.eval_sample, **kwargs)
+            p_r = self.model(p, encoder_inputs, gt_mask=None, sample=self.eval_sample, 
+                halfway=True, train_loss=False, **kwargs)
 
         occ_hat = p_r.probs.view(batch_size, *shape)
         voxels_out = (occ_hat >= self.threshold).cpu().numpy()
@@ -717,40 +730,19 @@ class Phase2HalfwayTrainer(BaseTrainer):
                                                 local=self.local)
 
         kwargs = {}
-        c = self.model.encode(encoder_inputs, only_feature=False, p=p)
-        q_z = self.model.infer_z(p, occ, c, **kwargs)
-        z = q_z.rsample()
+        space_carver_mode = getattr(self.model, 'space_carver_mode', False) or getattr(self.model.module, 'space_carver_mode', False)
+        if space_carver_mode:
+            kwargs = organize_space_carver_kwargs(
+                space_carver_mode, kwargs, 
+                raw_data, data, device, occ=occ
+            )
 
-        # KL-divergence
-        kl = dist.kl_divergence(q_z, self.model.p0_z).sum(dim=-1)
-        loss = kl.mean()
+        loss = self.model(p, encoder_inputs, gt_mask=None, sample=True, 
+            halfway=True, train_loss=True,
+            occ=occ, loss_type=self.loss_type, loss_tolerance_episolon=self.loss_tolerance_episolon, 
+            sign_lambda=self.sign_lambda, threshold=self.threshold, 
+            surface_loss_weight=self.surface_loss_weight, **kwargs)
 
-        # additional loss for feature transform
-        if isinstance(c, tuple):
-            trans_feature = c[-1]
-            if self.local:
-                c = (c[0], c[1])
-            else:
-                c = c[0]
-        
-            if isinstance(self.model.encoder, PointNetEncoder) or isinstance(self.model.encoder, PointNetResEncoder):
-                loss = loss + 0.001 * feature_transform_reguliarzer(trans_feature) 
-
-        # General points
-        if self.model.space_carver_mode:
-            kwargs = organize_space_carver_kwargs(self.model.space_carver_mode, kwargs, 
-                raw_data, data, device, occ=occ)
-            
-        p_r = self.model.decode(p, z, c, **kwargs)
-        logits = p_r.logits
-        probs = p_r.probs
-
-
-        # loss
-        loss_i = get_occ_loss(logits, occ, self.loss_type)
-        # loss strategies
-        loss_i = occ_loss_postprocess(loss_i, occ, probs, self.loss_tolerance_episolon, self.sign_lambda, self.threshold, self.surface_loss_weight)
-
-        loss = loss + loss_i.sum(-1).mean()
-
+        # Make sure loss is still working under DP
+        loss = loss.mean()
         return loss

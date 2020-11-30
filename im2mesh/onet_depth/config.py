@@ -141,6 +141,20 @@ def get_model(cfg, device=None, dataset=None, **kwargs):
             space_carver_drop_p=space_carver_drop_p
         )
 
+    if 'data_parallel' in cfg:
+        data_parallel = cfg['data_parallel']
+    else:
+        data_parallel = None
+    assert data_parallel in (None, 'DP', 'DDP')
+
+    # using multiple gpu
+    if data_parallel == 'DP':
+        model = torch.nn.DataParallel(model)
+    elif data_parallel == 'DDP':
+        #TODO: construct DDP module
+        raise NotImplementedError
+
+    model = model.to(device)
     return model
 
 

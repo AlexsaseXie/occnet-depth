@@ -13,6 +13,7 @@ from im2mesh.onet_depth.training import compose_inputs, organize_space_carver_kw
 import time
 
 
+# Add DP & DDP support
 class Generator3D(object):
     '''  Generator class for Occupancy Networks.
 
@@ -45,6 +46,7 @@ class Generator3D(object):
                  depth_pointcloud_transfer=None,
                  local=False):
         self.model = model.to(device)
+        assert getattr(self.model, 'module', False) == False
         self.points_batch_size = points_batch_size
         self.refinement_step = refinement_step
         self.threshold = threshold
