@@ -233,8 +233,8 @@ class Phase2Trainer(BaseTrainer):
             )
 
         with torch.no_grad():
-            elbo, rec_error, kl = self.model(points, occ, inputs, gt_mask, 
-                                    func='compute_elbo', halfway=False, **kwargs)
+            elbo, rec_error, kl = self.model(points, inputs, gt_mask, 
+                                    func='compute_elbo', halfway=False, occ=occ, **kwargs)
 
         eval_dict['loss'] = -elbo.mean().item()
         eval_dict['rec_error'] = rec_error.mean().item()
@@ -359,12 +359,14 @@ class Phase2Trainer(BaseTrainer):
                 {}, data, device, occ=occ
             )
 
-        loss = self.model(p, pr_depth_maps, gt_mask=None, sample=True, 
+        loss, _ = self.model(p, pr_depth_maps, gt_mask=None, sample=True,
             halfway=True, train_loss=True,
             occ=occ, loss_type=self.loss_type, loss_tolerance_episolon=self.loss_tolerance_episolon, 
             sign_lambda=self.sign_lambda, threshold=self.threshold, 
             surface_loss_weight=self.surface_loss_weight, **kwargs)
 
+
+        loss = loss.mean()
         return loss
 
 def compose_inputs(data, mode='train', device=None, input_type='depth_pred',
@@ -620,8 +622,8 @@ class Phase2HalfwayTrainer(BaseTrainer):
             )
 
         with torch.no_grad():
-            elbo, rec_error, kl = self.model(points, occ, encoder_inputs, 
-                                    func='compute_elbo', halfway=True, **kwargs)
+            elbo, rec_error, kl = self.model(points,  encoder_inputs, 
+                                    func='compute_elbo', halfway=True, occ=occ, **kwargs)
 
         eval_dict['loss'] = -elbo.mean().item()
         eval_dict['rec_error'] = rec_error.mean().item()
@@ -631,7 +633,7 @@ class Phase2HalfwayTrainer(BaseTrainer):
         batch_size = points.size(0)
 
         with torch.no_grad():
-            p_out = self.model(points_iou, encoder_inputs, sample=self.eval_sample, 
+            p_out = self.model(points_iou, encoder_inputs, sample=self.eval_sample,
                                 halfway=True, train_loss=False, **kwargs)
 
         occ_iou_np = (occ_iou >= 0.5).cpu().numpy()
@@ -648,7 +650,7 @@ class Phase2HalfwayTrainer(BaseTrainer):
                 batch_size, *points_voxels.size())
             points_voxels = points_voxels.to(device)
             with torch.no_grad():
-                p_out = self.model(points_voxels, encoder_inputs, sample=self.eval_sample, 
+                p_out = self.model(points_voxels, encoder_inputs, sample=self.eval_sample,
                                     halfway=True, train_loss=False, **kwargs)
 
             voxels_occ_np = (voxels_occ >= 0.5).cpu().numpy()
@@ -690,7 +692,7 @@ class Phase2HalfwayTrainer(BaseTrainer):
             )
 
         with torch.no_grad():
-            p_r = self.model(p, encoder_inputs, gt_mask=None, sample=self.eval_sample, 
+            p_r = self.model(p, encoder_inputs, gt_mask=None, sample=self.eval_sample,
                 halfway=True, train_loss=False, **kwargs)
 
         occ_hat = p_r.probs.view(batch_size, *shape)
@@ -755,7 +757,7 @@ class Phase2HalfwayTrainer(BaseTrainer):
                 raw_data, data, device, occ=occ
             )
 
-        loss = self.model(p, encoder_inputs, gt_mask=None, sample=True, 
+        loss, _ = self.model(p, encoder_inputs, gt_mask=None, sample=True,
             halfway=True, train_loss=True,
             occ=occ, loss_type=self.loss_type, loss_tolerance_episolon=self.loss_tolerance_episolon, 
             sign_lambda=self.sign_lambda, threshold=self.threshold, 

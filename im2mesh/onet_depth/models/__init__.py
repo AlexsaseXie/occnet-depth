@@ -356,8 +356,12 @@ class OccupancyWithDepthNetwork(nn.Module):
 
         loss = 0
 
-        if q_z is not None:
-            kl = dist.kl_divergence(q_z, self.p0_z).sum(dim=-1)
+        if q_z is not None and q_z.loc.size(1) != 0:
+            loc = self.p0_z.loc.cuda()
+            scale = self.p0_z.scale.cuda()
+            p0_z = dist.Normal(loc, scale)
+
+            kl = dist.kl_divergence(q_z, p0_z).sum(dim=-1)
             loss = loss + kl.mean()
 
         if trans_feature is not None:

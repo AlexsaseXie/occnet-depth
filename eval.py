@@ -42,7 +42,6 @@ except FileExistsError:
 
 # Trainer
 trainer = config.get_trainer(model, None, cfg, device=device)
-trainer.vis_dir = 'eval_vis'
 
 # Print model
 nparameters = sum(p.numel() for p in model.parameters())
@@ -65,6 +64,7 @@ vis_loader = torch.utils.data.DataLoader(
     dataset, batch_size=12, shuffle=True,
     collate_fn=data.collate_remove_none,
     worker_init_fn=data.worker_init_fn)
+
 
 # Handle each dataset separately
 for it, data in enumerate(tqdm(test_loader)):
@@ -111,7 +111,14 @@ eval_df_class.to_csv(out_file_class)
 eval_df_class.loc['mean'] = eval_df_class.mean()
 print(eval_df_class)
 
-for i in range(3):
-    data_vis = next(vis_loader)
 
+for it, data_vis in enumerate(vis_loader):
+    current_out_vis_dir = os.path.join(out_vis_dir, '%d' % it)
+    if not os.path.exists(current_out_vis_dir):
+        os.mkdir(current_out_vis_dir)
+
+    trainer.vis_dir = current_out_vis_dir
     trainer.visualize(data_vis)
+
+    if it == 3:
+        break
