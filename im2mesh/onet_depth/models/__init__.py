@@ -1,5 +1,6 @@
 import torch
 import torch.nn as nn
+from torch.nn import functional as F
 from torch import distributions as dist
 from im2mesh.onet_depth.models.space_carver import *
 from im2mesh.onet.models import encoder_latent, decoder as decoder2
@@ -34,6 +35,13 @@ def background_setting(depth_maps, gt_masks, v=0.):
     #inplace function
     depth_maps[1. - gt_masks] = v
 
+# Important change log: 
+# 1.    change the return value of forward from dist.Bernoulli to torch tensors
+#       so that DP & DDP can be used during forward
+# TODO: 
+# 1.    make p0_z work during DP training 
+#       (basically the issue about the cuda tensor assignment of p0_z)
+# 2.    polish code & add comments
 class OccupancyWithDepthNetwork(nn.Module):
     ''' OccupancyWithDepth Network class.
 
@@ -44,7 +52,6 @@ class OccupancyWithDepthNetwork(nn.Module):
         p0_z (dist): prior distribution for latent code z
         device (device): torch device
     '''
-
     def __init__(self, depth_predictor=None, decoder=None, encoder=None, encoder_latent=None, p0_z=None,
                  device=None, decoder_local=None, local_logit_ratio=1., space_carver_mode=None, space_carver_eps=None,
                  space_carver_drop_p=None):
@@ -91,44 +98,31 @@ class OccupancyWithDepthNetwork(nn.Module):
         self.p0_z = p0_z
         self.local_logit_ratio = local_logit_ratio
 
-    def predict_depth_maps(self, inputs):
-        #batch_size = inputs.size(0)
-        assert self.depth_predictor is not None
-        return self.depth_predictor(inputs)
-
-    def predict_depth_map(self, inputs):
-        #batch_size = inputs.size(0)
-        assert self.depth_predictor is not None
-        return self.depth_predictor.get_last_predict(inputs)
-
-    def fetch_minmax(self):
-        assert self.depth_predictor is not None
-        return self.depth_predictor.fetch_minmax()
-
-    def forward(self, p, inputs, gt_mask=None, sample=True, 
+    ####### main entrance #######
+    def forward(self, p, inputs, gt_mask=None, 
         func='forward', halfway=False,
-        # following params are for forward func 
+        # following params are for get_z_from_prior
+        sample=True, 
+        # following params are for forward(calc_loss) func 
         train_loss=False, return_depth_map=False,
         occ=None, loss_type='cross_entropy', loss_tolerance_episolon=0., 
         sign_lambda=0., threshold=0.5, surface_loss_weight=1., **kwargs):
         ''' Performs a forward pass through the network.
 
-        its own function only predicts depth map and encodes
+        its default function (forward_full) only predicts depth map and encodes
         not supporting decoder_local
 
         new: made to be the entrance for all functions to support DP
-        Args:
-            p (tensor): sampled points
-            inputs (tensor): conditioning input
-            sample (bool): whether to sample for z
-            halfway: whether to forward from intermediate inputs
         '''
 
         # default forward: forward_full
-        assert func in ('forward', 'compute_elbo', 
+        assert func in ('forward', 'compute_elbo',
+            'predict_depth_map', 'predict_depth_maps', 'fetch_minmax',
             'encode', 'encode_first_step', 'encode_second_step', 
+            'get_z_from_prior',
             'decode')
 
+        # Notice: ONLY supporting funcions that will be called during training phase
         if func == 'compute_elbo':
             assert occ is not None
             if halfway == False:
@@ -146,9 +140,33 @@ class OccupancyWithDepthNetwork(nn.Module):
                             occ=occ, loss_type=loss_type, loss_tolerance_episolon=loss_tolerance_episolon, 
                             sign_lambda=sign_lambda, threshold=threshold, surface_loss_weight=surface_loss_weight,
                             **kwargs)
+        elif func == 'predict_depth_map':
+            return self.predict_depth_map(inputs)
+        elif func == 'predict_depth_maps':
+            return self.predict_depth_maps(inputs)
+        elif func == 'fetch_minmax':
+            return self.fetch_minmax()
+        elif func == 'encode':
+            return self.encode(inputs, only_feature=True, p=p)
         else:
             raise NotImplementedError
 
+    # Phase 1 functions
+    def predict_depth_maps(self, inputs):
+        #batch_size = inputs.size(0)
+        assert self.depth_predictor is not None
+        return self.depth_predictor(inputs)
+
+    def predict_depth_map(self, inputs):
+        #batch_size = inputs.size(0)
+        assert self.depth_predictor is not None
+        return self.depth_predictor.get_last_predict(inputs)
+
+    def fetch_minmax(self):
+        assert self.depth_predictor is not None
+        return self.depth_predictor.fetch_minmax()
+
+    # Phase 2 functions
     def forward_full(self, p, inputs, gt_mask=None, sample=True, 
             train_loss=False, return_depth_map=False,
             occ=None, loss_type='cross_entropy', loss_tolerance_episolon=0., 
@@ -168,22 +186,22 @@ class OccupancyWithDepthNetwork(nn.Module):
         else:
             z = self.get_z_from_prior((batch_size,), sample=sample)
         
-        p_r = self.decode(p, z, c, **kwargs)
+        logits = self.decode(p, z, c, **kwargs)
 
         if train_loss:
-            loss = self.calc_loss(p_r, occ, q_z=q_z, trans_feature=None, loss_type=loss_type,
+            loss = self.calc_loss(logits, occ, q_z=q_z, trans_feature=None, loss_type=loss_type,
                 loss_tolerance_episolon=loss_tolerance_episolon, sign_lambda=sign_lambda, 
                 threshold=threshold, surface_loss_weight=surface_loss_weight)
 
             if not return_depth_map:
-                return loss, p_r
+                return loss, logits
             else:
-                return loss, depth_map, p_r
+                return loss, depth_map, logits
         else:
             if not return_depth_map:
-                return p_r
+                return logits
             else:
-                return depth_map, p_r
+                return depth_map, logits
 
     def forward_halfway(self, p, encoder_input, sample=True, train_loss=False, 
         occ=None, loss_type='cross_entropy', loss_tolerance_episolon=0., 
@@ -212,16 +230,16 @@ class OccupancyWithDepthNetwork(nn.Module):
             z = self.get_z_from_prior((batch_size,), sample=sample)
 
         # warning: **kwargs is used in space carver
-        p_r = self.decode(p, z, c, **kwargs)
+        logits = self.decode(p, z, c, **kwargs)
 
         if train_loss:
-            loss = self.calc_loss(p_r, occ, q_z=q_z, trans_feature=trans_feature, loss_type=loss_type,
+            loss = self.calc_loss(logits, occ, q_z=q_z, trans_feature=trans_feature, loss_type=loss_type,
                 loss_tolerance_episolon=loss_tolerance_episolon, sign_lambda=sign_lambda, 
                 threshold=threshold, surface_loss_weight=surface_loss_weight)
 
-            return loss, p_r
+            return loss, logits
         else:
-            return p_r
+            return logits
 
     def compute_elbo(self, p, occ, inputs, gt_mask, **kwargs):
         ''' Computes the expectation lower bound.
@@ -239,9 +257,10 @@ class OccupancyWithDepthNetwork(nn.Module):
         c = self.encode(depth_map)
         q_z = self.infer_z(p, occ, c, **kwargs)
         z = q_z.rsample()
-        p_r = self.decode(p, z, c, **kwargs)
+        logits = self.decode(p, z, c, **kwargs)
 
-        rec_error = -p_r.log_prob(occ).sum(dim=-1)
+        rec_error = F.binary_cross_entropy_with_logits(
+            logits, occ, reduction='none').sum(dim=-1)
         kl = dist.kl_divergence(q_z, self.p0_z).sum(dim=-1)
         elbo = -rec_error - kl
 
@@ -251,9 +270,10 @@ class OccupancyWithDepthNetwork(nn.Module):
         c = self.encode(encoder_input, p=p)
         q_z = self.infer_z(p, occ, c, **kwargs)
         z = q_z.rsample()
-        p_r = self.decode(p, z, c, **kwargs)
+        logits = self.decode(p, z, c, **kwargs)
 
-        rec_error = -p_r.log_prob(occ).sum(dim=-1)
+        rec_error = F.binary_cross_entropy_with_logits(
+            logits, occ, reduction='none').sum(dim=-1)
         kl = dist.kl_divergence(q_z, self.p0_z).sum(dim=-1)
         elbo = -rec_error - kl
 
@@ -284,6 +304,8 @@ class OccupancyWithDepthNetwork(nn.Module):
     def decode(self, p, z, c, **kwargs):
         ''' Returns occupancy probabilities for the sampled points.
 
+        Important: now returns logits
+
         Args:
             p (tensor): points
             z (tensor): latent code z
@@ -313,8 +335,7 @@ class OccupancyWithDepthNetwork(nn.Module):
             # give very large negative value
             logits[remove_idx_bool] = -50.
 
-        p_r = dist.Bernoulli(logits=logits)
-        return p_r
+        return logits
 
     def infer_z(self, p, occ, c, **kwargs):
         ''' Infers z.
@@ -349,16 +370,14 @@ class OccupancyWithDepthNetwork(nn.Module):
 
         return z
 
-    def calc_loss(self, p_r, occ, q_z=None, trans_feature=None, loss_type='cross_entropy',
+    def calc_loss(self, logits, occ, q_z=None, trans_feature=None, loss_type='cross_entropy',
         loss_tolerance_episolon=0., sign_lambda=0., threshold=0.5, surface_loss_weight=1.):
-        logits = p_r.logits
-        probs = p_r.probs
-
+        probs = F.sigmoid(logits)
         loss = 0
 
         if q_z is not None and q_z.loc.size(1) != 0:
-            loc = self.p0_z.loc.cuda()
-            scale = self.p0_z.scale.cuda()
+            loc = self.p0_z.loc.to(self._device)
+            scale = self.p0_z.scale.to(self._device)
             p0_z = dist.Normal(loc, scale)
 
             kl = dist.kl_divergence(q_z, p0_z).sum(dim=-1)
@@ -377,3 +396,13 @@ class OccupancyWithDepthNetwork(nn.Module):
 
         loss = loss + loss_i.sum(-1).mean()
         return loss 
+
+    def to(self, device):
+        ''' Puts the model to the device.
+
+        Args:
+            device (device): pytorch device
+        '''
+        model = super().to(device)
+        model._device = device
+        return model

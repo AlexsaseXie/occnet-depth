@@ -13,7 +13,7 @@ from im2mesh.onet_depth.training import compose_inputs, organize_space_carver_kw
 import time
 
 
-# Add DP & DDP support
+# TODO: Add DP & DDP support
 class Generator3D(object):
     '''  Generator class for Occupancy Networks.
 
@@ -45,8 +45,10 @@ class Generator3D(object):
                  with_img=False,
                  depth_pointcloud_transfer=None,
                  local=False):
-        self.model = model.to(device)
-        assert getattr(self.model, 'module', False) == False
+        self.model = model
+        if getattr(self.model, 'module', False):
+            # force to use single gpu forward
+            self.model = self.model.module
         self.points_batch_size = points_batch_size
         self.refinement_step = refinement_step
         self.threshold = threshold
@@ -198,9 +200,9 @@ class Generator3D(object):
                 if self.local:
                     assert data is not None
                     c1 = self.model.encoder.forward_local_second_step(data, c[0], c[1], pi)
-                    occ_hat = self.model.decode(pi, z, c1, **kwargs).logits
+                    occ_hat = self.model.decode(pi, z, c1, **kwargs)
                 else:
-                    occ_hat = self.model.decode(pi, z, c, **kwargs).logits
+                    occ_hat = self.model.decode(pi, z, c, **kwargs)
 
             occ_hats.append(occ_hat.squeeze(0).detach().cpu())
 
@@ -291,9 +293,9 @@ class Generator3D(object):
             if self.local:
                 assert data is not None
                 c1 = self.model.encoder.forward_local_second_step(data, c[0], c[1], vi)
-                occ_hat = self.model.decode(vi, z, c1, **kwargs).logits
+                occ_hat = self.model.decode(vi, z, c1, **kwargs)
             else:
-                occ_hat = self.model.decode(vi, z, c, **kwargs).logits
+                occ_hat = self.model.decode(vi, z, c, **kwargs)
             out = occ_hat.sum()
             out.backward()
             ni = -vi.grad
@@ -352,11 +354,11 @@ class Generator3D(object):
                 assert data is not None
                 c1 = self.model.encoder.forward_local_second_step(data, c[0], c[1], fp) 
                 face_value = torch.sigmoid(
-                    self.model.decode(fp, z, c1, **kwargs).logits
+                    self.model.decode(fp, z, c1, **kwargs)
                 )
             else:
                 face_value = torch.sigmoid(
-                    self.model.decode(fp, z, c, **kwargs).logits
+                    self.model.decode(fp, z, c, **kwargs)
                 )
             normal_target = -autograd.grad(
                 [face_value.sum()], [face_point], retain_graph=True)[0]

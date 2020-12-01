@@ -21,7 +21,6 @@ def depth_to_L(pr_depth_map, gt_mask):
     pr_depth_map = (pr_depth_map - pr_depth_map_min) / (pr_depth_map_max - pr_depth_map_min)
     return pr_depth_map
 
-#TODO: make model.predict_depth_maps into model.forward
 class Phase1Trainer(BaseTrainer):
     ''' Phase1Trainer object for the Occupancy Network.
 
@@ -89,7 +88,7 @@ class Phase1Trainer(BaseTrainer):
         kwargs = {}
         self.model.eval()
         with torch.no_grad():
-            pr_depth_maps = self.model.predict_depth_map(inputs).cpu()
+            pr_depth_maps = self.model(None, inputs, func='predict_depth_map').cpu()
         
         for i in trange(batch_size):
             gt_depth_map = gt_depth_maps[i]
@@ -116,11 +115,12 @@ class Phase1Trainer(BaseTrainer):
         inputs = data.get('inputs').to(device)
         gt_depth_maps = data.get('inputs.depth').to(device)
         gt_mask = data.get('inputs.mask').to(device)
-        pr_depth_maps = self.model.predict_depth_maps(inputs)
+        pr_depth_maps = self.model(None, inputs, func='predict_depth_maps')
         n_predicts = pr_depth_maps.size(1)
 
         mask_pix_count = gt_mask.sum()
 
+        # TODO: make compute loss functions inside model.forward to balance gpu usage during DP forward
         loss = 0
         for i in range(n_predicts):
             # for object
@@ -133,7 +133,7 @@ class Phase1Trainer(BaseTrainer):
         if self.pred_minmax:
             gt_min = data.get('inputs.depth_min').to(device)
             gt_max = data.get('inputs.depth_max').to(device)
-            predicted_minmax = self.model.fetch_minmax()
+            predicted_minmax = self.model(None, None, func='fetch_minmax')
             w_minmax = (224 ** 2) / 2
             loss += w_minmax * F.mse_loss(predicted_minmax[:,0], gt_min)
             loss += w_minmax * F.mse_loss(predicted_minmax[:,1], gt_max)
@@ -244,8 +244,9 @@ class Phase2Trainer(BaseTrainer):
         batch_size = points.size(0)
 
         with torch.no_grad():
-            p_out = self.model(points_iou, inputs, gt_mask, sample=self.eval_sample,
+            logits = self.model(points_iou, inputs, gt_mask, sample=self.eval_sample,
                                 halfway=False, **kwargs)
+            p_out = dist.Bernoulli(logits=logits)
 
         occ_iou_np = (occ_iou >= 0.5).cpu().numpy()
         occ_iou_hat_np = (p_out.probs >= threshold).cpu().numpy()
@@ -261,8 +262,9 @@ class Phase2Trainer(BaseTrainer):
                 batch_size, *points_voxels.size())
             points_voxels = points_voxels.to(device)
             with torch.no_grad():
-                p_out = self.model(points_voxels, inputs, gt_mask, sample=self.eval_sample,
+                logits = self.model(points_voxels, inputs, gt_mask, sample=self.eval_sample,
                                     halfway=False, **kwargs)
+                p_out = dist.Bernoulli(logits=logits)
 
             voxels_occ_np = (voxels_occ >= 0.5).cpu().numpy()
             occ_hat_np = (p_out.probs >= threshold).cpu().numpy()
@@ -301,8 +303,9 @@ class Phase2Trainer(BaseTrainer):
             )
 
         with torch.no_grad():
-            pr_depth_maps, p_r = self.model(p, inputs, sample=self.eval_sample,
+            pr_depth_maps, logits = self.model(p, inputs, sample=self.eval_sample,
                             halfway=False, train_loss=False, return_depth_map=True, **kwargs)
+            p_r = dist.Bernoulli(logits=logits)
 
         occ_hat = p_r.probs.view(batch_size, *shape)
         voxels_out = (occ_hat >= self.threshold).cpu().numpy()
@@ -334,13 +337,13 @@ class Phase2Trainer(BaseTrainer):
         inputs = data.get('inputs').to(device)
         gt_mask = data.get('inputs.mask').to(device).byte()
 
-        # TODO: make the following steps into model.forward function
         if self.training_detach:
             with torch.no_grad():
-                pr_depth_maps = self.model.predict_depth_map(inputs)
+                pr_depth_maps = self.model(None, inputs, func='predict_depth_map')
         else:
-            pr_depth_maps = self.model.predict_depth_map(inputs)
+            pr_depth_maps = self.model(None, inputs, func='predict_depth_map')
 
+        # TODO: make the following steps into model.forward function
         background_setting(pr_depth_maps, gt_mask)
         if self.depth_map_mix:
             gt_depth_maps = data.get('inputs.depth').to(device)
@@ -633,8 +636,9 @@ class Phase2HalfwayTrainer(BaseTrainer):
         batch_size = points.size(0)
 
         with torch.no_grad():
-            p_out = self.model(points_iou, encoder_inputs, sample=self.eval_sample,
+            logits = self.model(points_iou, encoder_inputs, sample=self.eval_sample,
                                 halfway=True, train_loss=False, **kwargs)
+            p_out = dist.Bernoulli(logits=logits)
 
         occ_iou_np = (occ_iou >= 0.5).cpu().numpy()
         occ_iou_hat_np = (p_out.probs >= threshold).cpu().numpy()
@@ -650,8 +654,9 @@ class Phase2HalfwayTrainer(BaseTrainer):
                 batch_size, *points_voxels.size())
             points_voxels = points_voxels.to(device)
             with torch.no_grad():
-                p_out = self.model(points_voxels, encoder_inputs, sample=self.eval_sample,
+                logits = self.model(points_voxels, encoder_inputs, sample=self.eval_sample,
                                     halfway=True, train_loss=False, **kwargs)
+                p_out = dist.Bernoulli(logits=logits)
 
             voxels_occ_np = (voxels_occ >= 0.5).cpu().numpy()
             occ_hat_np = (p_out.probs >= threshold).cpu().numpy()
@@ -692,8 +697,9 @@ class Phase2HalfwayTrainer(BaseTrainer):
             )
 
         with torch.no_grad():
-            p_r = self.model(p, encoder_inputs, gt_mask=None, sample=self.eval_sample,
+            logits = self.model(p, encoder_inputs, gt_mask=None, sample=self.eval_sample,
                 halfway=True, train_loss=False, **kwargs)
+            p_r = dist.Bernoulli(logits=logits)
 
         occ_hat = p_r.probs.view(batch_size, *shape)
         voxels_out = (occ_hat >= self.threshold).cpu().numpy()
