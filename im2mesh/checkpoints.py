@@ -90,9 +90,25 @@ class CheckpointIO(object):
             if k in state_dict:
                 if k == 'model' and strict == False :
                     print('parsing model')
+                    # support DP model transfer
+                    if getattr(v, 'module', False):
+                        DP = True
+                    else:
+                        DP = False
+
                     # allow partial load
                     model_dict = v.state_dict()
-                    pretrain_dict = { para_key: para_v for para_key, para_v in state_dict['model'].items() if para_key in model_dict }
+                    pretrain_dict = {}
+                    for para_key, para_v in state_dict['model'].items():
+                        if para_key in model_dict:
+                            pretrain_dict[para_key] = para_v
+                        elif DP and (('module.' + para_key) in model_dict):
+                            pretrain_dict[('module.' + para_key)] = para_v
+                        elif not DP and (para_key[7:] in model_dict):
+                            pretrain_dict[para_key[7:]] = para_v
+                        else:
+                            print('Cannot find key %s in model' % para_key)
+
                     model_dict.update(pretrain_dict)
                     v.load_state_dict(model_dict)
                 elif k == 'optimizer' and load_optimizer == False:
