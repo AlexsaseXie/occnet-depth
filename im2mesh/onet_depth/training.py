@@ -570,7 +570,7 @@ class Phase2HalfwayTrainer(BaseTrainer):
         if self.local:
             print('Predict using local features') 
 
-        assert depth_pointcloud_transfer in ('world', 'world_scale_model', 'view', 'view_scale_model')
+        assert depth_pointcloud_transfer in (None, 'world', 'world_scale_model', 'view', 'view_scale_model')
 
         if vis_dir is not None and not os.path.exists(vis_dir):
             os.makedirs(vis_dir)
@@ -607,6 +607,12 @@ class Phase2HalfwayTrainer(BaseTrainer):
         points_iou = data.get('points_iou').to(device)
         occ_iou = data.get('points_iou.occ').to(device)
 
+        batch_size = points.size(0)
+        if getattr(self.model, 'module', False) and batch_size < torch.cuda.device_count():
+            DP_fix = True
+        else:
+            DP_fix = False
+
         kwargs = {}
 
         encoder_inputs, raw_data = compose_inputs(data, mode='val', device=self.device, input_type=self.input_type,
@@ -625,7 +631,11 @@ class Phase2HalfwayTrainer(BaseTrainer):
             )
 
         with torch.no_grad():
-            elbo, rec_error, kl = self.model(points,  encoder_inputs, 
+            if DP_fix:
+                elbo, rec_error, kl = self.model.module.forward(points, encoder_inputs,
+                                    func='compute_elbo', halfway=True, occ=occ, **kwargs)
+            else:
+                elbo, rec_error, kl = self.model(points, encoder_inputs, 
                                     func='compute_elbo', halfway=True, occ=occ, **kwargs)
 
         eval_dict['loss'] = -elbo.mean().item()
@@ -633,11 +643,13 @@ class Phase2HalfwayTrainer(BaseTrainer):
         eval_dict['kl'] = kl.mean().item()
 
         # Compute iou
-        batch_size = points.size(0)
-
         with torch.no_grad():
-            logits = self.model(points_iou, encoder_inputs, sample=self.eval_sample,
-                                halfway=True, train_loss=False, **kwargs)
+            if DP_fix:
+                logits = self.model.module.forward(points_iou, encoder_inputs, sample=self.eval_sample,
+                                     halfway=True, train_loss=False, **kwargs)
+            else:
+                logits = self.model(points_iou, encoder_inputs, sample=self.eval_sample,
+                                     halfway=True, train_loss=False, **kwargs)
             p_out = dist.Bernoulli(logits=logits)
 
         occ_iou_np = (occ_iou >= 0.5).cpu().numpy()
@@ -654,7 +666,11 @@ class Phase2HalfwayTrainer(BaseTrainer):
                 batch_size, *points_voxels.size())
             points_voxels = points_voxels.to(device)
             with torch.no_grad():
-                logits = self.model(points_voxels, encoder_inputs, sample=self.eval_sample,
+                if DP_fix:
+                    logits = self.model.module.forward(points_voxels, encoder_inputs, sample=self.eval_sample,
+                                    halfway=True, train_loss=False, **kwargs)
+                else:
+                    logits = self.model(points_voxels, encoder_inputs, sample=self.eval_sample,
                                     halfway=True, train_loss=False, **kwargs)
                 p_out = dist.Bernoulli(logits=logits)
 

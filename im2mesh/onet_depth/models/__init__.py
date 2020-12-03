@@ -261,7 +261,16 @@ class OccupancyWithDepthNetwork(nn.Module):
 
         rec_error = F.binary_cross_entropy_with_logits(
             logits, occ, reduction='none').sum(dim=-1)
-        kl = dist.kl_divergence(q_z, self.p0_z).sum(dim=-1)
+
+        if q_z is not None and q_z.loc.size(1) != 0:
+            loc = self.p0_z.loc.to(self._device)
+            scale = self.p0_z.scale.to(self._device)
+            p0_z = dist.Normal(loc, scale)
+
+            kl = dist.kl_divergence(q_z, p0_z).sum(dim=-1)
+        else:
+            kl = torch.zeros(p.size(0)).cuda()
+
         elbo = -rec_error - kl
 
         return elbo, rec_error, kl
@@ -274,7 +283,16 @@ class OccupancyWithDepthNetwork(nn.Module):
 
         rec_error = F.binary_cross_entropy_with_logits(
             logits, occ, reduction='none').sum(dim=-1)
-        kl = dist.kl_divergence(q_z, self.p0_z).sum(dim=-1)
+
+        if q_z is not None and q_z.loc.size(1) != 0:
+            loc = self.p0_z.loc.to(self._device)
+            scale = self.p0_z.scale.to(self._device)
+            p0_z = dist.Normal(loc, scale)
+
+            kl = dist.kl_divergence(q_z, p0_z).sum(dim=-1)
+        else:
+            kl = torch.zeros(p.size(0)).cuda()
+
         elbo = -rec_error - kl
 
         return elbo, rec_error, kl
