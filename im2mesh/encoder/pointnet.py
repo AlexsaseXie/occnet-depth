@@ -3,6 +3,8 @@ import torch.nn as nn
 from im2mesh.layers import ResnetBlockFC, ResnetBlockConv1d
 import numpy as np
 import torch.nn.functional as F
+from im2mesh.utils.pointnet2_ops_lib.pointnet2_ops.pointnet2_utils import QueryAndGroup, ball_query, grouping_operation
+from im2mesh.utils.pointnet2_ops_lib.pointnet2_ops.pointnet2_modules import build_shared_mlp
 
 def maxpool(x, dim=-1, keepdim=False):
     out, _ = x.max(dim=dim, keepdim=keepdim)
@@ -199,7 +201,8 @@ class STNkd(nn.Module):
 
 
 class PointNetEncoder(nn.Module):
-    def __init__(self, c_dim=1024, global_feat=True, feature_transform=True, channel=3, only_point_feature=False, model_pretrained=None, local=False):
+    def __init__(self, c_dim=1024, global_feat=True, feature_transform=True, channel=3, 
+        only_point_feature=False, model_pretrained=None, local=False):
         super(PointNetEncoder, self).__init__()
         self.stn = STN3d(channel)
         self.conv1 = torch.nn.Conv1d(channel, 64, 1)
@@ -224,7 +227,8 @@ class PointNetEncoder(nn.Module):
 
         self.local = local
         if self.local:
-            self.local_fc = ResnetBlockFC(64+128+c_dim, c_dim)
+            self.local_fc = ResnetBlockFC(128 + 64 + 128 + c_dim, c_dim)
+            self.xyz_fc = build_shared_mlp([3, 64, 128])
 
     def forward(self, x):
         # match the input of pointnet
@@ -264,31 +268,33 @@ class PointNetEncoder(nn.Module):
         else:
             return x, trans_point, trans_feat
 
-    def forward_local(self, data, pts, K=5):
-        #TODO: this function needs rework
-        assert self.local
-        x = data[None]
-
-        # calc dist matrix
-        B, N, D = x.size()
-        _, N_pt, _ = pts.size()
-        
-        if D > 3:
-            a = x[:,:,:3].unsqueeze(2).expand(B, N, N_pt, 3)
-            b = pts[:,:,:3].unsqueeze(1).expand(B, N, N_pt, 3)
+    def forward_local(self, data, pts, radius=0.1, n_sample=64):
+        '''
+            outputs:
+            global feature: B * c_dim
+            local feature: B * c_dim * n_pts
+        '''
+        # UPDATE: reworked
+        if self.only_point_feature:
+            c, feature_maps = self.forward_local_first_step(data, return_trans_mat=False)
         else:
-            a = x.unsqueeze(2).expand(B, N, N_pt, D)
-            b = pts.unsqueeze(1).expand(B, N, N_pt, D)
-        dist = ((a - b) ** 2).sum(dim=3)
-        
-        _, indices = torch.topk(dist, K, dim=1, largest=False) # indices : B * K * N_pt
-        # e.g. dist_v == dist.gather(1, indices)
+            c, feature_maps, trans_point, trans_feat = self.forward_local_first_step(data, return_trans_mat=True)
 
-        indices = indices.unsqueeze(3).transpose(1, 3) # indices : B * 1 * N_pt * K
+        c, local_feats = self.forward_local_second_step(data, c, feature_maps, pts, radius=radius, n_sample=n_sample)
+
+        if self.only_point_feature:
+            return c, local_feats 
+        else:
+            return c, local_feats, trans_point, trans_feat
+
+    def forward_local_first_step(self, data, return_trans_mat=False):
+        assert self.local
+        x = data[None]  # x: batch * n_x * 3
 
         feature_maps = []
         # match the input of pointnet
-        x = x.transpose(2, 1) # x: batch * 3 * n_pts
+        x = x.transpose(2, 1) # x: batch * 3 * n_x
+        B, D, N = x.size()
 
         trans_point = self.stn(x)
         x = x.transpose(2, 1)
@@ -321,31 +327,45 @@ class PointNetEncoder(nn.Module):
             x = x.view(-1, self.c_dim, 1).repeat(1, 1, N)
             x = torch.cat([x, pointfeat], 1)
 
-        local_feats = []
-        for fm in feature_maps:
-            #fm = fm.detach()
-            _, fm_c, _ = fm.size() # B * fm_c * N
-            
-            fm = fm.unsqueeze(2).expand(B, fm_c, N_pt, N)
-            f_local = fm.gather(3, indices.expand(B, fm_c, N_pt, K))
-            local_feats.append(f_local.mean(dim=3)) # append: B * fm_c * N_pt
+        if return_trans_mat:
+            return x, feature_maps, trans_point, trans_feat
+        else:
+            return x, feature_maps
 
-        local_feats = torch.cat(local_feats, 1).transpose(2, 1)
+    def forward_local_second_step(self, data, c, feature_maps, pts, radius=0.1, n_sample=64):
+        assert self.local
+        x = data[None]  # x: batch * n_x * 3
+
+        # grouping indices
+        idx = ball_query(pts, x, radius, n_sample)
+
+        x_trans = x.transpose(2, 1).contiguous() # x: batch * 3 * n_x
+
+        # xyz feature
+        grouped_xyz = grouping_operation(x_trans, idx)  # B * 3 * n_pts * n_sample
+        grouped_xyz -= pts.transpose(1, 2).unsqueeze(-1)
+
+        # compute local features
+        grouped_xyz = self.xyz_fc(grouped_xyz)
+        local_feats = [grouped_xyz.max(3)[0]]
+        for fm in feature_maps:
+            grouped_features = grouping_operation(fm, idx).max(3)[0] # B * C * n_pts
+            local_feats.append(grouped_features) # B * C * n_pts
+
+        local_feats = torch.cat(local_feats, 1)
         local_feats = self.local_fc(local_feats)
 
-        if self.only_point_feature:
-            return x, local_feats
-        else:
-            return x, local_feats, trans_point, trans_feat
+        return c, local_feats
 
 
 class PointNetResEncoder(nn.Module):
-    def __init__(self, c_dim=1024, global_feat=True, feature_transform=True, channel=3, only_point_feature=False, model_pretrained=None):
+    def __init__(self, c_dim=1024, global_feat=True, feature_transform=True, channel=3,
+        only_point_feature=False, model_pretrained=None, local=False):
         super(PointNetResEncoder, self).__init__()
         self.stn = STN3d(channel)
         self.block1 = ResnetBlockConv1d(channel, 64, 64)
-        self.block2 = ResnetBlockConv1d(64, 128, 128)
-        self.block3 = ResnetBlockConv1d(128, c_dim, c_dim)
+        self.block2 = ResnetBlockConv1d(64, 256, 256)
+        self.block3 = ResnetBlockConv1d(256, c_dim, c_dim)
 
         self.c_dim = c_dim
         self.global_feat = global_feat
@@ -359,6 +379,10 @@ class PointNetResEncoder(nn.Module):
             print('Loading depth encoder from ', model_pretrained)
             state_dict = torch.load(model_pretrained, map_location='cpu')
             self.load_state_dict(state_dict)
+
+        if self.local:
+            self.local_fc = ResnetBlockFC(128 + 64 + 128 + c_dim, c_dim)
+            self.xyz_fc = build_shared_mlp([3, 64, 128])
 
     def forward(self, x):
         # match the input of pointnet
@@ -398,6 +422,95 @@ class PointNetResEncoder(nn.Module):
         else:
             return x, trans_point, trans_feat
 
+    def forward_local(self, data, pts, radius=0.1, n_sample=64):
+        '''
+            outputs:
+            global feature: B * c_dim
+            local feature: B * c_dim * n_pts
+        '''
+        # UPDATE: reworked
+        if self.only_point_feature:
+            c, feature_maps = self.forward_local_first_step(data, return_trans_mat=False)
+        else:
+            c, feature_maps, trans_point, trans_feat = self.forward_local_first_step(data, return_trans_mat=True)
+
+        c, local_feats = self.forward_local_second_step(data, c, feature_maps, pts, radius=radius, n_sample=n_sample)
+
+        if self.only_point_feature:
+            return c, local_feats 
+        else:
+            return c, local_feats, trans_point, trans_feat
+
+    def forward_local_first_step(self, data, return_trans_mat=False):
+        assert self.local
+        x = data[None]  # x: batch * n_x * 3
+
+        feature_maps = []
+        # match the input of pointnet
+        x = x.transpose(2, 1) # x: batch * 3 * n_x
+        B, D, N = x.size()
+
+        trans_point = self.stn(x)
+        x = x.transpose(2, 1)
+        if D > 3:
+            x, feature = x.split(3,dim=2)
+        x = torch.bmm(x, trans_point)
+        if D > 3:
+            x = torch.cat([x,feature],dim=2)
+        x = x.transpose(2, 1)
+        x = F.relu(self.bn1(self.block1(x)))
+        feature_maps.append(x)
+
+        if self.feature_transform:
+            trans_feat = self.fstn(x)
+            x = x.transpose(2, 1)
+            x = torch.bmm(x, trans_feat)
+            x = x.transpose(2, 1)
+        else:
+            trans_feat = None
+
+        pointfeat = x
+        x = F.relu(self.bn2(self.block2(x)))
+        feature_maps.append(x)
+        x = self.bn3(self.block3(x))
+        feature_maps.append(x)
+        x = torch.max(x, 2, keepdim=True)[0]
+        x = x.view(-1, self.c_dim)
+
+        if not self.global_feat:
+            x = x.view(-1, self.c_dim, 1).repeat(1, 1, N)
+            x = torch.cat([x, pointfeat], 1)
+
+        if return_trans_mat:
+            return x, feature_maps, trans_point, trans_feat
+        else:
+            return x, feature_maps
+
+    def forward_local_second_step(self, data, c, feature_maps, pts, radius=0.1, n_sample=64):
+        assert self.local
+        x = data[None]  # x: batch * n_x * 3
+
+        # grouping indices
+        idx = ball_query(pts, x, radius, n_sample)
+
+        x_trans = x.transpose(2, 1).contiguous() # x: batch * 3 * n_x
+
+        # xyz feature
+        grouped_xyz = grouping_operation(x_trans, idx)  # B * 3 * n_pts * n_sample
+        grouped_xyz -= pts.transpose(1, 2).unsqueeze(-1)
+
+        # compute local features
+        grouped_xyz = self.xyz_fc(grouped_xyz)
+        local_feats = [grouped_xyz.max(3)[0]]
+        for fm in feature_maps:
+            grouped_features = grouping_operation(fm, idx).max(3)[0] # B * C * n_pts
+            local_feats.append(grouped_features) # B * C * n_pts
+
+        local_feats = torch.cat(local_feats, 1)
+        local_feats = self.local_fc(local_feats)
+
+        return c, local_feats
+
 
 def feature_transform_reguliarzer(trans):
     d = trans.size()[1]
@@ -428,7 +541,7 @@ class StackedPointnet(nn.Module):
             nn.Conv1d(256, 512, 1),
             nn.BatchNorm1d(512),
             nn.ReLU(),
-            nn.Conv1d(512, 1024, 1),
+            nn.Conv1d(512, c_dim, 1),
         ])
 
     def forward(self, x):

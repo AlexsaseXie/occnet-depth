@@ -21,8 +21,11 @@ __global__ void group_points_kernel(int b, int c, int n, int npoints,
 	const int l = i / npoints;
 	const int j = i % npoints;
 	for (int k = 0; k < nsample; ++k) {
-	    int ii = idx[j * nsample + k];
-	    out[(l * npoints + j) * nsample + k] = points[l * n + ii];
+		int ii = idx[j * nsample + k];
+		// change: check if the idx is invalid
+		if (ii != -1) {
+			out[(l * npoints + j) * nsample + k] = points[l * n + ii];
+		}
 	}
     }
 }
@@ -56,9 +59,12 @@ __global__ void group_points_grad_kernel(int b, int c, int n, int npoints,
 	const int l = i / npoints;
 	const int j = i % npoints;
 	for (int k = 0; k < nsample; ++k) {
-	    int ii = idx[j * nsample + k];
-	    atomicAdd(grad_points + l * n + ii,
-		      grad_out[(l * npoints + j) * nsample + k]);
+		int ii = idx[j * nsample + k];
+		//change: check if the idx is invalid
+		if (ii != -1) {
+			atomicAdd(grad_points + l * n + ii,
+				grad_out[(l * npoints + j) * nsample + k]);
+		}
 	}
     }
 }

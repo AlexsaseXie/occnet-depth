@@ -13,7 +13,10 @@ __global__ void gather_points_kernel(int b, int c, int n, int m,
 	for (int l = blockIdx.y; l < c; l += gridDim.y) {
 	    for (int j = threadIdx.x; j < m; j += blockDim.x) {
 		int a = idx[i * m + j];
-		out[(i * c + l) * m + j] = points[(i * c + l) * n + a];
+		// change: check if the idx is invalid
+		if (a != -1) {
+			out[(i * c + l) * m + j] = points[(i * c + l) * n + a];
+		}
 	    }
 	}
     }
@@ -40,8 +43,11 @@ __global__ void gather_points_grad_kernel(int b, int c, int n, int m,
 	for (int l = blockIdx.y; l < c; l += gridDim.y) {
 	    for (int j = threadIdx.x; j < m; j += blockDim.x) {
 		int a = idx[i * m + j];
-		atomicAdd(grad_points + (i * c + l) * n + a,
-			  grad_out[(i * c + l) * m + j]);
+		// change: check if the idx is invalid
+		if (a != -1) {
+			atomicAdd(grad_points + (i * c + l) * n + a,
+				grad_out[(i * c + l) * m + j]);
+		}
 	    }
 	}
     }

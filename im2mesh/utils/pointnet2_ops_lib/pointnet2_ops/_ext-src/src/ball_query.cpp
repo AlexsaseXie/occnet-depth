@@ -19,6 +19,9 @@ at::Tensor ball_query(at::Tensor new_xyz, at::Tensor xyz, const float radius,
     at::Tensor idx =
 	torch::zeros({new_xyz.size(0), new_xyz.size(1), nsample},
 		     at::device(new_xyz.device()).dtype(at::ScalarType::Int));
+    
+    // change: initialize with -1
+    idx.fill_(-1);
 
     if (new_xyz.type().is_cuda()) {
 	query_ball_point_kernel_wrapper(

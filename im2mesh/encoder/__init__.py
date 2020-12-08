@@ -20,6 +20,7 @@ encoder_dict = {
 
     'depth_resnet18': depth_conv.Depth_Resnet18,
     'pointnet': pointnet.PointNetEncoder,
+    'pointnet_res': pointnet.PointNetResEncoder,
     'stacked_pointnet': pointnet.StackedPointnet,
     'msn_pointnet': pointnet.MSNPointNetFeat
 }
