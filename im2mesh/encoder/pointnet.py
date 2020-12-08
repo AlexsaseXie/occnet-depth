@@ -202,7 +202,7 @@ class STNkd(nn.Module):
 
 class PointNetEncoder(nn.Module):
     def __init__(self, c_dim=1024, global_feat=True, feature_transform=True, channel=3, 
-        only_point_feature=False, model_pretrained=None, local=False):
+        only_point_feature=False, model_pretrained=None, local=False, local_feature_dim=1024):
         super(PointNetEncoder, self).__init__()
         self.stn = STN3d(channel)
         self.conv1 = torch.nn.Conv1d(channel, 64, 1)
@@ -227,7 +227,7 @@ class PointNetEncoder(nn.Module):
 
         self.local = local
         if self.local:
-            self.local_fc = ResnetBlockFC(128 + 64 + 128 + c_dim, c_dim)
+            self.local_fc = ResnetBlockFC(128 + 64 + 128 + c_dim, local_feature_dim)
             self.xyz_fc = build_shared_mlp([3, 64, 128])
 
     def forward(self, x):
@@ -360,7 +360,7 @@ class PointNetEncoder(nn.Module):
 
 class PointNetResEncoder(nn.Module):
     def __init__(self, c_dim=1024, global_feat=True, feature_transform=True, channel=3,
-        only_point_feature=False, model_pretrained=None, local=False):
+        only_point_feature=False, model_pretrained=None, local=False, local_feature_dim=1024):
         super(PointNetResEncoder, self).__init__()
         self.stn = STN3d(channel)
         self.block1 = ResnetBlockConv1d(channel, 64, 64)
@@ -381,7 +381,7 @@ class PointNetResEncoder(nn.Module):
             self.load_state_dict(state_dict)
 
         if self.local:
-            self.local_fc = ResnetBlockFC(128 + 64 + 128 + c_dim, c_dim)
+            self.local_fc = ResnetBlockFC(128 + 64 + 128 + c_dim, local_feature_dim)
             self.xyz_fc = build_shared_mlp([3, 64, 128])
 
     def forward(self, x):

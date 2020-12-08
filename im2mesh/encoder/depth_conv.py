@@ -13,7 +13,8 @@ class Depth_Resnet18(nn.Module):
         use_linear (bool): whether a final linear layer should be used
     '''
 
-    def __init__(self, c_dim, use_linear=True, features_pretrained=True, model_pretrained=None, input_dim=1, normalize=False, local=False):
+    def __init__(self, c_dim, use_linear=True, features_pretrained=True, model_pretrained=None, 
+        input_dim=1, normalize=False, local=False, local_feature_dim=512):
         super().__init__()
         self.use_linear = use_linear
         self.features = models.resnet18(pretrained=features_pretrained)
@@ -33,7 +34,7 @@ class Depth_Resnet18(nn.Module):
         self.local = local
         if self.local:
             #self.local_fc = ResnetBlockFC(64+128+256+512, c_dim)
-            self.local_fc = nn.Linear(64+128+256+512, c_dim)
+            self.local_fc = nn.Linear(64+128+256+512, local_feature_dim)
 
         if model_pretrained is not None:
             print('Loading depth encoder from ', model_pretrained)

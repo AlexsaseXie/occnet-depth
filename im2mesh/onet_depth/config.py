@@ -106,6 +106,7 @@ def get_model(cfg, device=None, dataset=None, **kwargs):
                 encoder = encoder_dict[encoder](
                     c_dim=c_dim,
                     local=True,
+                    local_feature_dim=cfg['model']['local_feature_dim'],
                     **encoder_kwargs
                 )
             else:
