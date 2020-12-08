@@ -448,13 +448,28 @@ def compose_inputs(data, mode='train', device=None, input_type='depth_pred',
                 raise NotImplementedError
 
         raw_data['depth_pointcloud'] = encoder_inputs
-        if local:
-            #assert depth_pointcloud_transfer.startswith('world')
+        if local: 
             encoder_inputs = {
                 None: encoder_inputs
             }
 
         return encoder_inputs, raw_data
+    elif input_type == 'depth_pointcloud_completion':
+        assert depth_pointcloud_transfer is None
+        encoder_inputs = data.get('inputs.depth_pointcloud').to(device)
+        raw_data['depth_pointcloud'] = encoder_inputs
+
+        if local:
+            assert depth_pointcloud_transfer is None
+            loc = data.get('points.loc').to(device)
+            scale = data.get('points.scale').to(device)
+            raw_data['loc'] = loc
+            raw_data['scale'] = scale
+            encoder_inputs = {
+                None: encoder_inputs,
+                'loc': loc,
+                'scale': scale
+            }
     else:
         raise NotImplementedError
 
@@ -741,7 +756,7 @@ class Phase2HalfwayTrainer(BaseTrainer):
                     depth_map, 'img', input_img_path)
                 vis.visualize_voxels(
                     voxels_out[i], os.path.join(self.vis_dir, '%03d.png' % i))
-        elif self.input_type == 'depth_pointcloud':
+        elif self.input_type == 'depth_pointcloud' or self.input_type == 'depth_pointcloud_completion':
             for i in trange(batch_size):
                 input_pointcloud_file = os.path.join(self.vis_dir, '%03d_depth_pointcloud.png' % i)
                 

@@ -335,6 +335,15 @@ class PointNetEncoder(nn.Module):
     def forward_local_second_step(self, data, c, feature_maps, pts, radius=0.1, n_sample=64):
         assert self.local
         x = data[None]  # x: batch * n_x * 3
+        B,_,_ = x.size()
+
+        if 'loc' in data:
+            loc = data['loc'].view(B, 1, 3)
+            x = x - loc
+
+        if 'scale' in data:
+            scale = data['scale'].view(B, 1, 1)
+            x = x * (1.0 / scale)
 
         # grouping indices
         idx = ball_query(pts, x, radius, n_sample)
@@ -489,6 +498,15 @@ class PointNetResEncoder(nn.Module):
     def forward_local_second_step(self, data, c, feature_maps, pts, radius=0.1, n_sample=64):
         assert self.local
         x = data[None]  # x: batch * n_x * 3
+        B,_,_ = x.size()
+
+        if 'loc' in data:
+            loc = data['loc'].view(B, 1, 3)
+            x = x - loc
+
+        if 'scale' in data:
+            scale = data['scale'].view(B, 1, 1)
+            x = x * (1.0 / scale)
 
         # grouping indices
         idx = ball_query(pts, x, radius, n_sample)

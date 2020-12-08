@@ -295,7 +295,7 @@ def get_inputs_field(mode, cfg):
             'img', 'depth', 'mask', 
             cfg['data']['depth_pred_root'], 'depth_pred', transform, **data_params
         )
-    elif input_type == 'depth_pointcloud':
+    elif input_type == 'depth_pointcloud' or input_type == 'depth_pointcloud_completion':
         t_lst = []
         if 'depth_pointcloud_n' in cfg['data'] and cfg['data']['depth_pointcloud_n'] is not None:
             t_lst.append(data.SubsampleDepthPointcloud(cfg['data']['depth_pointcloud_n']))
