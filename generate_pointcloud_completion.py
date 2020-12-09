@@ -23,6 +23,7 @@ parser.add_argument('--out_folder_name', type=str, default='depth_pointcloud_com
                     help='Output folder name (under original dataset folder)')
 parser.add_argument('--batch_size', type=int, default=256, help='Generation batch size.')
 parser.add_argument('--combine_pc', action='store_true', help='Combine input and predict.')
+parser.add_argument('--resample', type=int, default=0, help='random resample points count.')
 args = parser.parse_args()
 
 ### rename ###
@@ -124,6 +125,14 @@ for batch in tqdm(train_loader):
     
     for i in range(cur_batch_size):
         cur_pointcloud_hat = pointcloud_hat[i].cpu().numpy()
+
+        if args.resample != 0:
+            cur_pointcloud_hat = np.unique(cur_pointcloud_hat, axis=0)
+            if cur_pointcloud_hat.shape[0] >= args.resample:
+                idx = np.random.choice(cur_pointcloud_hat.shape[0], size=args.resample, replace=False)
+            else:
+                idx = np.random.randint(cur_pointcloud_hat.shape[0], size=args.resample)
+            cur_pointcloud_hat = cur_pointcloud_hat[idx, :] 
 
         cur_model_info = train_dataset.get_model_dict(idxs[i]) # category & model
         cur_viewid = viewids[i]
