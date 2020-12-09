@@ -61,7 +61,7 @@ def get_model(cfg, device=None, dataset=None, **kwargs):
     else:
         if input_type == 'img_with_depth':
             depth_predictor = get_depth_predictor(cfg)
-        elif input_type == 'depth_pred' or input_type == 'depth_pointcloud':
+        elif input_type in ('depth_pred','depth_pointcloud','depth_pointcloud_completion'):
             depth_predictor = None
         else:
             raise NotImplementedError
@@ -218,13 +218,18 @@ def get_trainer(model, optimizer, cfg, device, **kwargs):
                 model, optimizer,
                 **trainer_params
             )
-        elif input_type == 'depth_pred' or input_type == 'depth_pointcloud':
+        elif input_type == 'depth_pred':
             if 'use_gt_depth' in cfg['training']:
                 trainer_params['use_gt_depth_map'] = cfg['training']['use_gt_depth']
 
             if 'pred_with_img' in cfg['model']:
                 trainer_params['with_img'] = cfg['model']['pred_with_img']
-
+            
+            trainer = training.Phase2HalfwayTrainer(
+                model, optimizer,
+                **trainer_params
+            )
+        elif input_type in ('depth_pointcloud', 'depth_pointcloud_completion'):
             if 'depth_pointcloud_transfer' in cfg['model']:
                 trainer_params['depth_pointcloud_transfer'] = cfg['model']['depth_pointcloud_transfer']
 

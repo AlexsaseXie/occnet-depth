@@ -180,11 +180,15 @@ def get_sdf_data_fields(mode, cfg):
     )
 
     if mode in ('val', 'test'):
+        if 'val_subsample' in cfg['test']:
+            val_subsample = cfg['test']['val_subsample']
+        else:
+            val_subsample = None
         points_iou_file = cfg['data']['points_iou_file']
         voxels_file = cfg['data']['voxels_file']
         if points_iou_file is not None:
             fields['points_iou'] = data.SdfH5Field(
-                points_iou_file, 
+                points_iou_file, subsample_n=val_subsample, 
                 with_transforms=with_transforms,
                 input_range=input_range
             )
@@ -238,19 +242,24 @@ def get_occ_data_fields(mode, cfg):
         raise NotImplementedError
 
     if mode in ('val', 'test'):
+        if 'val_subsample' in cfg['test']:
+            val_subsample = cfg['test']['val_subsample']
+            val_subsample_transform = data.SubsamplePoints(val_subsample)
+        else:
+            val_subsample = None
         points_iou_file = cfg['data']['points_iou_file']
         voxels_file = cfg['data']['voxels_file']
         if points_iou_file is not None:
             if points_iou_file.endswith('.npz'):
                 fields['points_iou'] = data.PointsField(
-                    points_iou_file,
+                    points_iou_file, val_subsample_transform,
                     with_transforms=with_transforms,
                     unpackbits=cfg['data']['points_unpackbits'],
                     input_range=input_range
                 )
             elif points_iou_file.endswith('.h5'):
                 fields['points_iou'] = data.PointsH5Field(
-                    points_iou_file, 
+                    points_iou_file, subsample_n=val_subsample,
                     with_transforms=with_transforms,
                     input_range=input_range
                 )

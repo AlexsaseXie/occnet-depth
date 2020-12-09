@@ -470,6 +470,7 @@ def compose_inputs(data, mode='train', device=None, input_type='depth_pred',
                 'loc': loc,
                 'scale': scale
             }
+        return encoder_inputs, raw_data
     else:
         raise NotImplementedError
 
@@ -566,7 +567,7 @@ class Phase2HalfwayTrainer(BaseTrainer):
         self.optimizer = optimizer
         self.device = device
         self.input_type = input_type
-        assert input_type == 'depth_pred' or input_type == 'depth_pointcloud'
+        assert input_type in ('depth_pred', 'depth_pointcloud', 'depth_pointcloud_completion')
         self.vis_dir = vis_dir
         self.threshold = threshold
         self.eval_sample = eval_sample

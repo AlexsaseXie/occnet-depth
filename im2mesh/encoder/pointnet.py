@@ -268,11 +268,11 @@ class PointNetEncoder(nn.Module):
         else:
             return x, trans_point, trans_feat
 
-    def forward_local(self, data, pts, radius=0.1, n_sample=64):
+    def forward_local(self, data, pts, radius=0.1, n_sample=16):
         '''
             outputs:
             global feature: B * c_dim
-            local feature: B * c_dim * n_pts
+            local feature: B * n_pts * local_feat_dim
         '''
         # UPDATE: reworked
         if self.only_point_feature:
@@ -332,7 +332,7 @@ class PointNetEncoder(nn.Module):
         else:
             return x, feature_maps
 
-    def forward_local_second_step(self, data, c, feature_maps, pts, radius=0.1, n_sample=64):
+    def forward_local_second_step(self, data, c, feature_maps, pts, radius=0.1, n_sample=16):
         assert self.local
         x = data[None]  # x: batch * n_x * 3
         B,_,_ = x.size()
@@ -346,7 +346,7 @@ class PointNetEncoder(nn.Module):
             x = x * (1.0 / scale)
 
         # grouping indices
-        idx = ball_query(pts, x, radius, n_sample)
+        idx = ball_query(radius, n_sample, x, pts)
 
         x_trans = x.transpose(2, 1).contiguous() # x: batch * 3 * n_x
 
@@ -358,11 +358,12 @@ class PointNetEncoder(nn.Module):
         grouped_xyz = self.xyz_fc(grouped_xyz)
         local_feats = [grouped_xyz.max(3)[0]]
         for fm in feature_maps:
+            fm = fm.detach()
             grouped_features = grouping_operation(fm, idx).max(3)[0] # B * C * n_pts
             local_feats.append(grouped_features) # B * C * n_pts
 
         local_feats = torch.cat(local_feats, 1)
-        local_feats = self.local_fc(local_feats)
+        local_feats = self.local_fc(local_feats.transpose(1,2)) # B * n_pts * local_feat_dim
 
         return c, local_feats
 
@@ -431,11 +432,11 @@ class PointNetResEncoder(nn.Module):
         else:
             return x, trans_point, trans_feat
 
-    def forward_local(self, data, pts, radius=0.1, n_sample=64):
+    def forward_local(self, data, pts, radius=0.1, n_sample=16):
         '''
             outputs:
             global feature: B * c_dim
-            local feature: B * c_dim * n_pts
+            local feature: B * n_pts * local_feat_dim
         '''
         # UPDATE: reworked
         if self.only_point_feature:
@@ -495,7 +496,7 @@ class PointNetResEncoder(nn.Module):
         else:
             return x, feature_maps
 
-    def forward_local_second_step(self, data, c, feature_maps, pts, radius=0.1, n_sample=64):
+    def forward_local_second_step(self, data, c, feature_maps, pts, radius=0.1, n_sample=16):
         assert self.local
         x = data[None]  # x: batch * n_x * 3
         B,_,_ = x.size()
@@ -509,7 +510,7 @@ class PointNetResEncoder(nn.Module):
             x = x * (1.0 / scale)
 
         # grouping indices
-        idx = ball_query(pts, x, radius, n_sample)
+        idx = ball_query(radius, n_sample, x, pts)
 
         x_trans = x.transpose(2, 1).contiguous() # x: batch * 3 * n_x
 
@@ -521,11 +522,12 @@ class PointNetResEncoder(nn.Module):
         grouped_xyz = self.xyz_fc(grouped_xyz)
         local_feats = [grouped_xyz.max(3)[0]]
         for fm in feature_maps:
+            fm = fm.detach()
             grouped_features = grouping_operation(fm, idx).max(3)[0] # B * C * n_pts
             local_feats.append(grouped_features) # B * C * n_pts
 
         local_feats = torch.cat(local_feats, 1)
-        local_feats = self.local_fc(local_feats)
+        local_feats = self.local_fc(local_feats.transpose(1,2)) # B * n_pts * local_feat_dim
 
         return c, local_feats
 
