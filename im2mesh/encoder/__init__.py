@@ -1,5 +1,5 @@
 from im2mesh.encoder import (
-    conv, depth_conv, pix2mesh_cond, pointnet,
+    conv, depth_conv, pix2mesh_cond, pointnet, pointnet2,
     psgn_cond, r2n2, voxels,
 )
 
@@ -22,5 +22,8 @@ encoder_dict = {
     'pointnet': pointnet.PointNetEncoder,
     'pointnet_res': pointnet.PointNetResEncoder,
     'stacked_pointnet': pointnet.StackedPointnet,
-    'msn_pointnet': pointnet.MSNPointNetFeat
+    'msn_pointnet': pointnet.MSNPointNetFeat,
+    'pointnet2': pointnet2.PointNet2SSGEncoder,
+    'pointnet2_ssg': pointnet2.PointNet2SSGEncoder,
+    'pointnet2_msg': pointnet2.PointNet2MSGEncoder,
 }
