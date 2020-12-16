@@ -63,8 +63,7 @@ class Generator3D(object):
         self.local = local
 
         self.input_type = input_type
-        assert self.input_type == 'depth_pred' or self.input_type == 'depth_pointcloud' or \
-            self.input_type == 'img' or self.input_type == 'img_with_depth'
+        assert self.input_type in ('depth_pred', 'depth_pointcloud', 'depth_pointcloud_completion', 'img', 'img_with_depth')
         self.use_gt_depth_map = use_gt_depth_map
         self.with_img = with_img
         self.depth_pointcloud_transfer = depth_pointcloud_transfer
@@ -82,7 +81,7 @@ class Generator3D(object):
         device = self.device
         stats_dict = {}
 
-        if self.input_type in ('depth_pred', 'depth_pointcloud'):
+        if self.input_type in ('depth_pred', 'depth_pointcloud', 'depth_pointcloud_completion'):
             encoder_inputs, raw_data = compose_inputs(data, mode='test', device=self.device, input_type=self.input_type,
                                                 use_gt_depth_map=self.use_gt_depth_map, depth_map_mix=False, 
                                                 with_img=self.with_img, depth_pointcloud_transfer=self.depth_pointcloud_transfer,
