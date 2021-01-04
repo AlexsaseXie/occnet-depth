@@ -1,6 +1,7 @@
 import torch.nn.functional as F
 import torch
-from im2mesh.common import chamfer_distance
+#from im2mesh.common import chamfer_distance
+from im2mesh.utils.lib_pointcloud_distance.chamfer_distance import chamfer_distance
 import os
 from torchvision.utils import save_image
 from im2mesh.training import BaseTrainer
@@ -231,11 +232,11 @@ class Trainer(BaseTrainer):
 
         # Chamfer Distance Loss
         lc11, lc12, id11, id12 = chamfer_distance(
-            pred_vertices_1, gt_points, give_id=True)
+            pred_vertices_1, gt_points, True)
         lc21, lc22, id21, id22 = chamfer_distance(
-            pred_vertices_2, gt_points, give_id=True)
+            pred_vertices_2, gt_points, True)
         lc31, lc32, id31, id32 = chamfer_distance(
-            pred_vertices_3, gt_points, give_id=True)
+            pred_vertices_3, gt_points, True)
         l_c = lc11.mean() + lc21.mean() + lc31.mean()
         l_c2 = lc12.mean() + lc22.mean() + lc32.mean()
         l_c = (l_c2 + self.param_chamfer_rel * l_c) * self.param_chamfer_w
@@ -325,7 +326,7 @@ class Trainer(BaseTrainer):
         loss = self.compute_loss(
             outputs1, outputs2, points_transformed, normals, img)
         lc1, lc2, id31, id32 = chamfer_distance(
-            pred_vertices_3, points_transformed, give_id=True)
+            pred_vertices_3, points_transformed, True)
         l_c = (lc1+lc2).mean()
         l_e = self.edge_length_loss(pred_vertices_3, 3)
         l_n = self.normal_loss(pred_vertices_3, normals, id31, 3)

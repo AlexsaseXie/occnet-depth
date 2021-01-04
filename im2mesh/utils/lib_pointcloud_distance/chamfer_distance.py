@@ -4,7 +4,7 @@ from . import _ext
 
 class ChamferDistanceFunction(torch.autograd.Function):
     @staticmethod
-    def forward(ctx, xyz1, xyz2):
+    def forward(ctx, xyz1, xyz2, give_id=False):
         batchsize, n, _ = xyz1.size()
         _, m, _ = xyz2.size()
         xyz1 = xyz1.contiguous()
@@ -26,7 +26,10 @@ class ChamferDistanceFunction(torch.autograd.Function):
 
         ctx.save_for_backward(xyz1, xyz2, idx1, idx2)
 
-        return dist1, dist2
+        if give_id:
+            return dist1, dist2, idx1, idx2
+        else:
+            return dist1, dist2
 
     @staticmethod
     def backward(ctx, graddist1, graddist2):
