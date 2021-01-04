@@ -32,7 +32,7 @@ class ChamferDistanceFunction(torch.autograd.Function):
             return dist1, dist2
 
     @staticmethod
-    def backward(ctx, graddist1, graddist2):
+    def backward(ctx, graddist1, graddist2, dummy1=None, dummy2=None):
         xyz1, xyz2, idx1, idx2 = ctx.saved_tensors
 
         graddist1 = graddist1.contiguous()
@@ -48,7 +48,7 @@ class ChamferDistanceFunction(torch.autograd.Function):
             gradxyz2 = gradxyz2.cuda()
             _ext.cd_backward_cuda(xyz1, xyz2, gradxyz1, gradxyz2, graddist1, graddist2, idx1, idx2)
 
-        return gradxyz1, gradxyz2
+        return gradxyz1, gradxyz2, None
 
 
 class ChamferDistance(torch.nn.Module):
