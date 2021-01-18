@@ -327,7 +327,7 @@ class Trainer(BaseTrainer):
             outputs1, outputs2, points_transformed, normals, img)
         lc1, lc2, id31, id32 = chamfer_distance(
             pred_vertices_3, points_transformed, True)
-        l_c = (lc1+lc2).mean()
+        l_c = lc1.mean() +lc2.mean()
         l_e = self.edge_length_loss(pred_vertices_3, 3)
         l_n = self.normal_loss(pred_vertices_3, normals, id31, 3)
         l_l, move_loss = self.laplacian_loss(
