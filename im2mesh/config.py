@@ -178,10 +178,36 @@ def get_dataset(mode, cfg, return_idx=False, return_category=False):
             dataset_folder, img_size=cfg['data']['img_size'],
             return_idx=return_idx,
         )
+    elif dataset_type == 'pix3d':
+        fields = {}
+
+        fields = method_dict[method].config.get_data_fields(mode, cfg)
+
+        if 'pix3d_root' in cfg['data']:
+            pix3d_root = cfg['data']['pix3d_root']
+        else:
+            pix3d_root = '.'
+
+        inputs_field = get_pix3d_inputs_field(mode, cfg)
+        if inputs_field is not None:
+            fields['inputs'] = inputs_field
+
+        if return_idx:
+            fields['idx'] = data.IndexField()
+        
+        dataset = data.Pix3dDataset(dataset_folder, fields, pix3d_root=pix3d_root)
     else:
         raise ValueError('Invalid dataset "%s"' % cfg['data']['dataset'])
  
     return dataset
+
+
+def get_pix3d_inputs_field(mode, cfg):
+    assert 'input_fields' in cfg['data']
+    # only support mixed input field settings for pix3d dataset
+    inputs_field_name = cfg['data']['input_fields']
+    inputs_field = data.Pix3d_MixedInputField(inputs_field_name, mode, cfg)
+    return inputs_field
 
 
 def get_inputs_field(mode, cfg):

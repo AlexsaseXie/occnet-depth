@@ -20,6 +20,11 @@ from im2mesh.data.input_mix_fields import (
     MixedInputField
 )
 
+from im2mesh.data.pix3d import (
+    Pix3d_MixedInputField,
+    Pix3dDataset
+)
+
 
 __all__ = [
     # Core
@@ -48,4 +53,6 @@ __all__ = [
     KittiDataset,
     OnlineProductDataset,
     ImageDataset,
+    Pix3dDataset,
+    Pix3d_MixedInputField
 ]

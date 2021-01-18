@@ -272,7 +272,19 @@ def get_occ_data_fields(mode, cfg):
     return fields
 
 
+def get_pix3d_data_fields(mode, cfg):
+    fields = {}
+    # TODO: get points.loc points.scale
+    return fields
+
+
 def get_data_fields(mode, cfg):
+    dataset_type = cfg['data']['dataset']
+    if dataset_type == 'pix3d':
+        return get_pix3d_data_fields(mode, cfg)
+
+    assert dataset_type == 'Shapes3D'
+
     if 'use_sdf' in cfg:
         use_sdf = cfg['use_sdf']
     else:
