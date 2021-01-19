@@ -11,6 +11,7 @@ from im2mesh.checkpoints import CheckpointIO
 from im2mesh.point_completion.training import compose_inputs, compose_pointcloud, organize_space_carver_kwargs
 from im2mesh.utils.pointnet2_ops_lib.pointnet2_ops import pointnet2_utils
 from tqdm import tqdm
+from scripts.pix3d_preprocess import utils as pix3d_utils
 
 # Arguments
 parser = argparse.ArgumentParser(
@@ -52,16 +53,7 @@ else:
 dataset_folder = cfg['data']['path']
 
 # Dataset
-def get_fields():
-    fields = {}
-    input_field = config.get_inputs_field('train', cfg)
-    fields['inputs'] = input_field
-    fields['idx'] = data.IndexField()
-    fields['viewid'] = data.ViewIdField()
-    return fields
-
-fields = get_fields()
-train_dataset = data.Shapes3dDataset_AllImgs(dataset_folder, fields, split=None)
+train_dataset = config.get_dataset('test', cfg, return_idx=True)
 
 train_loader = torch.utils.data.DataLoader(
     train_dataset, batch_size=args.batch_size, num_workers=4, shuffle=False,
@@ -90,7 +82,6 @@ for batch in tqdm(train_loader):
                                                 depth_pointcloud_transfer=depth_pointcloud_transfer)
     cur_batch_size = encoder_inputs.size(0)
     idxs = batch.get('idx')
-    viewids = batch.get('viewid')
 
     kwargs = {}
     if getattr(model, 'module', False):
@@ -134,19 +125,21 @@ for batch in tqdm(train_loader):
                 idx = np.random.randint(cur_pointcloud_hat.shape[0], size=args.resample)
             cur_pointcloud_hat = cur_pointcloud_hat[idx, :] 
 
-        cur_model_info = train_dataset.get_model_dict(idxs[i]) # category & model
-        cur_viewid = viewids[i]
+        idx = idxs[i]
+        cur_image_info = train_dataset.get_info(idx) # image_info
+        cur_image_category = cur_image_info['category']
+        cur_image_name = pix3d_utils.get_image_name(cur_image_info)
 
-        if not os.path.exists(os.path.join(out_dir, cur_model_info['category'])):
-            os.mkdir(os.path.join(out_dir, cur_model_info['category']))
+        if not os.path.exists(os.path.join(out_dir, cur_image_category)):
+            os.mkdir(os.path.join(out_dir, cur_image_category))
         
-        if not os.path.exists(os.path.join(out_dir, cur_model_info['category'], cur_model_info['model'])):
-            os.mkdir(os.path.join(out_dir, cur_model_info['category'], cur_model_info['model']))
+        if not os.path.exists(os.path.join(out_dir, cur_image_category, cur_image_name)):
+            os.mkdir(os.path.join(out_dir, cur_image_category, cur_image_name))
 
-        if not os.path.exists(os.path.join(out_dir, cur_model_info['category'], cur_model_info['model'], out_folder_name)):
-            os.mkdir(os.path.join(out_dir, cur_model_info['category'], cur_model_info['model'], out_folder_name))
+        if not os.path.exists(os.path.join(out_dir, cur_image_category, cur_image_name, out_folder_name)):
+            os.mkdir(os.path.join(out_dir, cur_image_category, cur_image_name, out_folder_name))
         
-        save_pc_path = os.path.join(out_dir, cur_model_info['category'], cur_model_info['model'],
-            out_folder_name, '%.2d_pointcloud.npz' % cur_viewid)
+        save_pc_path = os.path.join(out_dir, cur_image_category, cur_image_name,
+            out_folder_name, '00_pointcloud.npz')
 
         np.savez(save_pc_path, pointcloud=cur_pointcloud_hat)    

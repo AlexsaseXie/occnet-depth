@@ -14,13 +14,13 @@ from scripts.pix3d_preprocess import utils as pix3d_utils
 
 # Arguments
 parser = argparse.ArgumentParser(
-    description='Train a 3D reconstruction model.'
+    description='Generate depth predictions.'
 )
 parser.add_argument('config', type=str, help='Path to config file.')
 parser.add_argument('--out_dir', type=str, default='./data/pix3d/uresnet.depth_pred/', help='Output dir')
 parser.add_argument('--out_folder_name', type=str, default='depth_pred', help='output folder name')
 parser.add_argument('--pix3d_root', type=str, default='.', help='pix3d_root which is not necessary')
-parser.add_argument('--batch_size', type=int, default=128)
+parser.add_argument('--batch_size', type=int, default=128) # 60 for hourglass
 
 parser.add_argument('--no-cuda', action='store_true', help='Do not use cuda.')
 
@@ -38,6 +38,7 @@ print('input_type:', cfg['data']['input_type'])
 if not os.path.exists(out_dir):
     os.makedirs(out_dir)
 
+# Dataset
 train_dataset = config.get_dataset('test', cfg, return_idx=True)
 
 train_loader = torch.utils.data.DataLoader(
@@ -113,10 +114,10 @@ for batch in train_loader:
             os.mkdir(os.path.join(out_dir, cur_image_category, cur_image_name, pred_path))
         
         # save png
-        png_path = os.path.join(out_dir, cur_image_category, cur_image_info, pred_path, '00_depth.png')
+        png_path = os.path.join(out_dir, cur_image_category, cur_image_name, pred_path, '00_depth.png')
         visualize_data(cur_depth_map, 'img', png_path)
         # record range
-        depth_range_path = os.path.join(out_dir, cur_image_category, cur_image_info, pred_path, 'depth_range.txt')
+        depth_range_path = os.path.join(out_dir, cur_image_category, cur_image_name, pred_path, 'depth_range.txt')
         
         if os.path.exists(depth_range_path):
             os.remove(depth_range_path)

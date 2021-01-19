@@ -13,9 +13,12 @@ from im2mesh.utils.visualize import visualize_data
 
 # Arguments
 parser = argparse.ArgumentParser(
-    description='Train a 3D reconstruction model.'
+    description='Generate depth predictions.'
 )
 parser.add_argument('config', type=str, help='Path to config file.')
+parser.add_argument('--out_dir', type=str, default='./data/ShapeNet.depth_pred.uresnet/', help='Output dir')
+parser.add_argument('--out_folder_name', type=str, default='depth_pred', help='output folder name')
+parser.add_argument('--batch_size', type=int, default=128) # 60 for hourglass
 parser.add_argument('--no-cuda', action='store_true', help='Do not use cuda.')
 
 args = parser.parse_args()
@@ -23,13 +26,10 @@ cfg = config.load_config(args.config, 'configs/default.yaml')
 is_cuda = (torch.cuda.is_available() and not args.no_cuda)
 device = torch.device("cuda" if is_cuda else "cpu")
 
-#out_dir = cfg['data']['path']
-out_dir = 'data/ShapeNet.depth_pred_relative'
+out_dir = args.out_dir
 print('out_dir:',out_dir)
-pred_path = 'depth_pred'
-dataset_folder = cfg['data']['path']
-#batch_size = cfg['training']['batch_size']
-batch_size = 60
+pred_path = args.out_folder_name
+batch_size = args.batch_size
 print('input_type:', cfg['data']['input_type'])
 
 if not os.path.exists(out_dir):
@@ -44,7 +44,7 @@ def get_fields():
     return fields
 
 fields = get_fields()
-train_dataset = data.Shapes3dDataset_AllImgs(dataset_folder, fields, split=None)
+train_dataset = data.Shapes3dDataset_AllImgs(cfg['data']['path'], fields, split=None)
 
 train_loader = torch.utils.data.DataLoader(
     train_dataset, batch_size=batch_size, num_workers=4, shuffle=False,

@@ -4,6 +4,9 @@ import numpy as np
 from PIL import Image
 
 # for single numpy image
+# default: sensor's width = 32 mm
+# focal length = 35 mm
+# image width = image height = 224
 class DepthToPCNp:
     def __init__(self, focal_div_sensor=35./32.):
         self.focal_div_sensor = focal_div_sensor
@@ -12,7 +15,7 @@ class DepthToPCNp:
 
     def sample_resize(self, depth, mask, n=2048):
         '''
-            depth : img_w * img_h numpy.ndarray float64
+            depth : img_w * img_h numpy.ndarray float32
             mask : img_w * img_h numpy.ndarray bool
 
             returns depth: img_w * img_h numpy.ndarray float32
@@ -63,7 +66,6 @@ class DepthToPCNp:
             assert False
 
         return depth, mask
-            
 
     def back_projection(self, depth, unit=1.):
         '''
@@ -76,7 +78,7 @@ class DepthToPCNp:
         u_0 = img_w / 2
         v_0 = img_h / 2
         f_u = img_w * self.focal_div_sensor
-        f_v = img_h * self.focal_div_sensor
+        f_v = f_u
 
         if img_w == 224 and img_h == 224:
             grid_x = self.grid_x
@@ -119,12 +121,16 @@ class DepthToPCNp:
         mask = np.array(mask_img)
         depth = (depth * (depth_max - depth_min) + depth_min) / unit
 
+        # convert to float32
+        depth = depth.astype(np.float32)
+
         depth, mask = self.sample_resize(depth, mask, n)
         pc_xyz = self.back_projection(depth, 1.)
         pts = self.mask_sample(pc_xyz, mask, n)
         return pts
 
-#nn.Module
+#nn.Module 
+# TODO: implement this Module
 class DepthToPC(nn.Module):
     def __init__(self, device, img_w=224, img_h=224, focal_div_sensor=35./32.):
         self.device = device

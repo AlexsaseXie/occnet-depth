@@ -11,33 +11,37 @@ from PIL import Image
 from im2mesh.utils.depth_to_pointcloud import DepthToPCNp
 from im2mesh.utils.visualize import visualize_pointcloud
 
-MASK_ROOT = '/home2/xieyunwei/occupancy_networks/data/ShapeNet.with_depth.10w10w'
-DEPTH_ROOT = '/home2/xieyunwei/occupancy_networks/data/ShapeNet.depth_pred.uresnet.origin_subdivision'
-depth_pred = 'depth_pred' in DEPTH_ROOT.split('.')
-OUTPUT_DIR_NAME = 'depth_pointcloud'
-N = 2048
+# Arguments
+parser = argparse.ArgumentParser(
+    description='Generate point cloud from depth'
+)
+parser.add_argument('--mask_dir', type=str, default='./data/pix3d/generation/')
+parser.add_argument('--depth_dir', type=str, default='./data/pix3d/uresnet.depth_pred/', help='depth & output dir')
+parser.add_argument('--out_folder_name', type=str, default='depth_pointcloud', help='output folder name')
+parser.add_argument('--pix3d_root', type=str, default='.', help='pix3d_root which is not necessary')
+parser.add_argument('--nproc', type=int, default=10, help='parallel process num')
+parser.add_argument('--n', type=int, default=2048, help='subsample point num N')
+parser.add_argument('--task_split_root', type=str, default='./scripts/render_img_views/3D-R2N2/task_split')
+parser.add_argument('--test_root', type=str, default='./data/back_projection_pix3d_test/')\
+parser.add_argument('--test', action='store_true', help='test')
+args = parser.parse_args()
 
-TEST_ROOT = './data/back_projection_test/'
+MASK_ROOT = args.mask_dir
+DEPTH_ROOT = args.depth_dir
+depth_pred = 'depth_pred' in DEPTH_ROOT.split('.')
+OUTPUT_DIR_NAME = args.out_folder_name
+N = args.n
+
+TEST_ROOT = args.test_root
 
 CLASSES = [
-    '03001627',
-    '02958343',
-    '04256520',
-    '02691156',
-    '03636649',
-    '04401088',
-    '04530566',
-    '03691459',
-    '02933112',
-    '04379243',
-    '03211117',
-    '02828884',
-    '04090263',
+    'sofa',
+    'chair',
+    'table'
 ]
 
-TASK_SPLIT_ROOT = '/home2/xieyunwei/occupancy_networks/scripts/render_img_views/3D-R2N2/task_split'
-NPROC = 10
-N_VIEWS = 24
+TASK_SPLIT_ROOT = args.task_split_root
+NPROC = args.nproc
 
 def split_task():
     if not os.path.exists(TASK_SPLIT_ROOT):
@@ -110,7 +114,7 @@ def back_projection(task_file, task_i):
         model_id = model_info[1]
 
         depth_folder = os.path.join(DEPTH_ROOT, model_class, model_id, depth_foldername)
-        mask_folder = os.path.join(MASK_ROOT, model_class, model_id, 'mask')
+        mask_folder = os.path.join(MASK_ROOT, model_class, model_id)
 
         output_folder = os.path.join(DEPTH_ROOT, model_class, model_id, OUTPUT_DIR_NAME)
         if not os.path.exists(output_folder):
@@ -119,20 +123,19 @@ def back_projection(task_file, task_i):
         depth_range_file = os.path.join(depth_folder, 'depth_range.txt')
         
         with open(depth_range_file, 'r') as f:
-            for i in range(N_VIEWS):
-                depth_range = f.readline().split(' ')
-                depth_min = float(depth_range[0])
-                depth_max = float(depth_range[1])
-                depth_unit = float(depth_range[2])                
+            depth_range = f.readline().split(' ')
+            depth_min = float(depth_range[0])
+            depth_max = float(depth_range[1])
+            depth_unit = float(depth_range[2])                
 
-                depth_file = os.path.join(depth_folder, '%.2d_depth.png' % i)
-                mask_file = os.path.join(mask_folder, '%.2d_mask.png' % i)
-                depth_img = Image.open(depth_file).convert('L')
-                mask_img = Image.open(mask_file)
-                pts = worker.work(depth_img, mask_img, depth_min, depth_max, n=N, unit=depth_unit)
+            depth_file = os.path.join(depth_folder, '00_depth.png')
+            mask_file = os.path.join(mask_folder, '%s_final_mask.png' % model_id)
+            depth_img = Image.open(depth_file).convert('L')
+            mask_img = Image.open(mask_file)
+            pts = worker.work(depth_img, mask_img, depth_min, depth_max, n=N, unit=depth_unit)
 
-                output_file = os.path.join(output_folder, '%.2d_pointcloud.npz' % i)
-                np.savez(output_file, pointcloud=pts)    
+            output_file = os.path.join(output_folder, '00_pointcloud.npz')
+            np.savez(output_file, pointcloud=pts)    
     
     end_time = time.time() 
     print('Render end:', task_i, ',cost:', end_time - start_time)
@@ -168,7 +171,7 @@ def test():
         depth_foldername = 'depth'
 
     depth_folder = os.path.join(DEPTH_ROOT, model_class, model_id, depth_foldername)
-    mask_folder = os.path.join(MASK_ROOT, model_class, model_id, 'mask')
+    mask_folder = os.path.join(MASK_ROOT, model_class, model_id)
 
     output_folder = os.path.join(TEST_ROOT)
     if not os.path.exists(output_folder):
@@ -179,28 +182,24 @@ def test():
     worker = DepthToPCNp()
 
     with open(depth_range_file, 'r') as f:
-        for i in range(N_VIEWS):
-            depth_range = f.readline().split(' ')
-            depth_min = float(depth_range[0])
-            depth_max = float(depth_range[1])
-            depth_unit = float(depth_range[2]) 
+        depth_range = f.readline().split(' ')
+        depth_min = float(depth_range[0])
+        depth_max = float(depth_range[1])
+        depth_unit = float(depth_range[2]) 
 
-            depth_file = os.path.join(depth_folder, '%.2d_depth.png' % i)
-            mask_file = os.path.join(mask_folder, '%.2d_mask.png' % i)
-            depth_img = Image.open(depth_file).convert('L')
-            depth_img.save(os.path.join(output_folder, '%.2d_depth.png' % i))
-            mask_img = Image.open(mask_file)
-            pts = worker.work(depth_img, mask_img, depth_min, depth_max, n=N, unit=depth_unit)
+        depth_file = os.path.join(depth_folder, '00_depth.png')
+        mask_file = os.path.join(mask_folder, '%s_final_mask.png' % model_id)
+        depth_img = Image.open(depth_file).convert('L')
+        depth_img.save(os.path.join(output_folder, '00_depth.png'))
+        mask_img = Image.open(mask_file)
+        pts = worker.work(depth_img, mask_img, depth_min, depth_max, n=N, unit=depth_unit)
 
-            output_file = os.path.join(output_folder, '%.2d_pointcloud.npz' % i)
-            np.savez(output_file, pointcloud=pts)
-            
-            output_file = os.path.join(output_folder, '%.2d_pc.png' % i)
-            visualize_pointcloud(pts, out_file=output_file, show=(i % 4 == 0))
+        output_file = os.path.join(output_folder, '00_pointcloud.npz')
+        np.savez(output_file, pointcloud=pts)
+        
+        output_file = os.path.join(output_folder, '00_pc.png')
+        visualize_pointcloud(pts, out_file=output_file, show=True, elev=15, azim=180)
 
-
-parser = argparse.ArgumentParser(description='Back projection')
-parser.add_argument('--test', action='store_true', help='test')
 if __name__ == '__main__':
     args = parser.parse_args()
 
