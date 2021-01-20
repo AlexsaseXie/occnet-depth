@@ -6,6 +6,7 @@ import os
 import sys
 import argparse
 import time
+sys.path.append('./')
 from im2mesh import config, data
 from im2mesh.checkpoints import CheckpointIO
 from im2mesh.point_completion.training import compose_inputs, compose_pointcloud, organize_space_carver_kwargs

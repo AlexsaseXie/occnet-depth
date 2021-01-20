@@ -7,6 +7,8 @@ import sys
 import argparse
 import time
 import matplotlib; matplotlib.use('Agg')
+
+sys.path.append('./')
 from im2mesh import config, data
 from im2mesh.checkpoints import CheckpointIO
 from im2mesh.utils.visualize import visualize_data

@@ -39,7 +39,7 @@ class MeshEvaluator(object):
         self.n_points = n_points
 
     def eval_mesh(self, mesh, pointcloud_tgt, normals_tgt,
-                  points_iou, occ_tgt):
+                  points_iou, occ_tgt, eval_iou=True):
         ''' Evaluates a mesh.
 
         Args:
@@ -60,11 +60,17 @@ class MeshEvaluator(object):
         out_dict = self.eval_pointcloud(
             pointcloud, pointcloud_tgt, normals, normals_tgt)
 
-        if len(mesh.vertices) != 0 and len(mesh.faces) != 0:
-            occ = check_mesh_contains(mesh, points_iou)
-            out_dict['iou'] = compute_iou(occ, occ_tgt)
-        else:
-            out_dict['iou'] = 0.
+        if eval_iou:
+            if len(mesh.vertices) != 0 and len(mesh.faces) != 0:
+                occ = check_mesh_contains(mesh, points_iou)
+
+                if occ is None:
+                    print('occ = None')
+                    out_dict['iou'] = -1
+                else:
+                    out_dict['iou'] = compute_iou(occ, occ_tgt)
+            else:
+                out_dict['iou'] = 0.
 
         return out_dict
 

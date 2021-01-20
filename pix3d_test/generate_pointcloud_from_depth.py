@@ -8,6 +8,9 @@ import argparse
 import numpy as np
 from tqdm import tqdm
 from PIL import Image
+import re
+
+sys.path.append('./')
 from im2mesh.utils.depth_to_pointcloud import DepthToPCNp
 from im2mesh.utils.visualize import visualize_pointcloud
 
@@ -21,14 +24,14 @@ parser.add_argument('--out_folder_name', type=str, default='depth_pointcloud', h
 parser.add_argument('--pix3d_root', type=str, default='.', help='pix3d_root which is not necessary')
 parser.add_argument('--nproc', type=int, default=10, help='parallel process num')
 parser.add_argument('--n', type=int, default=2048, help='subsample point num N')
-parser.add_argument('--task_split_root', type=str, default='./scripts/render_img_views/3D-R2N2/task_split')
-parser.add_argument('--test_root', type=str, default='./data/back_projection_pix3d_test/')\
+parser.add_argument('--task_split_root', type=str, default='./scripts/pix3d_preprocess/task_split')
+parser.add_argument('--test_root', type=str, default='./data/back_projection_pix3d_test/')
 parser.add_argument('--test', action='store_true', help='test')
 args = parser.parse_args()
 
 MASK_ROOT = args.mask_dir
 DEPTH_ROOT = args.depth_dir
-depth_pred = 'depth_pred' in DEPTH_ROOT.split('.')
+depth_pred = re.split('.|/', DEPTH_ROOT)
 OUTPUT_DIR_NAME = args.out_folder_name
 N = args.n
 

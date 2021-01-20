@@ -30,17 +30,17 @@ class Pix3dDataset(data.Dataset):
 
         self.pix3d_root = pix3d_root
 
+        dataset_list_root = os.path.join(self.dataset_folder, self.list_folder_name)
         # get list json
         if categories is not None:
             self.categories = categories
         else:
-            self.categories = os.listdir(self.dataset_folder)
+            self.categories = os.listdir(dataset_list_root)
 
         self.all_images_infos = []
         for test_cls in self.categories:
-            dataset_cls_root = os.path.join(self.dataset_folder, test_cls)
-            dataset_list_path = os.path.join(dataset_cls_root, 'all_info.json')
-            with open(dataset_list_path, 'r') as f:
+            dataset_cls_list_path = os.path.join(dataset_list_root, test_cls, 'all_info.json')
+            with open(dataset_cls_list_path, 'r') as f:
                 cls_dataset_infos = json.load(f)
 
             self.all_images_infos = self.all_images_infos + cls_dataset_infos
