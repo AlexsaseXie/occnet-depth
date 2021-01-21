@@ -139,7 +139,16 @@ def back_projection(task_file, task_i):
 
             output_file = os.path.join(output_folder, '00_pointcloud.npz')
             np.savez(output_file, pointcloud=pts)    
-    
+   
+            output_file = os.path.join(output_folder, '00_pc.png')
+            visualize_pointcloud(pts, out_file=output_file, show=False, elev=0, azim=180)
+
+            output_file = os.path.join(output_folder, '01_pc.png')
+            visualize_pointcloud(pts, out_file=output_file, show=False, elev=0, azim=270)
+
+            output_file = os.path.join(output_folder, '02_pc.png')
+            visualize_pointcloud(pts, out_file=output_file, show=False, elev=30, azim=30)
+ 
     end_time = time.time() 
     print('Render end:', task_i, ',cost:', end_time - start_time)
 

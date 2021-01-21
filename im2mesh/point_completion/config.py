@@ -165,6 +165,12 @@ def get_trainer(model, optimizer, cfg, device, **kwargs):
     return trainer
 
 
+def get_pix3d_data_fields(mode, cfg):
+    fields = {}
+    #TODO: add pix3d data field load
+    return fields
+
+
 def get_data_fields(mode, cfg):
     ''' Returns the data fields.
 
@@ -172,6 +178,10 @@ def get_data_fields(mode, cfg):
         mode (str): the mode which is used
         cfg (dict): imported yaml config
     '''
+    dataset_type = cfg['data']['dataset']
+    if dataset_type == 'pix3d':
+        return get_pix3d_data_fields(mode, cfg)
+
     fields = {}
     if 'output_points_count' in cfg['model']:
         output_points_count = cfg['model']['output_points_count']

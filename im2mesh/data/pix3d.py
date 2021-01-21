@@ -155,9 +155,12 @@ class Pix3d_S_CameraField(Field):
         
         Rt = np.dot(Rt, fix_mat)
 
+        # K fix (to 137)
+        K[:2,:] = K[:2, :] / self.resolution * 137.
+
         data = {}
-        data['world_mat'] = Rt
-        data['camera_mat'] = K
+        data['world_mat'] = Rt.astype(np.float32)
+        data['camera_mat'] = K.astype(np.float32)
 
         return data
 
@@ -272,7 +275,7 @@ class Pix3d_S_DepthPointCloudField(Field):
         assert self.depth_pointcloud_root is not None
         depth_pointcloud_folder = os.path.join(self.depth_pointcloud_root, image_category, image_name, self.depth_pointcloud_folder_name)
 
-        depth_pointcloud_file = os.path.join(depth_pointcloud_folder, '00.npz')
+        depth_pointcloud_file = os.path.join(depth_pointcloud_folder, '00_pointcloud.npz')
 
         # load npz
         depth_pointcloud_dict = np.load(depth_pointcloud_file)

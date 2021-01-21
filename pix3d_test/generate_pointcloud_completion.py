@@ -13,6 +13,7 @@ from im2mesh.point_completion.training import compose_inputs, compose_pointcloud
 from im2mesh.utils.pointnet2_ops_lib.pointnet2_ops import pointnet2_utils
 from tqdm import tqdm
 from scripts.pix3d_preprocess import utils as pix3d_utils
+from im2mesh.utils.visualize import visualize_pointcloud
 
 # Arguments
 parser = argparse.ArgumentParser(
@@ -61,6 +62,7 @@ train_loader = torch.utils.data.DataLoader(
     collate_fn=data.collate_remove_none,
     worker_init_fn=data.worker_init_fn)
 
+print(train_dataset)
 # Model
 model = config.get_model(cfg, device=device, dataset=train_dataset)
 
@@ -118,6 +120,10 @@ for batch in tqdm(train_loader):
     for i in range(cur_batch_size):
         cur_pointcloud_hat = pointcloud_hat[i].cpu().numpy()
 
+        input_pointcloud = encoder_inputs[i].cpu().numpy()
+
+
+
         if args.resample != 0:
             cur_pointcloud_hat = np.unique(cur_pointcloud_hat, axis=0)
             if cur_pointcloud_hat.shape[0] >= args.resample:
@@ -139,8 +145,27 @@ for batch in tqdm(train_loader):
 
         if not os.path.exists(os.path.join(out_dir, cur_image_category, cur_image_name, out_folder_name)):
             os.mkdir(os.path.join(out_dir, cur_image_category, cur_image_name, out_folder_name))
-        
+
+        # save input(world_scale_model)
+        output_file = os.path.join(out_dir, cur_image_category, cur_image_name,
+            out_folder_name, '00_input_pc.png')
+        visualize_pointcloud(input_pointcloud, out_file=output_file, elev=24, azim=0)
+
+        output_file = os.path.join(out_dir, cur_image_category, cur_image_name,
+            out_folder_name, '01_input_pc.png')
+        visualize_pointcloud(input_pointcloud, out_file=output_file, elev=24, azim=120)
+
+        output_file = os.path.join(out_dir, cur_image_category, cur_image_name,
+            out_folder_name, '02_input_pc.png')
+        visualize_pointcloud(input_pointcloud, out_file=output_file, elev=25, azim=240)
+
+
+        # save output        
         save_pc_path = os.path.join(out_dir, cur_image_category, cur_image_name,
             out_folder_name, '00_pointcloud.npz')
 
-        np.savez(save_pc_path, pointcloud=cur_pointcloud_hat)    
+        np.savez(save_pc_path, pointcloud=cur_pointcloud_hat)   
+
+        output_file = os.path.join(out_dir, cur_image_category, cur_image_name, 
+            out_folder_name, '00_pc.png')
+        visualize_pointcloud(cur_pointcloud_hat, out_file=output_file) 
