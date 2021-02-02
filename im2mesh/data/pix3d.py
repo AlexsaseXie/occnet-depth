@@ -435,3 +435,27 @@ class Pix3d_MixedInputField(Field):
         '''
         # TODO: check
         return True   
+
+class Pix3d_PointField(Field):
+    def __init__(self, file_name=None, transform=None, with_transforms=False, unpackbits=False, input_range=None):
+        self.file_name = file_name
+        self.transform = transform
+        self.with_transforms = with_transforms
+        self.unpackbits = unpackbits
+        self.input_range = input_range
+        print('Points_field:', self.file_name)
+
+    def load(self, image_info, idx, pix3d_root=None):
+        data = {}
+
+        if self.file_name is not None:
+            raise NotImplementedError
+        else:
+            if self.with_transforms:
+                data['loc'] = np.array(image_info['model_loc']).astype(np.float32)
+                data['scale'] = np.array(image_info['model_scale']).astype(np.float32)
+
+        if self.transform is not None:
+            data = self.transform(data)
+
+        return data

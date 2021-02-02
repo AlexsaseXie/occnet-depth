@@ -273,8 +273,17 @@ def get_occ_data_fields(mode, cfg):
 
 
 def get_pix3d_data_fields(mode, cfg):
+    #N = cfg['data']['points_subsample']
+    #points_transform = data.SubsamplePoints(cfg['data']['points_subsample'])
+    with_transforms = cfg['model']['use_camera']
+
     fields = {}
-    # TODO: get points.loc points.scale
+    fields['points'] = data.Pix3d_PointField(
+        file_name=None, transform=None,
+        with_transforms=with_transforms,
+        unpackbits=cfg['data']['points_unpackbits'],
+        input_range=None
+    )
     return fields
 
 

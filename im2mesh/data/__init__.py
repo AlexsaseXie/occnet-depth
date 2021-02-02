@@ -22,7 +22,8 @@ from im2mesh.data.input_mix_fields import (
 
 from im2mesh.data.pix3d import (
     Pix3d_MixedInputField,
-    Pix3dDataset
+    Pix3dDataset,
+    Pix3d_PointField
 )
 
 
@@ -54,5 +55,6 @@ __all__ = [
     OnlineProductDataset,
     ImageDataset,
     Pix3dDataset,
-    Pix3d_MixedInputField
+    Pix3d_MixedInputField,
+    Pix3d_PointField
 ]
