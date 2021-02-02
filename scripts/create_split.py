@@ -27,8 +27,10 @@ args = parser.parse_args()
 if args.seed is not None:
     random.seed(args.seed)
 
-all_samples = [name for name in os.listdir(args.in_folder)
-               if os.path.isdir(os.path.join(args.in_folder, name))]
+all_samples = sorted(
+    [name for name in os.listdir(args.in_folder)
+        if os.path.isdir(os.path.join(args.in_folder, name))]
+)
 
 if args.shuffle:
     random.shuffle(all_samples)
