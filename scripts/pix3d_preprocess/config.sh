@@ -10,9 +10,9 @@ NPROC=12
 TIMEOUT=180
 
 declare -a CLASSES=(
-    'sofa',
-    'chair',
-    'table'
+    sofa
+    chair
+    table
 )
 
 # Utility functions

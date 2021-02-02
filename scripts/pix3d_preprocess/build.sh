@@ -19,7 +19,7 @@ for c in ${CLASSES[@]}; do
 
   echo "Converting meshes to OFF"
   lsfilter $input_path_c $build_path_c/0_in .off | parallel -P $NPROC --timeout $TIMEOUT \
-     meshlabserver -i $input_path_c/{}/model.obj -o $build_path_c/0_in/{}.off -s rotate.mlx;
+     meshlabserver -i $input_path_c/{}/model.obj -o $build_path_c/0_in/{}.off -s pix3d_preprocess/rotate.mlx;
   
   echo "Scaling meshes"
   python $MESHFUSION_PATH/1_scale.py \
