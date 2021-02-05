@@ -273,17 +273,53 @@ def get_occ_data_fields(mode, cfg):
 
 
 def get_pix3d_data_fields(mode, cfg):
-    #N = cfg['data']['points_subsample']
-    #points_transform = data.SubsamplePoints(cfg['data']['points_subsample'])
+    N = cfg['data']['points_subsample']
+    points_transform = data.SubsamplePoints(N)
     with_transforms = cfg['model']['use_camera']
+
+    if mode == 'train':
+        if 'input_range' in cfg['data']:
+            input_range = cfg['data']['input_range']
+            print('Input range:', input_range)
+        else:
+            input_range = None
+    else:
+        if 'test_range' in cfg['data']:
+            input_range = cfg['data']['test_range']
+            print('Test range:', input_range)
+        else:
+            input_range = None
 
     fields = {}
     fields['points'] = data.Pix3d_PointField(
-        file_name=None, transform=None,
+        build_path='./pix3d/pix3d.build', transform=points_transform,
         with_transforms=with_transforms,
         unpackbits=cfg['data']['points_unpackbits'],
         input_range=None
     )
+
+    if mode in ('val', 'test'):
+        if 'val_subsample' in cfg['test']:
+            val_subsample = cfg['test']['val_subsample']
+            val_subsample_transform = data.SubsamplePoints(val_subsample)
+        else:
+            val_subsample = None
+        
+        points_iou_file = cfg['data']['points_iou_file']
+        #voxels_file = cfg['data']['voxels_file']
+        if points_iou_file is not None:
+            fields['points_iou'] = data.Pix3d_PointField(
+                build_path='./pix3d/pix3d.build', transform=val_subsample_transform,
+                with_transforms=with_transforms,
+                unpackbits=cfg['data']['points_unpackbits'],
+                input_range=None
+            )
+
+        # TODO:
+        #if voxels_file is not None:
+        #   fields['voxels'] = data.VoxelsField(voxels_file)
+
+
     return fields
 
 

@@ -437,19 +437,49 @@ class Pix3d_MixedInputField(Field):
         return True   
 
 class Pix3d_PointField(Field):
-    def __init__(self, file_name=None, transform=None, with_transforms=False, unpackbits=False, input_range=None):
-        self.file_name = file_name
+    def __init__(self, build_path='./pix3d/pix3d.build/', transform=None, with_transforms=False, unpackbits=False, input_range=None,
+        build_folder='4_points'):
+        self.build_path = build_path
+        self.build_folder = build_folder
         self.transform = transform
         self.with_transforms = with_transforms
         self.unpackbits = unpackbits
         self.input_range = input_range
-        print('Points_field:', self.file_name)
+        print('Points_field:', self.build_path)
 
     def load(self, image_info, idx, pix3d_root=None):
         data = {}
 
-        if self.file_name is not None:
-            raise NotImplementedError
+        if self.build_folder is not None:
+            modelname = pix3d_utils.get_model_name(image_info)
+            category = image_info['category']
+            npz_path = os.path.join(self.build_path, category, self.build_folder, '%s.npz' % modelname)
+
+            points_dict = np.load(npz_path)
+            points = points_dict['points']
+            # Break symmetry if given in float16:
+            if points.dtype == np.float16:
+                points = points.astype(np.float32)
+                points += 1e-4 * np.random.randn(*points.shape)
+            else:
+                points = points.astype(np.float32)
+
+            occupancies = points_dict['occupancies']
+
+            if self.unpackbits:
+                occupancies = np.unpackbits(occupancies)[:points.shape[0]]
+            occupancies = occupancies.astype(np.float32)
+
+            if self.input_range is not None:
+                points = points[self.input_range[0]: self.input_range[1]]
+                occupancies = occupancies[self.input_range[0]: self.input_range[1]]
+
+            data[None] = points
+            data['occ'] = occupancies
+
+            if self.with_transforms:
+                data['loc'] = points_dict['loc'].astype(np.float32)
+                data['scale'] = points_dict['scale'].astype(np.float32)
         else:
             if self.with_transforms:
                 data['loc'] = np.array(image_info['model_loc']).astype(np.float32)

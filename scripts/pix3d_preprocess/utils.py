@@ -190,3 +190,7 @@ def get_model(image_info, pix3d_root='.'):
 
 def get_bbox(image_info, pix3d_root=None):
     return image_info['bbox']
+
+def get_model_name(image_info, pix3d_root='.'):
+    model_path = os.path.join(pix3d_root, image_info['model'])
+    return model_path.split('/')[-2]

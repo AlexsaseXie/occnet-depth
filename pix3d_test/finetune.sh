@@ -1,5 +1,12 @@
+# TODO:
+# make following finetune methods work
+# * need depth ground truth
+
+# depth prediction train
+python train.py configs/pix3d/uresnet_finetune.yaml
+
 # depth prediction
-python pix3d_test/generate_pred_depth_maps.py configs/pix3d/uresnet.yaml
+python pix3d_test/generate_pred_depth_maps.py configs/pix3d/uresnet_finetune.yaml --out_dir ./data/pix3d/uresnet.depth_pred/
 
 # inverse mapping of perspective projection
 python pix3d_test/generate_pointcloud_from_depth.py

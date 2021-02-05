@@ -31,7 +31,7 @@ args = parser.parse_args()
 
 MASK_ROOT = args.mask_dir
 DEPTH_ROOT = args.depth_dir
-depth_pred = re.split('.|/', DEPTH_ROOT)
+depth_pred = 'depth_pred' in re.split('.|/', DEPTH_ROOT)
 OUTPUT_DIR_NAME = args.out_folder_name
 N = args.n
 
