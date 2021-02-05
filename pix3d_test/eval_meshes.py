@@ -104,10 +104,15 @@ for it, data in enumerate(tqdm(test_loader)):
     pointcloud_dir = os.path.join(pointcloud_dir, cur_image_category)
 
     # Evaluate
-    pointcloud_tgt = data['pointcloud_chamfer'].squeeze(0).numpy()
-    normals_tgt = data['pointcloud_chamfer.normals'].squeeze(0).numpy()
-    points_tgt = data['points_iou'].squeeze(0).numpy()
-    occ_tgt = data['points_iou.occ'].squeeze(0).numpy()
+    try:
+        pointcloud_tgt = data['pointcloud_chamfer'].squeeze(0).numpy()
+        normals_tgt = data['pointcloud_chamfer.normals'].squeeze(0).numpy()
+        points_tgt = data['points_iou'].squeeze(0).numpy()
+        occ_tgt = data['points_iou.occ'].squeeze(0).numpy()
+    except:
+        continue
+    finally:
+        pass
 
     # Evaluating mesh and pointcloud
     # Start row and put basic informatin inside

@@ -65,7 +65,7 @@ test_loader = torch.utils.data.DataLoader(
     worker_init_fn=data.worker_init_fn)
 
 vis_loader = torch.utils.data.DataLoader(
-    dataset, batch_size=12, shuffle=True,
+    dataset, batch_size=12, shuffle=False,
     collate_fn=data.collate_remove_none,
     worker_init_fn=data.worker_init_fn)
 
@@ -89,9 +89,14 @@ for it, data in enumerate(tqdm(test_loader)):
         'image name': cur_image_name,
         'model name': cur_image_model_name
     }
-    eval_dicts.append(eval_dict)
-    eval_data = trainer.eval_step(data)
-    eval_dict.update(eval_data)
+
+    try:
+        eval_data = trainer.eval_step(data)
+    except:
+        continue
+    finally:
+        eval_dicts.append(eval_dict)
+        eval_dict.update(eval_data)
 
 
 # Create pandas dataframe and save
@@ -108,13 +113,19 @@ eval_df_class.loc['mean'] = eval_df_class.mean()
 print(eval_df_class)
 
 
+it_count = 0
 for it, data_vis in enumerate(vis_loader):
-    current_out_vis_dir = os.path.join(out_vis_dir, '%d' % it)
+    current_out_vis_dir = os.path.join(out_vis_dir, '%d' % it_count)
     if not os.path.exists(current_out_vis_dir):
         os.mkdir(current_out_vis_dir)
 
     trainer.vis_dir = current_out_vis_dir
-    trainer.visualize(data_vis)
+    try:
+        trainer.visualize(data_vis)
+    except:
+        continue
+    finally:
+        it_count += 1
 
-    if it == 3:
+    if it_count == 3:
         break

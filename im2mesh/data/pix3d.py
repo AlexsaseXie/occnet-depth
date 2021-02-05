@@ -15,7 +15,7 @@ from scripts.pix3d_preprocess import utils as pix3d_utils
 class Pix3dDataset(data.Dataset):
     def __init__(self, dataset_folder, fields,
         list_folder_name='generation_sampled_list', categories=None,
-        no_except=False, transform=None,
+        no_except=True, transform=None,
         pix3d_root=None):
         '''
             categories: dir name
@@ -436,6 +436,7 @@ class Pix3d_MixedInputField(Field):
         # TODO: check
         return True   
 
+# TODO: fix the issue of bug when batch size > 1, for there may be invalid point field for some  images. 
 class Pix3d_PointField(Field):
     def __init__(self, build_path='./data/pix3d/pix3d.build/', transform=None, with_transforms=False, unpackbits=False, input_range=None,
         build_folder='4_points'):
@@ -454,6 +455,12 @@ class Pix3d_PointField(Field):
             modelname = pix3d_utils.get_model_name(image_info)
             category = image_info['category']
             npz_path = os.path.join(self.build_path, category, self.build_folder, '%s.npz' % modelname)
+
+            if not os.path.exists(npz_path):
+                if self.with_transforms:
+                    data['loc'] = np.array(image_info['model_loc']).astype(np.float32)
+                    data['scale'] = np.array(image_info['model_scale']).astype(np.float32)
+                return data
 
             points_dict = np.load(npz_path)
             points = points_dict['points']
@@ -502,6 +509,9 @@ class Pix3d_PointCloudField(Field):
         modelname = pix3d_utils.get_model_name(image_info)
         category = image_info['category']
         npz_path = os.path.join(self.build_path, category, self.build_folder, '%s.npz' % modelname)
+
+        if not os.path.exists(npz_path):
+            return {}
 
         pointcloud_dict = np.load(npz_path)
 
