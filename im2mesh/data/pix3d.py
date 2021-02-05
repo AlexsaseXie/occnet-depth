@@ -15,7 +15,7 @@ from scripts.pix3d_preprocess import utils as pix3d_utils
 class Pix3dDataset(data.Dataset):
     def __init__(self, dataset_folder, fields,
         list_folder_name='generation_sampled_list', categories=None,
-        no_except=True, transform=None,
+        no_except=False, transform=None,
         pix3d_root=None):
         '''
             categories: dir name
@@ -437,7 +437,7 @@ class Pix3d_MixedInputField(Field):
         return True   
 
 class Pix3d_PointField(Field):
-    def __init__(self, build_path='./pix3d/pix3d.build/', transform=None, with_transforms=False, unpackbits=False, input_range=None,
+    def __init__(self, build_path='./data/pix3d/pix3d.build/', transform=None, with_transforms=False, unpackbits=False, input_range=None,
         build_folder='4_points'):
         self.build_path = build_path
         self.build_folder = build_folder
@@ -450,7 +450,7 @@ class Pix3d_PointField(Field):
     def load(self, image_info, idx, pix3d_root=None):
         data = {}
 
-        if self.build_folder is not None:
+        if self.build_path is not None:
             modelname = pix3d_utils.get_model_name(image_info)
             category = image_info['category']
             npz_path = os.path.join(self.build_path, category, self.build_folder, '%s.npz' % modelname)

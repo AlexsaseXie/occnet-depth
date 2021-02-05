@@ -292,7 +292,7 @@ def get_pix3d_data_fields(mode, cfg):
 
     fields = {}
     fields['points'] = data.Pix3d_PointField(
-        build_path='./pix3d/pix3d.build', transform=points_transform,
+        build_path='./data/pix3d/pix3d.build', transform=points_transform,
         with_transforms=with_transforms,
         unpackbits=cfg['data']['points_unpackbits'],
         input_range=None
@@ -309,7 +309,7 @@ def get_pix3d_data_fields(mode, cfg):
         #voxels_file = cfg['data']['voxels_file']
         if points_iou_file is not None:
             fields['points_iou'] = data.Pix3d_PointField(
-                build_path='./pix3d/pix3d.build', transform=val_subsample_transform,
+                build_path='./data/pix3d/pix3d.build', transform=val_subsample_transform,
                 with_transforms=with_transforms,
                 unpackbits=cfg['data']['points_unpackbits'],
                 input_range=None
