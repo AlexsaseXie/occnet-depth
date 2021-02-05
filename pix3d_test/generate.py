@@ -177,7 +177,7 @@ for it, data in enumerate(tqdm(test_loader)):
             out_file_dict['in'] = inputs_path
 
     # Copy to visualization directory for first vis_n_output samples
-    c_it = model_counter[category_id]
+    c_it = model_counter[cur_image_category]
     if c_it < vis_n_outputs:
         # Save output files
         img_name = '%02d.off' % c_it
@@ -187,7 +187,7 @@ for it, data in enumerate(tqdm(test_loader)):
                                     % (c_it, k, ext))
             shutil.copyfile(filepath, out_file)
 
-    model_counter[category_id] += 1
+    model_counter[cur_image_category] += 1
 
 # Create pandas dataframe and save
 time_df = pd.DataFrame(time_dicts)
