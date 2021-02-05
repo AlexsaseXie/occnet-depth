@@ -489,3 +489,35 @@ class Pix3d_PointField(Field):
             data = self.transform(data)
 
         return data
+
+class Pix3d_PointCloudField(Field):
+    def __init__(self, build_path='./data/pix3d/pix3d.build/', transform=None, with_transforms=False,
+        build_folder='4_pointcloud'):
+        self.build_path = build_path
+        self.build_folder = build_folder
+        self.transform = transform
+        self.with_transforms = with_transforms
+
+    def load(self, image_info, idx, pix3d_root=None):
+        modelname = pix3d_utils.get_model_name(image_info)
+        category = image_info['category']
+        npz_path = os.path.join(self.build_path, category, self.build_folder, '%s.npz' % modelname)
+
+        pointcloud_dict = np.load(npz_path)
+
+        points = pointcloud_dict['points'].astype(np.float32)
+        normals = pointcloud_dict['normals'].astype(np.float32)
+
+        data = {
+            None: points,
+            'normals': normals,
+        }
+
+        if self.with_transforms:
+            data['loc'] = pointcloud_dict['loc'].astype(np.float32)
+            data['scale'] = pointcloud_dict['scale'].astype(np.float32)
+        
+        if self.transform is not None:
+            data = self.transform(data)
+
+        return data

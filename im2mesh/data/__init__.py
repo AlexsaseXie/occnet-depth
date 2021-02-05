@@ -23,7 +23,8 @@ from im2mesh.data.input_mix_fields import (
 from im2mesh.data.pix3d import (
     Pix3d_MixedInputField,
     Pix3dDataset,
-    Pix3d_PointField
+    Pix3d_PointField,
+    Pix3d_PointCloudField,
 )
 
 
@@ -56,5 +57,6 @@ __all__ = [
     ImageDataset,
     Pix3dDataset,
     Pix3d_MixedInputField,
-    Pix3d_PointField
+    Pix3d_PointField,
+    Pix3d_PointCloudField
 ]

@@ -38,7 +38,35 @@ else:
     out_file_class = os.path.join(generation_dir, 'eval_input.csv')
 
 # Dataset
-dataset = config.get_dataset('test', cfg, return_idx=True)
+if 'test_range' in cfg['data']:
+    input_range = cfg['data']['test_range']
+    print('Test range:', input_range)
+else:
+    input_range = None
+
+points_field = data.Pix3d_PointField(
+    build_path='./data/pix3d/pix3d.build',
+    unpackbits=cfg['data']['points_unpackbits'],
+    input_range=input_range
+)
+ 
+pointcloud_field = data.Pix3d_PointCloudField(
+    build_path='./data/pix3d/pix3d.build'
+)
+
+fields = {
+    'points_iou': points_field,
+    'pointcloud_chamfer': pointcloud_field,
+    'idx': data.IndexField(),
+}
+
+if 'pix3d_root' in cfg['data']:
+    pix3d_root = cfg['data']['pix3d_root']
+else:
+    pix3d_root = '.'
+
+dataset_folder = cfg['data']['path']
+dataset = data.Pix3dDataset(dataset_folder, fields, pix3d_root=pix3d_root)
 
 # Evaluator
 evaluator = MeshEvaluator(n_points=100000)
