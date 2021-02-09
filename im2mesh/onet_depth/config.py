@@ -277,6 +277,12 @@ def get_generator(model, cfg, device, **kwargs):
     if 'use_local_feature' in cfg['model']:
         generator_params['local'] = cfg['model']['use_local_feature']
 
+    if 'use_occ_in_marching_cubes' in cfg['generation']:
+        generator_params['use_occ_in_marching_cubes'] = cfg['generation']['use_occ_in_marching_cubes']
+
+    if 'fixed_marching_cubes_threshold' in cfg['generation']:
+        generator_params['fixed_marching_cubes_threshold'] = cfg['generation']['fixed_marching_cubes_threshold']
+
     generator = generation.Generator3D(
         model,
         **generator_params

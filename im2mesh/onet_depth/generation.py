@@ -12,6 +12,8 @@ from im2mesh.onet_depth.models import background_setting
 from im2mesh.onet_depth.training import compose_inputs, organize_space_carver_kwargs
 import time
 
+def sigmoid_np(x):
+    return 1.0 / (1.0+np.exp(-x))
 
 # TODO: Add DP & DDP support
 class Generator3D(object):
@@ -44,7 +46,9 @@ class Generator3D(object):
                  use_gt_depth_map=False,
                  with_img=False,
                  depth_pointcloud_transfer=None,
-                 local=False):
+                 local=False,
+                 use_occ_in_marching_cubes=False,
+                 fixed_marching_cubes_threshold=None):
         self.model = model
         if getattr(self.model, 'module', False):
             # force to use single gpu forward
@@ -61,6 +65,9 @@ class Generator3D(object):
         self.simplify_nfaces = simplify_nfaces
         self.preprocessor = preprocessor
         self.local = local
+        # additional parameters for marching cubes
+        self.use_occ_in_marching_cubes = use_occ_in_marching_cubes
+        self.fixed_marching_cubes_threshold = fixed_marching_cubes_threshold
 
         self.input_type = input_type
         assert self.input_type in ('depth_pred', 'depth_pointcloud', 'depth_pointcloud_completion', 'img', 'img_with_depth')
@@ -226,8 +233,18 @@ class Generator3D(object):
         t0 = time.time()
         occ_hat_padded = np.pad(
             occ_hat, 1, 'constant', constant_values=-1e6)
-        vertices, triangles = libmcubes.marching_cubes(
-            occ_hat_padded, threshold)
+
+        if self.use_occ_in_marching_cubes:
+            occ_hat_v = sigmoid_np(occ_hat_padded)
+            if self.fixed_marching_cubes_threshold is not None:
+                threshold_v = self.threshold
+            else:
+                threshold_v = self.fixed_marching_cubes_threshold
+            vertices, triangles = libmcubes.marching_cubes(
+                occ_hat_padded, threshold)
+        else:
+            vertices, triangles = libmcubes.marching_cubes(
+                occ_hat_padded, threshold)
         stats_dict['time (marching cubes)'] = time.time() - t0
         # Strange behaviour in libmcubes: vertices are shifted by 0.5
         vertices -= 0.5
