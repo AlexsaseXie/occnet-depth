@@ -26,6 +26,7 @@ parser.add_argument('--do_not_translate_trans_mat', action='store_true', default
 
 parser.add_argument('--intermediate_output', action='store_true', default=False)
 parser.add_argument('--select_object_ratio', type=float, default=0.5)
+parser.add_argument('--black', action='store_true') 
 args = parser.parse_args()
 
 TEST_CLASSES = [
@@ -54,7 +55,10 @@ def procedure_output(image_info, intermediate_output=True):
     # pre-process
     source_image = utils.get_image(image_info, pix3d_root=PIX3D_ROOT).convert('RGB')
     source_image_mask = utils.get_mask(image_info, pix3d_root=PIX3D_ROOT)
-    background_image = Image.new('RGB', source_image.size, 'white')
+    if not args.black:
+        background_image = Image.new('RGB', source_image.size, 'white')
+    else:
+        background_image = Image.new('RGB', source_image.size, 'black')
     source_image = Image.composite(source_image, background_image, source_image_mask)
 
 
@@ -112,7 +116,10 @@ def procedure_output(image_info, intermediate_output=True):
     new_image_size = new_center * 2
 
     # create new image
-    img_after_translation = Image.new('RGB', (new_image_size[0], new_image_size[1]), 'white')
+    if not args.black:
+        img_after_translation = Image.new('RGB', (new_image_size[0], new_image_size[1]), 'white')
+    else:
+        img_after_translation = Image.new('RGB', (new_image_size[0], new_image_size[1]), 'black')
     mask_after_translation = Image.new('L', (new_image_size[0], new_image_size[1]), 'black')
 
     # crop & paste for source image
