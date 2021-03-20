@@ -395,7 +395,7 @@ class MixedInputField(Field):
                     t_lst.append(PointcloudNoise(cfg['data']['depth_pointcloud_noise']))
                 pc_transform = transforms.Compose(t_lst)
 
-                if 'depth_pointcloud_mix' in cfg['training']:
+                if mode == 'train' and 'depth_pointcloud_mix' in cfg['training']:
                     mixed = cfg['training']['depth_pointcloud_mix']
                 else:
                     mixed = False
