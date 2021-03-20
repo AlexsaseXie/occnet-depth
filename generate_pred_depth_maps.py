@@ -39,7 +39,7 @@ if not os.path.exists(out_dir) and not args.time_test:
 # Dataset
 def get_fields():
     fields = {}
-    input_field = config.get_inputs_field('train', cfg)
+    input_field = config.get_inputs_field('test', cfg)
     fields['inputs'] = input_field
     fields['idx'] = data.IndexField()
     fields['viewid'] = data.ViewIdField()

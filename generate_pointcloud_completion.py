@@ -56,7 +56,7 @@ dataset_folder = cfg['data']['path']
 # Dataset
 def get_fields():
     fields = {}
-    input_field = config.get_inputs_field('train', cfg)
+    input_field = config.get_inputs_field('test', cfg)
     fields['inputs'] = input_field
     fields['idx'] = data.IndexField()
     fields['viewid'] = data.ViewIdField()
@@ -94,7 +94,7 @@ for batch in tqdm(train_loader):
     it += 1
     model.eval()
 
-    encoder_inputs, raw_data = compose_inputs(batch, mode='train', device=device, input_type='depth_pointcloud',
+    encoder_inputs, raw_data = compose_inputs(batch, mode='test', device=device, input_type='depth_pointcloud',
                                                 depth_pointcloud_transfer=depth_pointcloud_transfer)
     cur_batch_size = encoder_inputs.size(0)
     idxs = batch.get('idx')
