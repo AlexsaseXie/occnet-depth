@@ -246,6 +246,7 @@ def get_occ_data_fields(mode, cfg):
             val_subsample = cfg['test']['val_subsample']
             val_subsample_transform = data.SubsamplePoints(val_subsample)
         else:
+            val_subsample = None
             val_subsample_transform = None
         points_iou_file = cfg['data']['points_iou_file']
         voxels_file = cfg['data']['voxels_file']
@@ -303,6 +304,7 @@ def get_pix3d_data_fields(mode, cfg):
             val_subsample = cfg['test']['val_subsample']
             val_subsample_transform = data.SubsamplePoints(val_subsample)
         else:
+            val_subsample = None
             val_subsample_transform = None
         
         points_iou_file = cfg['data']['points_iou_file']

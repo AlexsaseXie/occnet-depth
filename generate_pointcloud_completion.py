@@ -11,6 +11,7 @@ from im2mesh.checkpoints import CheckpointIO
 from im2mesh.point_completion.training import compose_inputs, compose_pointcloud, organize_space_carver_kwargs
 from im2mesh.utils.pointnet2_ops_lib.pointnet2_ops import pointnet2_utils
 from tqdm import tqdm
+import pandas as pd
 
 # Arguments
 parser = argparse.ArgumentParser(
@@ -24,6 +25,7 @@ parser.add_argument('--out_folder_name', type=str, default='depth_pointcloud_com
 parser.add_argument('--batch_size', type=int, default=256, help='Generation batch size.')
 parser.add_argument('--combine_pc', action='store_true', help='Combine input and predict.')
 parser.add_argument('--resample', type=int, default=0, help='random resample points count.')
+parser.add_argument('--time_test', action='store_true', help='time test')
 args = parser.parse_args()
 
 ### rename ###
@@ -41,7 +43,7 @@ if args.out_dir == 'default':
 else:
     out_dir = args.out_dir
 
-if not os.path.exists(out_dir):
+if not os.path.exists(out_dir) and not args.time_test:
     os.mkdir(out_dir)
 
 if 'depth_pointcloud_transfer' in cfg['model']:
@@ -61,10 +63,15 @@ def get_fields():
     return fields
 
 fields = get_fields()
-train_dataset = data.Shapes3dDataset_AllImgs(dataset_folder, fields, split=None)
+if not args.time_test:
+    train_dataset = data.Shapes3dDataset_AllImgs(dataset_folder, fields, split=None)
+else:
+    train_dataset = data.Shapes3dDataset_AllImgs(dataset_folder, fields, split='test', n_views=1)
 
+batch_size = args.batch_size if not args.time_test else 1
+n_workers = 4 if not args.time_test else 0
 train_loader = torch.utils.data.DataLoader(
-    train_dataset, batch_size=args.batch_size, num_workers=4, shuffle=False,
+    train_dataset, batch_size=batch_size, num_workers=n_workers, shuffle=False,
     collate_fn=data.collate_remove_none,
     worker_init_fn=data.worker_init_fn)
 
@@ -82,6 +89,7 @@ if method == 'point_completion':
     method = 'FCAE'
 
 it = 0
+time_dicts = []
 for batch in tqdm(train_loader):
     it += 1
     model.eval()
@@ -104,6 +112,9 @@ for batch in tqdm(train_loader):
             raw_data, batch, device,
             target_space=target_space
         )
+
+    if args.time_test:
+        single_t0 = time.time()
 
     with torch.no_grad():
         pointcloud_hat = model(encoder_inputs, **kwargs)
@@ -137,6 +148,18 @@ for batch in tqdm(train_loader):
         cur_model_info = train_dataset.get_model_dict(idxs[i]) # category & model
         cur_viewid = viewids[i]
 
+        if args.time_test:
+            time_dict = {
+                'idx': it,
+                'class id': cur_model_info['category'],
+                'modelname': cur_model_info['model'],
+                'viewid': cur_viewid,
+                'time (depth estimation)': time.time() - single_t0
+            }
+
+            time_dicts.append(time_dict)
+            break
+
         if not os.path.exists(os.path.join(out_dir, cur_model_info['category'])):
             os.mkdir(os.path.join(out_dir, cur_model_info['category']))
         
@@ -150,3 +173,18 @@ for batch in tqdm(train_loader):
             out_folder_name, '%.2d_pointcloud.npz' % cur_viewid)
 
         np.savez(save_pc_path, pointcloud=cur_pointcloud_hat)    
+
+if args.time_test:
+    if not os.path.exists('./timings/'):
+        os.mkdir('./timings/')
+
+    time_df = pd.DataFrame(time_dicts)
+    time_df.set_index(['idx'], inplace=True)
+    time_df.to_pickle('./timings/point_cloud_completion_time_full.pkl')
+
+    # Create pickle files  with main statistics
+    time_df_class = time_df.groupby(by=['class id']).mean()
+    time_df_class.to_pickle('./timings/point_cloud_completion_time_cls.pkl')
+
+    time_df_class.loc['mean'] = time_df_class.mean()
+    print('Timings: ', time_df_class)
