@@ -8,7 +8,8 @@ from im2mesh.utils.pointnet2_ops_lib.pointnet2_ops.pointnet2_utils import QueryA
 
 
 class PointNet2SSGEncoder(nn.Module):
-    def __init__(self, c_dim=1024, use_xyz=True, initial_feats_dim=0, local=False, local_feature_dim=512):
+    def __init__(self, c_dim=1024, use_xyz=True, initial_feats_dim=0, local=False, local_feature_dim=512.,
+        local_radius=[0.1, 0.2, 0.4], local_n_sample=[16, 16, 8]):
         super().__init__()
 
         self.c_dim = c_dim
@@ -16,6 +17,10 @@ class PointNet2SSGEncoder(nn.Module):
         self.local = local
         self.local_feature_dim = local_feature_dim
         self.initial_feats_dim = initial_feats_dim
+
+        assert len(local_radius) == 3 and len(local_n_sample) == 3
+        self.local_radius = local_radius
+        self.local_n_sample = local_n_sample
 
         self._build_model()            
 
@@ -112,8 +117,8 @@ class PointNet2SSGEncoder(nn.Module):
         else:
             scale = 1.
 
-        radius = [0.1, 0.2, 0.4]
-        n_sample = [16, 16, 8]
+        radius = self.local_radius
+        n_sample = self.local_n_sample
         local_feats = []
         for i, fl in enumerate(feature_list):
             xyz, features = fl[0], fl[1]
