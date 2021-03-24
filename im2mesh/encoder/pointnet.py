@@ -203,7 +203,7 @@ class STNkd(nn.Module):
 class PointNetEncoder(nn.Module):
     def __init__(self, c_dim=1024, global_feat=True, feature_transform=True, channel=3, 
         only_point_feature=False, model_pretrained=None, local=False, local_feature_dim=1024,
-        local_radius=0.1, local_n_sample=16):
+        local_radius=0.1, local_n_sample=16, version=1):
         super(PointNetEncoder, self).__init__()
         self.stn = STN3d(channel)
         self.conv1 = torch.nn.Conv1d(channel, 64, 1)
@@ -227,10 +227,20 @@ class PointNetEncoder(nn.Module):
             self.load_state_dict(state_dict, strict=False)
 
         self.local = local
+        self.version = version
         if self.local:
             self.local_radius = local_radius
             self.local_n_sample = local_n_sample
-            self.local_fc = ResnetBlockFC(128 + 64 + 128 + c_dim, local_feature_dim)
+
+            if version == 0:
+                self.local_fc = ResnetBlockFC(128 + 64 + 128 + c_dim, local_feature_dim)
+            elif version == 1:
+                self.local_fc = nn.Sequential(
+                    ResnetBlockFC(128 + 64 + 128, 512),
+                    nn.Linear(512, local_feature_dim)
+                )
+            else:
+                raise NotImplementedError
             self.xyz_fc = build_shared_mlp([3, 64, 128])
 
     def forward(self, x):
@@ -322,7 +332,9 @@ class PointNetEncoder(nn.Module):
         x = F.relu(self.bn2(self.conv2(x)))
         feature_maps.append(x)
         x = self.bn3(self.conv3(x))
-        feature_maps.append(x)
+        # stop treat this layer of output as candidate in later versions
+        if self.version == 0:
+            feature_maps.append(x)
         x = torch.max(x, 2, keepdim=True)[0]
         x = x.view(-1, self.c_dim)
 
