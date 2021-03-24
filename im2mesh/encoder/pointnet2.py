@@ -154,7 +154,7 @@ class PointNet2SSGEncoder_4layers(nn.Module):
         self.local_feature_dim = local_feature_dim
         self.initial_feats_dim = initial_feats_dim
 
-        assert len(local_radius) == 3 and len(local_n_sample) == 3
+        assert len(local_radius) == 4 and len(local_n_sample) == 4
         self.local_radius = local_radius
         self.local_n_sample = local_n_sample
 
