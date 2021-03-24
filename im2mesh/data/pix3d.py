@@ -286,7 +286,7 @@ class Pix3d_S_DepthPointCloudField(Field):
         }
 
         if self.transform is not None:
-            depth_pointcloud = self.transform(depth_pointcloud)
+            data = self.transform(data)
 
         return data
 

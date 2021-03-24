@@ -1200,7 +1200,7 @@ class DepthPointCloudField(Field):
             None: depth_pointcloud
         }
         if self.transform is not None:
-            depth_pointcloud = self.transform(depth_pointcloud)
+            data = self.transform(data)
 
         data = {
             'depth_pointcloud': data[None]
