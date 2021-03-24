@@ -26,4 +26,5 @@ encoder_dict = {
     'pointnet2': pointnet2.PointNet2SSGEncoder,
     'pointnet2_ssg': pointnet2.PointNet2SSGEncoder,
     'pointnet2_msg': pointnet2.PointNet2MSGEncoder,
+    'pointnet2_4layers': pointnet2.PointNet2SSGEncoder_4layers
 }

@@ -202,7 +202,8 @@ class STNkd(nn.Module):
 
 class PointNetEncoder(nn.Module):
     def __init__(self, c_dim=1024, global_feat=True, feature_transform=True, channel=3, 
-        only_point_feature=False, model_pretrained=None, local=False, local_feature_dim=1024):
+        only_point_feature=False, model_pretrained=None, local=False, local_feature_dim=1024,
+        local_radius=0.1, local_n_sample=16):
         super(PointNetEncoder, self).__init__()
         self.stn = STN3d(channel)
         self.conv1 = torch.nn.Conv1d(channel, 64, 1)
@@ -227,6 +228,8 @@ class PointNetEncoder(nn.Module):
 
         self.local = local
         if self.local:
+            self.local_radius = local_radius
+            self.local_n_sample = local_n_sample
             self.local_fc = ResnetBlockFC(128 + 64 + 128 + c_dim, local_feature_dim)
             self.xyz_fc = build_shared_mlp([3, 64, 128])
 
@@ -268,7 +271,7 @@ class PointNetEncoder(nn.Module):
         else:
             return x, trans_point, trans_feat
 
-    def forward_local(self, data, pts, radius=0.1, n_sample=16):
+    def forward_local(self, data, pts):
         '''
             outputs:
             global feature: B * c_dim
@@ -280,7 +283,7 @@ class PointNetEncoder(nn.Module):
         else:
             c, feature_maps, trans_point, trans_feat = self.forward_local_first_step(data, return_trans_mat=True)
 
-        c, local_feats = self.forward_local_second_step(data, c, feature_maps, pts, radius=radius, n_sample=n_sample)
+        c, local_feats = self.forward_local_second_step(data, c, feature_maps, pts)
 
         if self.only_point_feature:
             return c, local_feats 
@@ -332,7 +335,7 @@ class PointNetEncoder(nn.Module):
         else:
             return x, feature_maps
 
-    def forward_local_second_step(self, data, c, feature_maps, pts, radius=0.1, n_sample=16):
+    def forward_local_second_step(self, data, c, feature_maps, pts):
         assert self.local
         x = data[None]  # x: batch * n_x * 3
         B,_,_ = x.size()
@@ -346,7 +349,7 @@ class PointNetEncoder(nn.Module):
             x = x * (1.0 / scale)
 
         # grouping indices
-        idx = ball_query(radius, n_sample, x, pts)
+        idx = ball_query(self.local_radius, self.local_n_sample, x, pts)
 
         x_trans = x.transpose(2, 1).contiguous() # x: batch * 3 * n_x
 
@@ -370,7 +373,8 @@ class PointNetEncoder(nn.Module):
 
 class PointNetResEncoder(nn.Module):
     def __init__(self, c_dim=1024, global_feat=True, feature_transform=True, channel=3,
-        only_point_feature=False, model_pretrained=None, local=False, local_feature_dim=1024):
+        only_point_feature=False, model_pretrained=None, local=False, local_feature_dim=1024,
+        local_radius=0.1, local_n_sample=16):
         super(PointNetResEncoder, self).__init__()
         self.stn = STN3d(channel)
         self.block1 = ResnetBlockConv1d(channel, 64, 64)
@@ -391,6 +395,8 @@ class PointNetResEncoder(nn.Module):
             self.load_state_dict(state_dict)
 
         if self.local:
+            self.local_radius = local_radius
+            self.local_n_sample = local_n_sample
             self.local_fc = ResnetBlockFC(128 + 64 + 128 + c_dim, local_feature_dim)
             self.xyz_fc = build_shared_mlp([3, 64, 128])
 
@@ -432,7 +438,7 @@ class PointNetResEncoder(nn.Module):
         else:
             return x, trans_point, trans_feat
 
-    def forward_local(self, data, pts, radius=0.1, n_sample=16):
+    def forward_local(self, data, pts):
         '''
             outputs:
             global feature: B * c_dim
@@ -444,7 +450,7 @@ class PointNetResEncoder(nn.Module):
         else:
             c, feature_maps, trans_point, trans_feat = self.forward_local_first_step(data, return_trans_mat=True)
 
-        c, local_feats = self.forward_local_second_step(data, c, feature_maps, pts, radius=radius, n_sample=n_sample)
+        c, local_feats = self.forward_local_second_step(data, c, feature_maps, pts)
 
         if self.only_point_feature:
             return c, local_feats 
@@ -496,7 +502,7 @@ class PointNetResEncoder(nn.Module):
         else:
             return x, feature_maps
 
-    def forward_local_second_step(self, data, c, feature_maps, pts, radius=0.1, n_sample=16):
+    def forward_local_second_step(self, data, c, feature_maps, pts):
         assert self.local
         x = data[None]  # x: batch * n_x * 3
         B,_,_ = x.size()
@@ -510,7 +516,7 @@ class PointNetResEncoder(nn.Module):
             x = x * (1.0 / scale)
 
         # grouping indices
-        idx = ball_query(radius, n_sample, x, pts)
+        idx = ball_query(self.local_radius, self.local_n_sample, x, pts)
 
         x_trans = x.transpose(2, 1).contiguous() # x: batch * 3 * n_x
 

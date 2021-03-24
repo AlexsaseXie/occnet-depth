@@ -455,21 +455,34 @@ def compose_inputs(data, mode='train', device=None, input_type='depth_pred',
 
         return encoder_inputs, raw_data
     elif input_type == 'depth_pointcloud_completion':
-        assert depth_pointcloud_transfer is None
+        # default transfer: 'world_scale_model'
+        assert depth_pointcloud_transfer in (None, 'world_normalized')
         encoder_inputs = data.get('inputs.depth_pointcloud').to(device)
+
+        if depth_pointcloud_transfer == 'world_normalized':
+            # world_scale_model -> world_normalized
+            loc = data.get('points.loc').to(device)
+            scale = data.get('points.scale').to(device)
+            B = loc.size(0)
+            loc = loc.view(B, 1, 3)
+            scale = 1.0 / scale.view(B, 1, 1)
+
+            encoder_inputs = (encoder_inputs - loc) * scale
+
         raw_data['depth_pointcloud'] = encoder_inputs
 
         if local:
-            assert depth_pointcloud_transfer is None
-            loc = data.get('points.loc').to(device)
-            scale = data.get('points.scale').to(device)
-            raw_data['loc'] = loc
-            raw_data['scale'] = scale
-            encoder_inputs = {
-                None: encoder_inputs,
-                'loc': loc,
-                'scale': scale
-            }
+            if depth_pointcloud_transfer is None:
+                loc = data.get('points.loc').to(device)
+                scale = data.get('points.scale').to(device)
+            
+                raw_data['loc'] = loc
+                raw_data['scale'] = scale
+                encoder_inputs = {
+                    None: encoder_inputs,
+                    'loc': loc,
+                    'scale': scale
+                }
         return encoder_inputs, raw_data
     else:
         raise NotImplementedError
@@ -586,7 +599,7 @@ class Phase2HalfwayTrainer(BaseTrainer):
         if self.local:
             print('Predict using local features') 
 
-        assert depth_pointcloud_transfer in (None, 'world', 'world_scale_model', 'view', 'view_scale_model')
+        assert depth_pointcloud_transfer in (None, 'world_normalized', 'world', 'world_scale_model', 'view', 'view_scale_model')
 
         if vis_dir is not None and not os.path.exists(vis_dir):
             os.makedirs(vis_dir)
