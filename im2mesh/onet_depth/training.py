@@ -472,17 +472,17 @@ def compose_inputs(data, mode='train', device=None, input_type='depth_pred',
         raw_data['depth_pointcloud'] = encoder_inputs
 
         if local:
+            encoder_inputs = {
+                None: encoder_inputs,
+            }
             if depth_pointcloud_transfer is None:
                 loc = data.get('points.loc').to(device)
                 scale = data.get('points.scale').to(device)
             
                 raw_data['loc'] = loc
                 raw_data['scale'] = scale
-                encoder_inputs = {
-                    None: encoder_inputs,
-                    'loc': loc,
-                    'scale': scale
-                }
+                encoder_inputs['loc'] = loc,
+                encoder_inputs['scale'] = scale
         return encoder_inputs, raw_data
     else:
         raise NotImplementedError
