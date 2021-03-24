@@ -8,7 +8,7 @@ from im2mesh.data.fields import (
     PointsH5Field, DepthPointCloudField, SdfH5Field
 )
 from im2mesh.data.transforms import (
-    PointcloudNoise, SubsamplePointcloud, SubsampleDepthPointcloud,
+    PointcloudNoise, SubsamplePointcloud, ShufflePointcloud,
     SubsamplePoints
 )
 from im2mesh.data.real import (
@@ -50,6 +50,7 @@ __all__ = [
     # Transforms
     PointcloudNoise,
     SubsamplePointcloud,
+    ShufflePointcloud,
     SubsamplePoints,
     # Real Data
     KittiDataset,

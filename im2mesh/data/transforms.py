@@ -47,37 +47,32 @@ class SubsamplePointcloud(object):
         '''
         data_out = data.copy()
         points = data[None]
-        normals = data['normals']
-
-        indices = np.random.randint(points.shape[0], size=self.N)
+        
+        indices = np.random.choice(points.shape[0], size=self.N, replace=False)
         data_out[None] = points[indices, :]
-        data_out['normals'] = normals[indices, :]
+
+        if 'normals' in data:
+            normals = data['normals']
+            data_out['normals'] = normals[indices, :]
 
         return data_out
 
 
-class SubsampleDepthPointcloud(object):
-    ''' Point cloud subsampling transformation class.
-
-    It subsamples the point cloud data.
-
-    Args:
-        N (int): number of points to be subsampled
-    '''
-    def __init__(self, N):
-        self.N = N
+class ShufflePointcloud(object):
+    def __init__(self):
+        pass
 
     def __call__(self, data):
-        ''' Calls the transformation.
-
-        Args:
-            data (dict): data dictionary
-        '''
         data_out = data.copy()
         points = data[None]
-
-        indices = np.random.choice(points.shape[0], size=self.N, replace=False)
+        
+        points_size = points.shape[0]
+        indices = np.random.permutation(points_size)
         data_out[None] = points[indices, :]
+
+        if 'normals' in data:
+            normals = data['normals']
+            data_out['normals'] = normals[indices, :]
 
         return data_out
 

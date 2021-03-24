@@ -6,7 +6,7 @@ from torch.utils import data
 from torchvision import transforms
 import json
 from im2mesh.data.core import Field
-from im2mesh.data.transforms import SubsampleDepthPointcloud, PointcloudNoise
+from im2mesh.data.transforms import SubsamplePointcloud, PointcloudNoise, ShufflePointcloud
 from im2mesh.data.fields import get_depth_image
 from im2mesh.data.fields import IndexField
 
@@ -355,8 +355,10 @@ class Pix3d_MixedInputField(Field):
                 )
             elif fi == 'depth_pointcloud':
                 t_lst = []
+                if 'depth_pointcloud_shuffle' in cfg['data'] and cfg['data']['depth_pointcloud_shuffle']:
+                    t_lst.append(ShufflePointcloud())
                 if 'depth_pointcloud_n' in cfg['data'] and cfg['data']['depth_pointcloud_n'] is not None:
-                    t_lst.append(SubsampleDepthPointcloud(cfg['data']['depth_pointcloud_n']))
+                    t_lst.append(SubsamplePointcloud(cfg['data']['depth_pointcloud_n']))
                 if 'depth_pointcloud_noise' in cfg['data'] and cfg['data']['depth_pointcloud_noise'] is not None:
                     t_lst.append(PointcloudNoise(cfg['data']['depth_pointcloud_noise']))
                 pc_transform = transforms.Compose(t_lst)

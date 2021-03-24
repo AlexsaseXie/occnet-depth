@@ -324,7 +324,7 @@ def get_inputs_field(mode, cfg):
     elif input_type == 'depth_pointcloud' or input_type == 'depth_pointcloud_completion':
         t_lst = []
         if 'depth_pointcloud_n' in cfg['data'] and cfg['data']['depth_pointcloud_n'] is not None:
-            t_lst.append(data.SubsampleDepthPointcloud(cfg['data']['depth_pointcloud_n']))
+            t_lst.append(data.SubsamplePointcloud(cfg['data']['depth_pointcloud_n']))
         if 'depth_pointcloud_noise' in cfg['data'] and cfg['data']['depth_pointcloud_noise'] is not None:
             t_lst.append(data.PointcloudNoise(cfg['data']['depth_pointcloud_noise']))
         transform = transforms.Compose(t_lst)
