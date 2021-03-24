@@ -1196,11 +1196,14 @@ class DepthPointCloudField(Field):
         depth_pointcloud_dict = np.load(depth_pointcloud_file)
 
         depth_pointcloud = depth_pointcloud_dict['pointcloud'].astype(np.float32)
+        data = {
+            None: depth_pointcloud
+        }
         if self.transform is not None:
             depth_pointcloud = self.transform(depth_pointcloud)
 
         data = {
-            'depth_pointcloud': depth_pointcloud
+            'depth_pointcloud': data[None]
         }
 
         if self.with_camera:
