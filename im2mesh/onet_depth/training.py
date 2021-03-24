@@ -481,7 +481,7 @@ def compose_inputs(data, mode='train', device=None, input_type='depth_pred',
             
                 raw_data['loc'] = loc
                 raw_data['scale'] = scale
-                encoder_inputs['loc'] = loc,
+                encoder_inputs['loc'] = loc
                 encoder_inputs['scale'] = scale
         return encoder_inputs, raw_data
     else:
