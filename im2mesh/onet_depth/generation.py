@@ -74,7 +74,7 @@ class Generator3D(object):
         self.use_gt_depth_map = use_gt_depth_map
         self.with_img = with_img
         self.depth_pointcloud_transfer = depth_pointcloud_transfer
-        assert self.depth_pointcloud_transfer in (None, 'world', 'transpose_xy')
+        assert self.depth_pointcloud_transfer in (None, 'world', 'world_scale_model', 'world_normalized', 'view', 'view_scale_model', 'transpose_xy')
         print('self.input_type:', self.input_type)
 
     def generate_mesh(self, data, return_stats=True):
