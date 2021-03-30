@@ -77,6 +77,30 @@ class ShufflePointcloud(object):
         return data_out
 
 
+class PointcloudDropout(object):
+    def __init__(self, dropout_ratio=0.3):
+        assert dropout_ratio >= 0 and dropout_ratio < 1
+        self.dropout_ratio = dropout_ratio
+
+    def __call__(self, data):
+        data_out = data.copy()
+        points = data[None]
+        
+        points_size = points.shape[0]
+        dropout_ratio = self.dropout_ratio  
+        drop_idx = np.where(np.random.random((points_size)) <= dropout_ratio)[0]
+        
+        if len(drop_idx > 0):
+            points[drop_idx] = points[0]
+            data_out[None] = points
+
+        if 'normals' in data:
+            if len(drop_idx > 0):
+                normals = data['normals']
+                normals[drop_idx] = normals[0]
+                data_out['normals'] = normals
+
+
 class SubsamplePoints(object):
     ''' Points subsampling transformation class.
 

@@ -145,7 +145,7 @@ class PointNet2SSGEncoder(nn.Module):
 
 class PointNet2SSGEncoder_4layers(nn.Module):
     def __init__(self, c_dim=1024, use_xyz=True, initial_feats_dim=0, local=False, local_feature_dim=512.,
-        local_radius=[0.05, 0.1, 0.1, 0.1], local_n_sample=[32, 16, 16, 8]):
+        local_radius=[0.05, 0.1, 0.1, 0.1], local_n_sample=[32, 16, 16, 8], version=1):
         super().__init__()
 
         self.c_dim = c_dim
@@ -158,6 +158,7 @@ class PointNet2SSGEncoder_4layers(nn.Module):
         self.local_radius = local_radius
         self.local_n_sample = local_n_sample
 
+        self.version = version
         self._build_model()            
 
     def _build_model(self):
@@ -195,6 +196,17 @@ class PointNet2SSGEncoder_4layers(nn.Module):
             )
         )
 
+        if self.version == 1:
+            self.fc_layer = nn.Sequential()
+        elif self.version == 2:
+            self.fc_layer = nn.Sequential(
+                nn.Dropout(0.5),
+                nn.Linear(self.c_dim, self.c_dim)
+            )
+        else:
+            raise NotImplementedError
+
+
         if self.local:
             self.xyz_fc = build_shared_mlp([3, 64, 128])
             self.local_fc = nn.Sequential(
@@ -225,7 +237,7 @@ class PointNet2SSGEncoder_4layers(nn.Module):
         for module in self.SA_modules:
             xyz, features = module(xyz, features)
 
-        return features.squeeze(-1)
+        return self.fc_layer(features.squeeze(-1))
 
     def forward_local(self, data, pts):
         assert self.local
@@ -248,7 +260,7 @@ class PointNet2SSGEncoder_4layers(nn.Module):
             if xyz is not None:
                 feature_list.append((xyz, features))
 
-        c = features.squeeze(-1)
+        c = self.fc_layer(features.squeeze(-1))
         return c, feature_list
 
     def forward_local_second_step(self, data, c, feature_list, pts):

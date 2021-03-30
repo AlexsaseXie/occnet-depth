@@ -7,7 +7,7 @@ import torch
 from torchvision import transforms
 from im2mesh.data.fields import get_depth_image, get_mask, get_image, get_mask_flow
 from im2mesh.data.fields import IndexField, ViewIdField, CategoryField
-from im2mesh.data.transforms import SubsamplePointcloud, PointcloudNoise, ShufflePointcloud
+from im2mesh.data.transforms import SubsamplePointcloud, PointcloudNoise, ShufflePointcloud, PointcloudDropout
 
 class S_ImagesField(Field):
     ''' S_Image Field.
@@ -394,6 +394,8 @@ class MixedInputField(Field):
                     t_lst.append(SubsamplePointcloud(cfg['data']['depth_pointcloud_n']))
                 if 'depth_pointcloud_noise' in cfg['data'] and cfg['data']['depth_pointcloud_noise'] is not None:
                     t_lst.append(PointcloudNoise(cfg['data']['depth_pointcloud_noise']))
+                if 'depth_pointcloud_dropout' in cfg['data'] and cfg['data']['depth_pointcloud_dropout'] != 0:
+                    t_lst.append(PointcloudDropout(cfg['data']['depth_pointcloud_dropout']))
                 pc_transform = transforms.Compose(t_lst)
 
                 if mode == 'train' and 'depth_pointcloud_mix' in cfg['training']:
