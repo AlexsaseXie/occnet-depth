@@ -4,7 +4,7 @@ from im2mesh import config, data, common
 
 IMG_SIZE = 224
 
-def get_img_inputs_field(mode):
+def get_img_inputs_field(mode, cfg):
     transform = transforms.Compose([
         transforms.Resize((IMG_SIZE)), 
         transforms.ToTensor(),
@@ -18,13 +18,13 @@ def get_img_inputs_field(mode):
         random_view = False
 
     inputs_field = data.ImagesField(
-        'img_choy2016', transform,
+        cfg['data']['img_folder'], transform, extension=cfg['data']['img_extension'],
         with_camera=with_camera, random_view=random_view
     )
 
     return inputs_field
 
-def get_img_with_depth_input_field(mode, absolute_depth=True):
+def get_img_with_depth_input_field(mode, cfg):
     # data augment not supported
     transform = transforms.Compose([
         transforms.Resize((IMG_SIZE)), 
@@ -38,6 +38,11 @@ def get_img_with_depth_input_field(mode, absolute_depth=True):
     else:
         random_view = False
 
+    if 'absolute_depth' in cfg['data']:
+        absolute_depth = cfg['data']['absolute_depth']
+    else:
+        absolute_depth = False
+
     inputs_field = data.ImagesWithDepthField(
         'img', 'depth', 'mask', transform,
         with_camera=with_camera, random_view=random_view,
@@ -45,7 +50,7 @@ def get_img_with_depth_input_field(mode, absolute_depth=True):
     )
     return inputs_field
 
-def get_depth_pointcloud_field(mode):
+def get_depth_pointcloud_field(mode, cfg):
     if mode == 'train':
         random_view = True
     else:
@@ -54,8 +59,8 @@ def get_depth_pointcloud_field(mode):
     t_lst = []
     transform = transforms.Compose(t_lst)
     inputs_field = data.DepthPointCloudField(
-        None,
-        'depth_pointcloud',
+        cfg['data']['depth_pointcloud_root'],
+        cfg['data']['depth_pointcloud_folder'],
         transform,
         random_view=random_view,
         with_camera=True,
@@ -63,14 +68,18 @@ def get_depth_pointcloud_field(mode):
     )
     return inputs_field
 
-
-def get_dataset(dataset_root, mode, input_type='img', absolute_depth=True):
-    if input_type == 'img':
-        inputs_field = get_img_inputs_field(mode)
-    elif input_type == 'img_with_depth':
-        inputs_field = get_img_with_depth_input_field(mode, absolute_depth=absolute_depth)
-    elif input_type == 'depth_pointcloud':
-        inputs_field = get_depth_pointcloud_field(mode)
+def get_dataset(dataset_root, mode, cfg, input_type='img'):
+    if 'input_fields' in cfg['data']:
+        # Mixed input field settings
+        inputs_field_name = cfg['data']['input_fields']
+        inputs_field = data.MixedInputField(inputs_field_name, mode, cfg, n_views=24)
+    else:
+        if input_type == 'img':
+            inputs_field = get_img_inputs_field(mode, cfg)
+        elif input_type == 'img_with_depth':
+            inputs_field = get_img_with_depth_input_field(mode, cfg)
+        elif input_type in ('depth_pointcloud', 'depth_pointcloud_completion'):
+            inputs_field = get_depth_pointcloud_field(mode, cfg)
 
     fields = {}
 

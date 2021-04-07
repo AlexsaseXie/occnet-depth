@@ -4,30 +4,49 @@ import torch.optim as optim
 from tensorboardX import SummaryWriter
 import numpy as np
 import os
-from classify.img_resnet import ImgClassify_ResNet18
-from classify.depth_resnet import DepthClassify_Resnet18
-from classify.pointnet import PointcloudClassify_Pointnet
+import argparse
+from im2mesh import config
+#from classify.img_resnet import ImgClassify_ResNet18
+#from classify.depth_resnet import DepthClassify_Resnet18
+#from classify.pointnet import PointcloudClassify_Pointnet
 from classify.dataset import get_dataset
+from classify.model import get_model
 from im2mesh import data
 from tqdm import tqdm
+import shutil
 
-out_dir = 'out/classify/depthpc_world_512_origin_subdivision'
-dataset_root = '/home3/data/xieyunwei/occnet_data/ShapeNet.with_depth/'
-batch_size = 128
-c_dim = 512
+parser = argparse.ArgumentParser(
+    description='Train a 3D reconstruction model.'
+)
+parser.add_argument('--config', type=str, default='default', help='Path to config file.')
+parser.add_argument('--batch_size', type=int, default=128, help='batch_size') 
+parser.add_argument('--out_dir', type=str, default='out/classify/depthpc_world_512_origin_subdivision')
+parser.add_argument('--save_every', type=int, default=1000)
+parser.add_argument('--back_every', type=int, default=4000)
+parser.add_argument('--quit_after', type=int, default=20000)
+parser.add_argument('--lr_drop', type=int, default=15000)
+args = parser.parse_args()
 
-save_every = 1000
-backup_every = 4000
-lr_drop = 15000
-quit_after = 20000
-input_type = 'depth_pointcloud'
-pretrained = True
-absolute_depth = True
-pred_with_img = True
-depth_pointcloud_transfer = 'world'
+if args.config != 'default':
+    cfg = config.load_config(args.config, 'configs/default.yaml')
+    cfg_path = args.config
+else:
+    cfg = config.load_config('configs/classify/partial_pointcloud_pointnet.yaml', 'configs/default.yaml')
+    cfg_path = 'configs/classify/partial_pointcloud_pointnet.yaml'
 
-train_dataset = get_dataset(dataset_root, 'train', input_type, absolute_depth=absolute_depth)
-val_dataset = get_dataset(dataset_root, 'val', input_type, absolute_depth=absolute_depth)
+out_dir = args.out_dir
+batch_size = args.batch_size
+
+save_every = args.save_every
+backup_every = args.backup_every
+lr_drop = args.lr_drop
+quit_after = args.quit_after
+
+input_type = cfg['data']['input_type']
+
+dataset_root = cfg['data']['path']
+train_dataset = get_dataset(dataset_root, 'train', cfg, input_type)
+val_dataset = get_dataset(dataset_root, 'val', cfg, input_type)
 
 train_loader = torch.utils.data.DataLoader(
     train_dataset, batch_size=batch_size, num_workers=4, shuffle=True,
@@ -41,6 +60,9 @@ val_loader = torch.utils.data.DataLoader(
 
 is_cuda = torch.cuda.is_available()
 device = torch.device("cuda" if is_cuda else "cpu")
+
+model = get_model(input_type, cfg)
+'''
 if input_type == 'img':
     model = ImgClassify_ResNet18(13, c_dim=c_dim, pretrained=pretrained)
 elif input_type == 'img_with_depth':
@@ -49,10 +71,12 @@ elif input_type == 'depth_pointcloud':
     model = PointcloudClassify_Pointnet(13, c_dim=c_dim, depth_pointcloud_transfer=depth_pointcloud_transfer)
 else:
     raise NotImplementedError
+'''
 model = model.to(device)
 
 if not os.path.exists(out_dir):
     os.makedirs(out_dir)
+    shutil.copy(cfg_path, os.path.join(out_dir, 'config.yaml'))
 
 try:
     pretrained_dict = torch.load(os.path.join(out_dir,'model.pt')).state_dict()

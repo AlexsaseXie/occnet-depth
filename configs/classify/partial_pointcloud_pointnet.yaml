@@ -1,0 +1,15 @@
+data:
+  path: data/ShapeNet.with_depth.10w10w/
+  input_type: depth_pointcloud
+  input_fields: ['depth_pointcloud', 'camera']
+  depth_pred_root: data/ShapeNet.with_depth.10w10w/
+  depth_pointcloud_root: data/ShapeNet.with_depth.10w10w/
+  depth_pointcloud_folder: depth_pointcloud
+  absolute_depth: False
+  img_folder: img_choy2016
+  img_extension: jpg
+model:
+  c_dim: 512
+  encoder: poinetnet
+  pred_with_img: False
+  depth_pointcloud_transfer: world
