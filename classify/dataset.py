@@ -87,6 +87,13 @@ def get_dataset(dataset_root, mode, cfg, input_type='img'):
     fields['idx'] = data.IndexField()
     fields['category'] = data.CategoryField()
 
+    if input_type in ('depth_pointcloud', 'depth_pointcloud_completion') and cfg['model']['depth_pointcloud_transfer'] == 'world_normalized':
+        # only points loc & scale are needed
+        fields['points'] = data.PointsField(
+            'points.npz', transform=None,
+            with_transforms=True, unpackbits=True
+        )
+
     dataset = data.Shapes3dDataset(
         dataset_root, fields,
         split=mode,
