@@ -79,7 +79,7 @@ class PointcloudClassify_Pointnet(DepthPointcloudClassifyModel):
         loss = loss + 0.001 * feature_transform_reguliarzer(trans_feat)
         return loss
 
-def get_model(self, input_type, cfg):
+def get_model(input_type, cfg):
     encoder_type = cfg['model']['encoder']
     c_dim = cfg['model']['c_dim']
     encoder_kwargs = cfg['model']['encoder_kwargs']
@@ -98,7 +98,7 @@ def get_model(self, input_type, cfg):
             pred_with_img = False
 
         model = DepthClassifyModel(encoder=encoder, num_classes=13, c_dim=c_dim, with_img=pred_with_img)
-    elif input_type == 'depth_pointcloud':
+    elif input_type in ('depth_pointcloud', 'depth_pointcloud_completion'):
         if 'depth_pointcloud_transfer' in cfg['model']:
             depth_pointcloud_transfer = cfg['model']['depth_pointcloud_transfer']
         else:
