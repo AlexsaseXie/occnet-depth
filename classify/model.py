@@ -15,7 +15,7 @@ class BaseClassifyModel(nn.Module):
     def get_inputs(self, data, device):
         raise NotImplementedError
 
-    def forward(self, data, device):
+    def forward(self, data, device, get_loss=False):
         encoder_inputs = self.get_inputs(data, device)
 
         out = self.features(encoder_inputs)
@@ -23,14 +23,14 @@ class BaseClassifyModel(nn.Module):
             out = out[0]
 
         out = self.pred_fc(out)
+
+        if get_loss:
+            class_gt = data.get('category').to(device)
+            out = self.loss_func(out, class_gt)
         return out
     
     def get_loss(self, data, device):
-        class_gt = data.get('category').to(device)
-
-        out = self.forward(data, device)
-        loss = self.loss_func(out, class_gt)
-        return loss
+        return self.forward(data, device, get_loss=True)
 
 class ImgClassifyModel(BaseClassifyModel):
     def get_inputs(self, data, device):
@@ -65,20 +65,18 @@ class DepthPointcloudClassifyModel(BaseClassifyModel):
         return pc
 
 class PointcloudClassify_Pointnet(DepthPointcloudClassifyModel):
-    def forward(self, data, device):
+    def forward(self, data, device, get_loss=False):
         pc = self.get_inputs(data, device)
 
-        out, trans_point, trans_feat = self.features(pc)
+        out, _, trans_feat = self.features(pc)
         out = self.pred_fc(out)
-        return out, trans_point, trans_feat
 
-    def get_loss(self, data, device):
-        class_gt = data.get('category').to(device)
+        if get_loss:
+            class_gt = data.get('category').to(device)
 
-        out, _, trans_feat = self.forward(data, device)
-        loss = self.loss_func(out, class_gt)
-        loss = loss + 0.001 * feature_transform_reguliarzer(trans_feat)
-        return loss
+            out = self.loss_func(out, class_gt)
+            out = out + 0.001 * feature_transform_reguliarzer(trans_feat)
+        return out
 
 def get_model(input_type, cfg):
     encoder_type = cfg['model']['encoder']

@@ -110,11 +110,11 @@ def get_correctness():
     for val_batch in tqdm(val_loader):
         data = val_batch
 
-        inputs = data.get('inputs')
-        current_batch_size = inputs.shape[0]
+        idxs = data['idx']
+        current_batch_size = idxs.shape[0]
 
         out = model(data, device)
-        if input_type == 'depth_pointcloud':
+        if isinstance(out, tuple):
             out = out[0]
         class_gt = data.get('category').to(device)
         class_predict = out.max(dim=1)[1]
@@ -148,12 +148,21 @@ while True:
             if current_correctness > max_correctness:
                 max_correctness = current_correctness
                 output_best_path = os.path.join(out_dir,'model_best.pt')
-                torch.save(model.state_dict(), output_best_path)
+                if args.data_parallel == 'DP':
+                    torch.save(model.module.state_dict(), output_best_path)
+                else:
+                    torch.save(model.state_dict(), output_best_path)
                 output_best_path = os.path.join(out_dir,'encoder_best.pt')
-                torch.save(model.features.state_dict(), output_best_path)
+                if args.data_parallel == 'DP':
+                    torch.save(model.module.features.state_dict(), output_best_path)
+                else:
+                    torch.save(model.features.state_dict(), output_best_path)
                 if input_type.startswith('img'):
                     output_best_path = os.path.join(out_dir,'resnet18_best.pt')
-                    torch.save(model.features.features.state_dict(), output_best_path)
+                    if args.data_parallel == 'DP':
+                        torch.save(model.module.features.features.state_dict(), output_best_path)
+                    else:
+                        torch.save(model.features.features.state_dict(), output_best_path)
 
             output_path = os.path.join(out_dir,'model.pt')
             torch.save(model.state_dict(), output_path)
