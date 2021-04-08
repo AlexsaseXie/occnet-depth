@@ -134,7 +134,7 @@ while True:
     for batch in train_loader: 
         model.train()
         optimizer.zero_grad()
-        loss = model.get_loss(batch, device)
+        loss = model(batch, device, get_loss=True)
         loss.backward()
         optimizer.step()
 
