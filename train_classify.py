@@ -20,6 +20,7 @@ parser = argparse.ArgumentParser(
 )
 parser.add_argument('--config', type=str, default='default', help='Path to config file.')
 parser.add_argument('--batch_size', type=int, default=128, help='batch_size') 
+parser.add_argument('--val_batch_size', type=int, default=64, help='val_batch_size')
 parser.add_argument('--out_dir', type=str, default='out/classify/depthpc_world_512_origin_subdivision')
 parser.add_argument('--save_every', type=int, default=1000)
 parser.add_argument('--backup_every', type=int, default=4000)
@@ -55,7 +56,7 @@ train_loader = torch.utils.data.DataLoader(
     worker_init_fn=data.worker_init_fn)
 
 val_loader = torch.utils.data.DataLoader(
-    val_dataset, batch_size=64, num_workers=4, shuffle=False,
+    val_dataset, batch_size=args.val_batch_size, num_workers=4, shuffle=False,
     collate_fn=data.collate_remove_none,
     worker_init_fn=data.worker_init_fn)
 
@@ -113,15 +114,16 @@ def get_correctness():
         idxs = data['idx']
         current_batch_size = idxs.shape[0]
 
-        out = model(data, device)
-        if isinstance(out, tuple):
-            out = out[0]
-        class_gt = data.get('category').to(device)
-        class_predict = out.max(dim=1)[1]
+        out = model(data, device, get_count=True)
+        #if isinstance(out, tuple):
+        #    out = out[0]
+        #class_gt = data.get('category').to(device)
+        #class_predict = out.max(dim=1)[1]
         
         #print('gt:',class_gt)
         #print('pred:',class_predict)
-        correct_count += (class_predict == class_gt).sum().item()
+        #correct_count += (class_predict == class_gt).sum().item()
+        correct_count += out.sum().item()
         total_count += current_batch_size
 
     print('correct_count:',correct_count)
@@ -135,6 +137,7 @@ while True:
         model.train()
         optimizer.zero_grad()
         loss = model(batch, device, get_loss=True)
+        loss = loss.mean()
         loss.backward()
         optimizer.step()
 

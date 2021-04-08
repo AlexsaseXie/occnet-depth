@@ -15,7 +15,7 @@ class BaseClassifyModel(nn.Module):
     def get_inputs(self, data, device):
         raise NotImplementedError
 
-    def forward(self, data, device, get_loss=False):
+    def forward(self, data, device, get_loss=False, get_count=False):
         encoder_inputs = self.get_inputs(data, device)
 
         out = self.features(encoder_inputs)
@@ -27,6 +27,10 @@ class BaseClassifyModel(nn.Module):
         if get_loss:
             class_gt = data.get('category').to(device)
             out = self.loss_func(out, class_gt)
+        elif get_count:
+            class_gt = data.get('category').to(device)
+            class_predict = out.max(dim=1)[1]
+            out = (class_predict == class_gt).sum()
         return out
     
     def get_loss(self, data, device):
@@ -65,7 +69,7 @@ class DepthPointcloudClassifyModel(BaseClassifyModel):
         return pc
 
 class PointcloudClassify_Pointnet(DepthPointcloudClassifyModel):
-    def forward(self, data, device, get_loss=False):
+    def forward(self, data, device, get_loss=False, get_count=False):
         pc = self.get_inputs(data, device)
 
         out, _, trans_feat = self.features(pc)
@@ -73,9 +77,13 @@ class PointcloudClassify_Pointnet(DepthPointcloudClassifyModel):
 
         if get_loss:
             class_gt = data.get('category').to(device)
-
             out = self.loss_func(out, class_gt)
             out = out + 0.001 * feature_transform_reguliarzer(trans_feat)
+        elif get_count:
+            class_gt = data.get('category').to(device)
+            class_predict = out.max(dim=1)[1]
+            out = (class_predict == class_gt).sum()
+
         return out
 
 def get_model(input_type, cfg):
