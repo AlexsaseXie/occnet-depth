@@ -22,9 +22,10 @@ parser.add_argument('--config', type=str, default='default', help='Path to confi
 parser.add_argument('--batch_size', type=int, default=128, help='batch_size') 
 parser.add_argument('--out_dir', type=str, default='out/classify/depthpc_world_512_origin_subdivision')
 parser.add_argument('--save_every', type=int, default=1000)
-parser.add_argument('--back_every', type=int, default=4000)
+parser.add_argument('--backup_every', type=int, default=4000)
 parser.add_argument('--quit_after', type=int, default=20000)
 parser.add_argument('--lr_drop', type=int, default=15000)
+parser.add_argument('--data_parallel', type=str, default='None')
 args = parser.parse_args()
 
 if args.config != 'default':
@@ -72,6 +73,8 @@ elif input_type == 'depth_pointcloud':
 else:
     raise NotImplementedError
 '''
+if args.data_parallel == 'DP':
+    model = torch.nn.DataParallel(model)
 model = model.to(device)
 
 if not os.path.exists(out_dir):

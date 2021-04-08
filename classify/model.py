@@ -55,12 +55,13 @@ class DepthClassifyModel(BaseClassifyModel):
         return encoder_inputs
 
 class DepthPointcloudClassifyModel(BaseClassifyModel):
-    def __init__(self, encoder=None, num_classes=13, c_dim=512, depth_pointcloud_transfer='world'):
+    def __init__(self, encoder=None, num_classes=13, c_dim=512, depth_pointcloud_transfer='world', input_type='depth_pointcloud'):
         super(DepthPointcloudClassifyModel, self).__init__(encoder=encoder, num_classes=num_classes, c_dim=c_dim)
         self.depth_pointcloud_transfer = depth_pointcloud_transfer 
+        self.input_type = input_type
 
     def get_inputs(self, data, device):
-        pc, _ = compose_inputs(data, mode='train', device=device, input_type='depth_pointcloud', depth_pointcloud_transfer=self.depth_pointcloud_transfer)
+        pc, _ = compose_inputs(data, mode='train', device=device, input_type=self.input_type, depth_pointcloud_transfer=self.depth_pointcloud_transfer)
         return pc
 
 class PointcloudClassify_Pointnet(DepthPointcloudClassifyModel):
@@ -106,9 +107,9 @@ def get_model(input_type, cfg):
 
         if encoder_type == 'pointnet':
             # special case for pointnet
-            model = PointcloudClassify_Pointnet(encoder=encoder, num_classes=13, c_dim=c_dim, depth_pointcloud_transfer=depth_pointcloud_transfer)
+            model = PointcloudClassify_Pointnet(encoder=encoder, num_classes=13, c_dim=c_dim, depth_pointcloud_transfer=depth_pointcloud_transfer, input_type=input_type)
         else:
-            model = DepthPointcloudClassifyModel(encoder=encoder, num_classes=13, c_dim=c_dim, depth_pointcloud_transfer=depth_pointcloud_transfer)
+            model = DepthPointcloudClassifyModel(encoder=encoder, num_classes=13, c_dim=c_dim, depth_pointcloud_transfer=depth_pointcloud_transfer, input_type=input_type)
     else:
         raise NotImplementedError
 
