@@ -9,7 +9,7 @@ from im2mesh.utils.pointnet2_ops_lib.pointnet2_ops.pointnet2_utils import QueryA
 
 class PointNet2SSGEncoder(nn.Module):
     def __init__(self, c_dim=1024, use_xyz=True, initial_feats_dim=0, local=False, local_feature_dim=512.,
-        local_radius=[0.1, 0.2, 0.4], local_n_sample=[16, 16, 8]):
+        local_radius=[0.1, 0.2, 0.4], local_n_sample=[16, 16, 8], model_pretrained=None):
         super().__init__()
 
         self.c_dim = c_dim
@@ -22,7 +22,12 @@ class PointNet2SSGEncoder(nn.Module):
         self.local_radius = local_radius
         self.local_n_sample = local_n_sample
 
-        self._build_model()            
+        self._build_model()    
+
+        if model_pretrained is not None:
+            print('Loading depth encoder from ', model_pretrained)
+            state_dict = torch.load(model_pretrained, map_location='cpu')
+            self.load_state_dict(state_dict, strict=False)          
 
     def _build_model(self):
         self.SA_modules = nn.ModuleList()
@@ -145,7 +150,7 @@ class PointNet2SSGEncoder(nn.Module):
 
 class PointNet2SSGEncoder_4layers(nn.Module):
     def __init__(self, c_dim=1024, use_xyz=True, initial_feats_dim=0, local=False, local_feature_dim=512.,
-        local_radius=[0.05, 0.1, 0.1, 0.1], local_n_sample=[32, 16, 16, 8], version=1):
+        local_radius=[0.05, 0.1, 0.1, 0.1], local_n_sample=[32, 16, 16, 8], version=1, model_pretrained=None):
         super().__init__()
 
         self.c_dim = c_dim
@@ -159,7 +164,12 @@ class PointNet2SSGEncoder_4layers(nn.Module):
         self.local_n_sample = local_n_sample
 
         self.version = version
-        self._build_model()            
+        self._build_model() 
+
+        if model_pretrained is not None:
+            print('Loading depth encoder from ', model_pretrained)
+            state_dict = torch.load(model_pretrained, map_location='cpu')
+            self.load_state_dict(state_dict, strict=False)           
 
     def _build_model(self):
         self.SA_modules = nn.ModuleList()
