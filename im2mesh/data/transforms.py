@@ -100,6 +100,7 @@ class PointcloudDropout(object):
                 normals[drop_idx] = normals[0]
                 data_out['normals'] = normals
 
+        return data_out
 
 class SubsamplePoints(object):
     ''' Points subsampling transformation class.
