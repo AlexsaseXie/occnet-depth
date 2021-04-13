@@ -135,7 +135,7 @@ MSN_utils_ext_sources = glob.glob(os.path.join(MSN_utils_src_root, "src", "*.cpp
 )
 
 
-lib_pointcloud_distance_module = CUDAExtension(
+MSN_module = CUDAExtension(
     name="im2mesh.point_completion.MSN_utils._ext",
     sources=MSN_utils_ext_sources,
     extra_compile_args={
@@ -157,7 +157,8 @@ ext_modules = [
     dmc_pred2mesh_module,
     dmc_cuda_module,
     pointnet2_cuda_module,
-    lib_pointcloud_distance_module
+    lib_pointcloud_distance_module,
+    MSN_module
 ]
 
 setup(
