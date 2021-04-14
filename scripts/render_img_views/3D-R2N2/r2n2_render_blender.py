@@ -17,8 +17,14 @@ RENDERING_BLENDER_TMP_DIR = '/tmp/blender'
 
 # TESTING RELATED:
 TEST_RENDERING_PATH = '/home2/xieyunwei/occupancy_networks/data/render_test'
-TEST_MODEL_CLASSES = ['02691156']
-TEST_MODEL_IDS = ['10155655850468db78d106ce0a280f87']
+TEST_MODEL_CLASSES = [
+    '02691156',
+    '03001627'
+]
+TEST_MODEL_IDS = [
+    '10155655850468db78d106ce0a280f87',
+    'cbf18927a23084bd4a62dd9e5e4067d1'
+]
 
 def voxel2mesh(voxels):
     cube_verts = [[0, 0, 0],
@@ -407,11 +413,11 @@ def test():
     # Modify the following file to visualize the model
     file_paths = []
     for i, model_id in enumerate(TEST_MODEL_IDS):
-        file_paths.append(os.path.join(SHAPENET_ROOT, TEST_MODEL_CLASSES[i], TEST_MODEL_IDS[i]))
+        file_paths.append(os.path.join(SHAPENET_ROOT, TEST_MODEL_CLASSES[i], TEST_MODEL_IDS[i], 'model.obj'))
 
     sum_time = 0
     renderer = ShapeNetRenderer()
-    renderer.initialize(file_paths, 224, 224)
+    renderer.initialize(file_paths, 800, 800)
 
     save_root = TEST_RENDERING_PATH
     mkdir_p(save_root)
@@ -431,7 +437,7 @@ def test():
             az, el, depth_ratio = [360 * random.random(), 5 * random.random() + 25, 0.3 * random.random() + 0.65]
         
             renderer.setModelIndex(i)
-            renderer.setViewpoint(30, 30, 0, 0.7, 25)
+            renderer.setViewpoint(az, el, 0, depth_ratio, 25)
 
             if view_id == 0:
                 load_model_flag = True

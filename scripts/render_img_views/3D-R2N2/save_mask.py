@@ -95,7 +95,7 @@ def main_single(args):
 
 def test():
     model_class = TEST_MODEL_CLASSES
-    model_id = TEST_MODEL_CLASSES
+    model_id = TEST_MODEL_IDS
     for i, curr_model_id in enumerate(model_id):
         for view_id in range(N_VIEWS):
             image_path = os.path.join(TEST_RENDERING_PATH, model_class[i], curr_model_id, 'rendering_exr', '%.2d.exr' % view_id)
@@ -107,10 +107,26 @@ def test():
 
             x, y, mask = get_mask(image_path)
             
+            #print(mask.shape, mask.dtype)
             mask = Image.fromarray(mask)
             mask = mask.point(lambda i: i == 1, '1')
             # save mask
-            mask_path = os.path.join(save_root, '%.2d_mask.png') 
+            mask_path = os.path.join(save_root, '%.2d_mask.png' % view_id) 
+            mask.save(mask_path)
+
+            # method 2
+            image_path = os.path.join(TEST_RENDERING_PATH, model_class[i], curr_model_id, 'rendering_png', '%.2d_rgb.png' % view_id)
+
+            img = Image.open(image_path)
+            img = numpy.array(img)
+
+            mask = (img != 0).astype(numpy.uint8)
+            mask = mask.sum(2).astype(numpy.uint8)
+            #print(mask.shape, mask.dtype)
+            mask = Image.fromarray(mask)
+            mask = mask.point(lambda i: i > 0, '1')
+            # save mask
+            mask_path = os.path.join(save_root, '%.2d_mask2.png' % view_id)
             mask.save(mask_path)
 
 if __name__ == "__main__":
