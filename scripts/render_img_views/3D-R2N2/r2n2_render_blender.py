@@ -11,10 +11,14 @@ import bpy
 
 SHAPENET_ROOT = '/home2/xieyunwei/occupancy_networks/external/ShapeNetCore.v1/'
 DIR_RENDERING_PATH = '/home2/xieyunwei/occupancy_networks/data/render_2'
-TEST_RENDERING_PATH = '/home2/xieyunwei/occupancy_networks/data/render_test'
 RENDERING_MAX_CAMERA_DIST = 1.75
 N_VIEWS = 24
 RENDERING_BLENDER_TMP_DIR = '/tmp/blender'
+
+# TESTING RELATED:
+TEST_RENDERING_PATH = '/home2/xieyunwei/occupancy_networks/data/render_test'
+TEST_MODEL_CLASSES = ['02691156']
+TEST_MODEL_IDS = ['10155655850468db78d106ce0a280f87']
 
 def voxel2mesh(voxels):
     cube_verts = [[0, 0, 0],
@@ -280,6 +284,10 @@ class VoxelRenderer(BaseRenderer):
         bpy.ops.render.render(write_still=True)  # save straight to file
 
 
+def mkdir_p(a):
+    if not os.path.exists(a):
+        os.mkdir(a)
+
 import argparse
 def main(args):
     file_paths = []
@@ -397,25 +405,46 @@ def main_single(args):
 def test():
     """Test function"""
     # Modify the following file to visualize the model
-    #dn = '/home2/xieyunwei/occupancy_networks/external/ShapeNetCore.v1/02958343/'
-    #model_id = ['2c981b96364b1baa21a66e8dfcce514a']
-    dn = '/home2/xieyunwei/occupancy_networks/external/ShapeNetCore.v1/02958343/'
-    model_id = ['f9c1d7748c15499c6f2bd1c4e9adb41']
-    file_paths = [os.path.join(dn, m_id, 'model.obj') for m_id in model_id]
+    file_paths = []
+    for i, model_id in enumerate(TEST_MODEL_IDS):
+        file_paths.append(os.path.join(SHAPENET_ROOT, TEST_MODEL_CLASSES[i], TEST_MODEL_IDS[i]))
+
     sum_time = 0
     renderer = ShapeNetRenderer()
     renderer.initialize(file_paths, 224, 224)
-    for i, curr_model_id in enumerate(model_id):
+
+    save_root = TEST_RENDERING_PATH
+    mkdir_p(save_root)
+
+    for i, curr_model_id in enumerate(TEST_MODEL_IDS):
         start = time.time()
-        image_path = '%s/%s.exr' % (TEST_RENDERING_PATH, curr_model_id)
 
-        az, el, depth_ratio = [360 * random.random(), 5 * random.random() + 25, 0.3 * random.random() + 0.65]
-    
-        renderer.setModelIndex(i)
-        renderer.setViewpoint(30, 30, 0, 0.7, 25)
+        save_class_path = os.path.join(save_root, TEST_MODEL_CLASSES[i])
+        mkdir_p(save_class_path)
 
-        renderer.render(load_model=True, return_image=False,
-                clear_model=True, image_path=image_path)
+        save_model_path = os.path.join(save_class_path, TEST_MODEL_IDS[i])
+        mkdir_p(save_model_path)
+
+        for view_id in range(N_VIEWS):
+            image_path = os.path.join(save_model_path, 'rendering_exr', '%.2d.exr' % view_id)
+
+            az, el, depth_ratio = [360 * random.random(), 5 * random.random() + 25, 0.3 * random.random() + 0.65]
+        
+            renderer.setModelIndex(i)
+            renderer.setViewpoint(30, 30, 0, 0.7, 25)
+
+            if view_id == 0:
+                load_model_flag = True
+            else:
+                load_model_flag = False
+
+            if view_id == N_VIEWS - 1:
+                clear_model_flag = True
+            else:
+                clear_model_flag = False
+
+            renderer.render(load_model=load_model_flag, return_image=False,
+                    clear_model=clear_model_flag, image_path=image_path)
 
         print('Saved at %s' % image_path)
 

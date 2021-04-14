@@ -1,6 +1,11 @@
 import numpy
 import OpenEXR
 from rendering_config import *
+import os
+import sys
+import time
+from PIL import Image
+import argparse
 
 def norm(val):
     return val * 12.92 if val <= 0.0031308 else 1.055 * val**(1.0/2.4) - 0.055
@@ -34,11 +39,9 @@ def convert_OpenEXR_to_sRGB(path):
     return x, y, im, depth, depth_min, depth_max
 
 
-import os
-import sys
-import time
-from PIL import Image
-import argparse
+def mkdir_p(a):
+    if not os.path.exists(a):
+        os.mkdir(a)
 
 def main(args):
     all_model_class = []
@@ -142,27 +145,36 @@ def main_single(args):
     rf.close()
 
 def test():
-    model_class = ['04090263']
-    model_id = ['4a32519f44dc84aabafe26e2eb69ebf4']
+    model_class = TEST_MODEL_CLASSES
+    model_id = TEST_MODEL_IDS
     for i, curr_model_id in enumerate(model_id):
-        image_path = '%s/%s.exr' % (TEST_RENDERING_PATH, curr_model_id)
+        for view_id in range(N_VIEWS):
+            image_path = os.path.join(TEST_RENDERING_PATH, model_class[i], curr_model_id, 'rendering_exr', '%.2d.exr' % view_id)
 
-        x, y, img, depth, depth_min, depth_max = convert_OpenEXR_to_sRGB(image_path)
-        img = (img * 255.0).astype(numpy.uint8)
+            assert os.path.exists(image_path)
 
-        img = Image.fromarray(img)
-        img.save(image_path[:-4] + '_converted.png')
+            save_root = os.path.join(TEST_RENDERING_PATH, model_class[i], curr_model_id, 'rendering_png')
+            mkdir_p(save_root)
 
-        depth = (depth * 255.).astype(numpy.uint8)
-        depth = Image.fromarray(depth)
-        depth = depth.convert('L')
-        depth.save(image_path[:-4] + '_converted_depth.png')
+            x, y, img, depth, depth_min, depth_max = convert_OpenEXR_to_sRGB(image_path)
+            img = (img * 255.0).astype(numpy.uint8)
 
-        # convert to jpg, save jpg
-        background = Image.new('RGBA', (x,y), (255,255,255,255))
-        img_rgb = Image.alpha_composite(background, img)
-        img_rgb.convert('RGB').save(image_path[:-4] + '_converted_rgb.png')
-        print('depth min:', depth_min, ',max:', depth_max)
+            img = Image.fromarray(img)
+            img_save_path = os.path.join(save_root, '%.2d_rgba.png' % view_id)
+            img.save(img_save_path)
+
+            depth = (depth * 255.).astype(numpy.uint8)
+            depth = Image.fromarray(depth)
+            depth = depth.convert('L')
+            depth_save_path = os.path.join(save_root, '%.2d_depth.png' % view_id)
+            depth.save(depth_save_path)
+
+            # convert to jpg, save jpg
+            background = Image.new('RGBA', (x,y), (255,255,255,255))
+            img_rgb = Image.alpha_composite(background, img)
+            img_rgb_save_path = os.path.join(save_root, '%.2d_rgb.png')
+            img_rgb.convert('RGB').save(img_rgb_save_path)
+            print('depth min:', depth_min, ',max:', depth_max)
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description='Convert exr to pngs')

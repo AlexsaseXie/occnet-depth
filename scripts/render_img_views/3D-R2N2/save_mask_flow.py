@@ -11,6 +11,10 @@ import time
 from PIL import Image
 import argparse
 
+def mkdir_p(a):
+    if not os.path.exists(a):
+        os.mkdir(a)
+
 def main(args):
     all_model_class = []
     all_model_ids = []
@@ -75,50 +79,35 @@ def main_single(args):
         mask_flow_img = Image.fromarray((mask_flow_array * 255.).astype(np.uint8), 'L')
         mask_flow_img.save(os.path.join(rendering_curr_model_save_mask_flow_root, '%.2d_mask_flow.png' % view_id))
 
-
 def test():
-    n_view = 0
-    model_class = ['02691156']
-    model_id = ['10155655850468db78d106ce0a280f87']
+    model_class = TEST_MODEL_CLASSES
+    model_id = TEST_MODEL_IDS
     for i, curr_model_id in enumerate(model_id):
-        mask_root = os.path.join(DIR_RENDERING_PATH, model_class[i], curr_model_id, 'rendering_mask')
-        mask_path = os.path.join(mask_root, '%.2d_mask.png' % n_view)
+        for view_id in range(N_VIEWS):
+            mask_root = os.path.join(TEST_RENDERING_PATH, model_class[i], curr_model_id, 'rendering_mask')
+            mask_path = os.path.join(mask_root, '%.2d_mask.png' % view_id)
 
-        depth_mask = Image.open(mask_path).convert('1')
+            assert os.path.exists(mask_path)
 
-        # mkdirs
-        if not os.path.exists(TEST_RENDERING_PATH):
-            os.mkdir(TEST_RENDERING_PATH)        
+            depth_mask = Image.open(mask_path).convert('1')
 
-        if not os.path.exists(os.path.join(TEST_RENDERING_PATH, model_class[i])):
-            os.mkdir(os.path.join(TEST_RENDERING_PATH, model_class[i]))
+            # mkdirs
+            save_root = os.path.join(TEST_RENDERING_PATH, model_class[i], curr_model_id, 'rendering_mask_flow')
+            mkdir_p(save_root)
 
-        if not os.path.exists(os.path.join(TEST_RENDERING_PATH, model_class[i], curr_model_id)):
-            os.mkdir(os.path.join(TEST_RENDERING_PATH, model_class[i], curr_model_id))
+            depth_mask_array = np.array(depth_mask)
+            #print('depth_mask_array:',depth_mask_array.shape)
 
-        if not os.path.exists(os.path.join(TEST_RENDERING_PATH, model_class[i], curr_model_id, 'rendering_mask')):
-            os.mkdir(os.path.join(TEST_RENDERING_PATH, model_class[i], curr_model_id, 'rendering_mask'))
+            mask_flow_array, borders_array = mask_flow(depth_mask_array, True)
+                
+            borders_mask = Image.fromarray(borders_array.astype(np.uint8))
+            borders_mask = borders_mask.point(lambda i: i == 1, '1')
+            borders_mask.save(os.path.join(TEST_RENDERING_PATH, model_class[i], curr_model_id, 'rendering_mask_flow', '%.2d_mask.png' % view_id))
 
-        if not os.path.exists(os.path.join(TEST_RENDERING_PATH, model_class[i], curr_model_id, 'rendering_mask_flow')):
-            os.mkdir(os.path.join(TEST_RENDERING_PATH, model_class[i], curr_model_id, 'rendering_mask_flow'))
-
-        # save input
-        depth_mask.save(os.path.join(TEST_RENDERING_PATH, model_class[i], curr_model_id, 'rendering_mask', '%.2d_mask.png' % n_view))
-        depth_mask_array = np.array(depth_mask)
-        
-        print('depth_mask_array:',depth_mask_array.shape)
-
-        mask_flow_array, borders_array = mask_flow(depth_mask_array, True)
-        print(borders_array)
-             
-        borders_mask = Image.fromarray(borders_array.astype(np.uint8))
-        borders_mask = borders_mask.point(lambda i: i == 1, '1')
-        borders_mask.save(os.path.join(TEST_RENDERING_PATH, model_class[i], curr_model_id, 'rendering_mask_flow', '%.2d_mask.png' % n_view))
-
-        mask_flow_img = Image.fromarray(mask_flow_array, 'F')
-        mask_flow_img.save(os.path.join(TEST_RENDERING_PATH, model_class[i], curr_model_id, 'rendering_mask_flow', '%.2d_mask_flow.tiff' % n_view))
-        mask_flow_img = Image.fromarray((mask_flow_array * 255.).astype(np.uint8), 'L')
-        mask_flow_img.save(os.path.join(TEST_RENDERING_PATH, model_class[i], curr_model_id, 'rendering_mask_flow', '%.2d_mask_flow.png' % n_view))
+            mask_flow_img = Image.fromarray(mask_flow_array, 'F')
+            mask_flow_img.save(os.path.join(TEST_RENDERING_PATH, model_class[i], curr_model_id, 'rendering_mask_flow', '%.2d_mask_flow.tiff' % view_id))
+            mask_flow_img = Image.fromarray((mask_flow_array * 255.).astype(np.uint8), 'L')
+            mask_flow_img.save(os.path.join(TEST_RENDERING_PATH, model_class[i], curr_model_id, 'rendering_mask_flow', '%.2d_mask_flow.png' % view_id))
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description='Convert exr to pngs')

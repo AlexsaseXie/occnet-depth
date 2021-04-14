@@ -1,6 +1,11 @@
 import numpy
 import OpenEXR
 from rendering_config import *
+import os
+import sys
+import time
+from PIL import Image
+import argparse
 
 
 def get_exr_dim(image):
@@ -18,12 +23,9 @@ def get_mask(path):
     mask = (depth < 10).astype(numpy.uint8)
     return x, y, mask
 
-
-import os
-import sys
-import time
-from PIL import Image
-import argparse
+def mkdir_p(a):
+    if not os.path.exists(a):
+        os.mkdir(a)
 
 def main(args):
     all_model_class = []
@@ -92,17 +94,24 @@ def main_single(args):
         mask.save(os.path.join(rendering_curr_model_save_mask_root, '%.2d_mask.png' % view_id))
 
 def test():
-    model_class = ['04090263']
-    model_id = ['4a32519f44dc84aabafe26e2eb69ebf4']
+    model_class = TEST_MODEL_CLASSES
+    model_id = TEST_MODEL_CLASSES
     for i, curr_model_id in enumerate(model_id):
-        image_path = '%s/%s.exr' % (TEST_RENDERING_PATH, curr_model_id)
+        for view_id in range(N_VIEWS):
+            image_path = os.path.join(TEST_RENDERING_PATH, model_class[i], curr_model_id, 'rendering_exr', '%.2d.exr' % view_id)
 
-        x, y, mask = get_mask(image_path)
-        
-        mask = Image.fromarray(mask)
-        mask = mask.point(lambda i: i == 1, '1')
-        # save mask
-        mask.save(image_path[:-4] + '_mask.png')
+            assert os.path.exists(image_path)
+
+            save_root = os.path.join(TEST_RENDERING_PATH, model_class[i], model_id[i], 'rendering_mask')
+            mkdir_p(save_root)
+
+            x, y, mask = get_mask(image_path)
+            
+            mask = Image.fromarray(mask)
+            mask = mask.point(lambda i: i == 1, '1')
+            # save mask
+            mask_path = os.path.join(save_root, '%.2d_mask.png') 
+            mask.save(mask_path)
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description='Convert exr to pngs')

@@ -4,7 +4,12 @@ DIR_RENDERING_PATH = '/home2/xieyunwei/occupancy_networks/data/render_2'
 N_VIEWS = 24
 RENDERING_MAX_CAMERA_DIST = 1.75
 TASK_SPLIT_ROOT = '/home2/xieyunwei/occupancy_networks/scripts/render_img_views/3D-R2N2/task_split'
+
+
+# TEST_RELATED
 TEST_RENDERING_PATH = '/home2/xieyunwei/occupancy_networks/data/render_test'
+TEST_MODEL_CLASSES = ['02691156']
+TEST_MODEL_IDS = ['10155655850468db78d106ce0a280f87']
 
 CLASSES = [
     '03001627',
