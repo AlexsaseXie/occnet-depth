@@ -2,6 +2,10 @@
 #include <torch/extension.h>
 #include "MDS.h"
 
+#ifndef AT_CHECK
+#define AT_CHECK TORCH_CHECK
+#endif
+
 void gather_points_kernel_wrapper(int b, int c, int n, int npoints,
                                   const float *points, const int *idx,
                                   float *out);

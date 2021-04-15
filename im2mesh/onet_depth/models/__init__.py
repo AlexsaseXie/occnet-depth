@@ -33,7 +33,7 @@ decoder_local_dict = {
 
 def background_setting(depth_maps, gt_masks, v=0.):
     #inplace function
-    depth_maps[1. - gt_masks] = v
+    depth_maps[1 - gt_masks] = v
 
 # Important change log: 
 # 1.    change the return value of forward from dist.Bernoulli to torch tensors

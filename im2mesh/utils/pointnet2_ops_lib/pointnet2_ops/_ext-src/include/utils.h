@@ -2,6 +2,10 @@
 #include <ATen/cuda/CUDAContext.h>
 #include <torch/extension.h>
 
+#ifndef AT_CHECK
+#define AT_CHECK TORCH_CHECK
+#endif
+
 #define CHECK_CUDA(x)                                                          \
     do {                                                                       \
         AT_CHECK(x.type().is_cuda(), #x " must be a CUDA tensor");             \
