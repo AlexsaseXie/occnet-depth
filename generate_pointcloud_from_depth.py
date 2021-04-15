@@ -19,11 +19,16 @@ parser.add_argument('--mask_dir', type=str, default='./data/ShapeNet.with_depth.
 parser.add_argument('--depth_dir', type=str, default='./data/ShapeNet.depth_pred.uresnet.origin_subdivision/', help='depth & output dir')
 parser.add_argument('--out_folder_name', type=str, default='depth_pointcloud', help='output folder name')
 parser.add_argument('--nproc', type=int, default=10, help='parallel process num')
-parser.add_argument('--n', type=int, default=2048, help='subsample point num N')
 parser.add_argument('--task_split_root', type=str, default='./scripts/render_img_views/3D-R2N2/task_split')
 parser.add_argument('--test_root', type=str, default='./data/back_projection_test/')
 parser.add_argument('--test', action='store_true', help='test')
 parser.add_argument('--nviews', type=int, default=24)
+# work params
+parser.add_argument('--no_resize', action='store_true', help='do not resize before back projection')
+parser.add_argument('--align_corners', action='store_true', help='align corners of the image to pixel center (0 -> pixel 0)')
+parser.add_argument('--sample_strategy', type=str, default='random', help='sample strategy')
+parser.add_argument('--n', type=int, default=2048, help='subsample point num N')
+
 args = parser.parse_args()
 
 
@@ -145,7 +150,12 @@ def back_projection(task_file, task_i):
                 mask_file = os.path.join(mask_folder, '%.2d_mask.png' % i)
                 depth_img = Image.open(depth_file).convert('L')
                 mask_img = Image.open(mask_file)
-                pts = worker.work(depth_img, mask_img, depth_min, depth_max, n=N, unit=depth_unit)
+                pts = worker.work(
+                    depth_img, mask_img, depth_min, depth_max,
+                    resize=not args.no_resize,
+                    unit=depth_unit, align_corners=args.align_corners,
+                    n=N, sample_strategy=args.sample_startegy
+                )
 
                 output_file = os.path.join(output_folder, '%.2d_pointcloud.npz' % i)
                 np.savez(output_file, pointcloud=pts)    
@@ -206,7 +216,12 @@ def test():
             depth_img = Image.open(depth_file).convert('L')
             depth_img.save(os.path.join(output_folder, '%.2d_depth.png' % i))
             mask_img = Image.open(mask_file)
-            pts = worker.work(depth_img, mask_img, depth_min, depth_max, n=N, unit=depth_unit)
+            pts = worker.work(
+                    depth_img, mask_img, depth_min, depth_max,
+                    resize=not args.no_resize,
+                    unit=depth_unit, align_corners=args.align_corners,
+                    n=N, sample_strategy=args.sample_startegy
+                )
 
             output_file = os.path.join(output_folder, '%.2d_pointcloud.npz' % i)
             np.savez(output_file, pointcloud=pts)
