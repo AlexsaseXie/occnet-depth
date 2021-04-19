@@ -131,13 +131,13 @@ class DepthToPCNp:
                     pts = pts[choice]
                 elif sample_strategy == 'fps':
                     pts_torch = torch.from_numpy(pts).unsqueeze(0).cuda() # cuda tensor: 1 * n_pts * 3
-                    pts_torch_tranposed = pts_torch.transpose(1, 2) # 1 * 3 * n_pts
+                    pts_torch_transposed = pts_torch.transpose(1, 2).contiguous() # 1 * 3 * n_pts
 
                     idx = furthest_point_sample(pts_torch, n)
 
-                    pts_torch_transposed = gather_operation(pts_torch_tranposed, idx) # cuda tensor: 1 * 3 * n
-                    pts_torch = pts_torch_tranposed.transpose(1, 2) # 1 * n * 3
-                    pts = pts_torch.numpy().squeeze(0)
+                    pts_torch_transposed = gather_operation(pts_torch_transposed, idx) # cuda tensor: 1 * 3 * n
+                    pts_torch = pts_torch_transposed.transpose(1, 2) # 1 * n * 3
+                    pts = pts_torch.cpu().numpy().squeeze(0)
                 else:
                     raise NotImplementedError
                 
@@ -170,8 +170,8 @@ class DepthToPCNp:
             depth, mask = self.sample_resize(depth, mask, n)
         
         # back projection
-        pc_xyz = self.back_projection(depth, unit=1., align_corners=align_corners)
-        pts = self.mask_sample(pc_xyz, mask, n, sample_strategy=sample_strategy)
+        pc_xyz = self.back_projection(depth, unit=1., align_corners=align_corners).astype(np.float32)
+        pts = self.mask_sample(pc_xyz, mask, n=n, sample_strategy=sample_strategy)
 
         # restrict the return type
         pts = pts.astype(np.float32)

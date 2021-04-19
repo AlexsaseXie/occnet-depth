@@ -34,7 +34,7 @@ args = parser.parse_args()
 
 MASK_ROOT = args.mask_dir
 DEPTH_ROOT = args.depth_dir
-depth_pred = 'depth_pred' in re.split('.|/', DEPTH_ROOT)
+depth_pred = 'depth_pred' in re.split('[.|/]', DEPTH_ROOT)
 OUTPUT_DIR_NAME = args.out_folder_name
 N = args.n
 
@@ -56,7 +56,7 @@ CLASSES = [
     '04090263',
 ]
 
-TASK_SPLIT_ROOT = args.test_split_root
+TASK_SPLIT_ROOT = args.task_split_root
 NPROC = args.nproc
 N_VIEWS = args.nviews
 
@@ -154,7 +154,7 @@ def back_projection(task_file, task_i):
                     depth_img, mask_img, depth_min, depth_max,
                     resize=not args.no_resize,
                     unit=depth_unit, align_corners=args.align_corners,
-                    n=N, sample_strategy=args.sample_startegy
+                    n=N, sample_strategy=args.sample_strategy
                 )
 
                 output_file = os.path.join(output_folder, '%.2d_pointcloud.npz' % i)
@@ -220,7 +220,7 @@ def test():
                     depth_img, mask_img, depth_min, depth_max,
                     resize=not args.no_resize,
                     unit=depth_unit, align_corners=args.align_corners,
-                    n=N, sample_strategy=args.sample_startegy
+                    n=N, sample_strategy=args.sample_strategy
                 )
 
             output_file = os.path.join(output_folder, '%.2d_pointcloud.npz' % i)
