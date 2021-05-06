@@ -4,6 +4,7 @@ from torch.nn import functional as F
 from im2mesh.common import project_to_camera, transform_points
 from torch.autograd import Function
 import random
+from im2mesh.onet_depth.models.space_carver_ops import my_grid_sample_utils
 
 class SpaceCarver(Function):
     '''
@@ -16,7 +17,7 @@ class SpaceCarver(Function):
     @staticmethod
     def forward(ctx, query_pts_img, reference, 
         world_mat=None, camera_mat=None, 
-        mode='mask', eps=1e-3):
+        mode='mask', eps=1e-3, invalid_value=0.):
         '''
             returns the idx that is carved
         '''
@@ -49,7 +50,7 @@ class SpaceCarver(Function):
 
             cor_z = F.grid_sample(reference, query_pts_img, mode='nearest')
             cor_z = cor_z.reshape(cor_z.size(0), cor_z.size(3)) # B * n_pts
-            remove_idx_bool = (scaled_z < (cor_z - eps)) | (cor_z == 0.)
+            remove_idx_bool = (scaled_z < (cor_z - eps)) | (cor_z == invalid_value)
         else:
             raise NotImplementedError
 
@@ -61,6 +62,61 @@ class SpaceCarver(Function):
         return ()
 
 space_carver = SpaceCarver.apply
+  
+class SpaceCarverWithMyGridSampler(Function):
+    @staticmethod
+    def forward(ctx, query_pts_img, reference, 
+        world_mat=None, camera_mat=None, 
+        mode='mask', eps=1e-3, invalid_value=0.,
+        # special params
+        interpolation_mode='DepthPlusFix', align_corners=True, 
+        fix_search_area=1):
+        '''
+            returns the idx that is carved
+        '''
+        assert mode in ('mask', 'depth')
+
+        if mode == 'mask':
+            if world_mat is not None:
+                query_pts_img = transform_points(query_pts_img, world_mat)
+
+            if camera_mat is not None:
+                query_pts_img = project_to_camera(query_pts_img, camera_mat)
+
+            if query_pts_img.dim() == 3:
+                query_pts_img = query_pts_img.unsqueeze(1) # B * 1 * n_pts * 2
+
+            cor_mask = my_grid_sample_utils.space_carver_grid_sampler(reference, query_pts_img, interpolation_mode, 
+                'Zeros', align_corners, invalid_value, fix_search_area)
+            cor_mask = cor_mask.reshape(cor_mask.size(0), cor_mask.size(3)) # B * n_pts
+            remove_idx_bool = (cor_mask < (1. - eps))
+        elif mode == 'depth':
+            assert world_mat is not None
+            query_pts_img = transform_points(query_pts_img, world_mat)
+
+            assert camera_mat is not None
+            # need z values
+            z = query_pts_img[:,:,2] # B * n_pts
+            scaled_z = z * (1. / world_mat[:,2:,3])
+
+            query_pts_img = project_to_camera(query_pts_img, camera_mat)
+            query_pts_img = query_pts_img.unsqueeze(1) # B * 1 * n_pts * 2
+
+            cor_z = my_grid_sample_utils.space_carver_grid_sampler(reference, query_pts_img, interpolation_mode, 
+                'Zeros', align_corners, invalid_value, fix_search_area)
+            cor_z = cor_z.reshape(cor_z.size(0), cor_z.size(3)) # B * n_pts
+            remove_idx_bool = (scaled_z < (cor_z - eps)) | (cor_z == invalid_value)
+        else:
+            raise NotImplementedError
+
+        ctx.mark_non_differentiable(remove_idx_bool)
+        return remove_idx_bool
+
+    @staticmethod
+    def backward(ctx, grad_idx_bool):
+        return ()
+
+space_carver_with_my_grid_sampler = SpaceCarverWithMyGridSampler.apply
 
 class SpaceCarverModule(nn.Module):
     '''
@@ -71,21 +127,40 @@ class SpaceCarverModule(nn.Module):
 
     Warning: shouldn't be used during backward
     '''
-    def __init__(self, mode='mask', eps=3e-2, training_drop_carving_p=0.1):
+    def __init__(self, mode='mask', eps=3e-2, training_drop_carving_p=0.1, invalid_value=0.,
+        #params for my grid_sampler
+        use_my_grid_sampler=False, interpolation_mode='DepthPlusFix', align_corners=True, 
+        fix_search_area=1):
         super(SpaceCarverModule, self).__init__()
         self.mode = mode
         self.eps = eps
         self.training_drop_carving_p = training_drop_carving_p
         assert self.mode in ('mask', 'depth')
+        self.invalid_value = invalid_value
+
+        self.use_my_grid_sampler = use_my_grid_sampler
+        if use_my_grid_sampler:
+            self.interpolation_mode = interpolation_mode
+            self.align_corners = align_corners
+            self.fix_search_area = fix_search_area
 
     def forward(self, query_pts, reference, cor_occ=None, world_mat=None, camera_mat=None, replace=False):
         '''
             during training phase, this function will modify query_pts & cor_occ by inplace operations
         '''
-        remove_idx_bool = space_carver(query_pts, reference, 
-            world_mat, camera_mat, 
-            self.mode, self.eps
-        )
+        if self.use_my_grid_sampler:
+            remove_idx_bool = space_carver_with_my_grid_sampler(
+                query_pts, reference, 
+                world_mat, camera_mat, 
+                self.mode, self.eps, self.invalid_value,
+                self.interpolation_mode, self.align_corners,
+                self.fix_search_area
+            )
+        else:
+            remove_idx_bool = space_carver(query_pts, reference, 
+                world_mat, camera_mat, 
+                self.mode, self.eps, self.invalid_value
+            )
 
         if replace or (self.training and random.random() >= self.training_drop_carving_p):
             # training phase behaviour

@@ -145,6 +145,18 @@ MSN_module = CUDAExtension(
     include_dirs=[os.path.join(this_dir, MSN_utils_src_root, "include")],
 )
 
+Space_carver_sampler_module_root = os.path.join("im2mesh", "onet_depth", "models", "space_carver_ops")
+Space_carver_sampler_module_sources = glob.glob(os.path.join(Space_carver_sampler_module_root, "src", "*.cpp")) + glob.glob(
+    os.path.join(Space_carver_sampler_module_root, "src", "*.cu"))
+
+Space_carver_sampler_module = CUDAExtension(
+    name="im2mesh.onet_depth.models.space_carver_ops._ext",
+    sources=Space_carver_sampler_module_sources,
+    extra_compile_args={
+        "cxx": ["-O3", '-std=c++14'],
+        "nvcc": ["-O3"],
+    }
+)
 
 # Gather all extension modules
 ext_modules = [
@@ -158,7 +170,8 @@ ext_modules = [
     dmc_cuda_module,
     pointnet2_cuda_module,
     lib_pointcloud_distance_module,
-    MSN_module
+    MSN_module,
+    Space_carver_sampler_module 
 ]
 
 setup(
