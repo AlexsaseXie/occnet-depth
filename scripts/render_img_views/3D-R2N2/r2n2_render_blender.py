@@ -196,9 +196,17 @@ class BaseRenderer:
         elif file_path.endswith('dae'):
             # Must install OpenCollada. Please read README.md
             bpy.ops.wm.collada_import(filepath=file_path)
+        elif file_path.endswith('ply'):
+            bpy.ops.import_mesh.ply(filepath=file_path)
+        elif file_path.endswith('off'):
+            bpy.ops.import_mesh.off(filepath=file_path)
         else:
             raise Exception("Loading failed: %s Model loading for type %s not Implemented" %
                             (file_path, file_path[-4:]))
+
+        if not file_path.endswith('obj'):
+            ob = bpy.context.scene.objects.active
+            ob.rotation_euler = (radians(90), 0, 0)
 
     def render(self, load_model=True, clear_model=True, resize_ratio=None,
                return_image=True, image_path=os.path.join(RENDERING_BLENDER_TMP_DIR, 'tmp.png')):
@@ -417,7 +425,7 @@ def test():
 
     sum_time = 0
     renderer = ShapeNetRenderer()
-    renderer.initialize(file_paths, 800, 800)
+    renderer.initialize(file_paths, 224, 224)
 
     save_root = TEST_RENDERING_PATH
     mkdir_p(save_root)
@@ -460,7 +468,68 @@ def test():
             print(sum_time/(10))
             sum_time = 0
 
-        
+def test_watertight():
+    """Test function"""
+    # Modify the following file to visualize the model
+    PREPROCESSED_SHAPENET_DATASET = '/home2/xieyunwei/occupancy_networks/data/ShapeNet.build'
+    RENDERED_ROOT = DIR_RENDERING_PATH
+
+    file_paths = []
+    for i, model_id in enumerate(TEST_MODEL_IDS):
+        file_paths.append(os.path.join(PREPROCESSED_SHAPENET_DATASET, TEST_MODEL_CLASSES[i], '2_watertight', '%s.off' % TEST_MODEL_IDS[i]))
+
+    sum_time = 0
+    renderer = ShapeNetRenderer()
+    renderer.initialize(file_paths, 224, 224)
+
+    save_root = TEST_RENDERING_PATH
+    mkdir_p(save_root)
+
+    for i, curr_model_id in enumerate(TEST_MODEL_IDS):
+        start = time.time()
+
+        save_class_path = os.path.join(save_root, TEST_MODEL_CLASSES[i])
+        mkdir_p(save_class_path)
+
+        save_model_path = os.path.join(save_class_path, TEST_MODEL_IDS[i])
+        mkdir_p(save_model_path)
+
+        param_path = os.path.join(RENDERED_ROOT, TEST_MODEL_CLASSES[i], TEST_MODEL_IDS[i], 'rendering_metadata.txt')
+        with open(param_path, 'r') as f:
+            params = f.readlines()
+            params = list(map(lambda x: x.split(), params))
+
+        for view_id in range(N_VIEWS):
+            image_path = os.path.join(save_model_path, 'rendering_exr', '%.2d.exr' % view_id)
+
+            #az, el, depth_ratio = [360 * random.random(), 5 * random.random() + 25, 0.3 * random.random() + 0.65]
+            az = float(params[view_id][0])
+            el = float(params[view_id][1])
+            depth_ratio = float(params[view_id][3])
+
+            renderer.setModelIndex(i)
+            renderer.setViewpoint(az, el, 0, depth_ratio, 25)
+
+            if view_id == 0:
+                load_model_flag = True
+            else:
+                load_model_flag = False
+
+            if view_id == N_VIEWS - 1:
+                clear_model_flag = True
+            else:
+                clear_model_flag = False
+
+            renderer.render(load_model=load_model_flag, return_image=False,
+                    clear_model=clear_model_flag, image_path=image_path)
+
+        print('Saved at %s' % image_path)
+
+        end = time.time()
+        sum_time += end - start
+        if i % 10 == 0:
+            print(sum_time/(10))
+            sum_time = 0 
 
 
 if __name__ == "__main__":
@@ -468,6 +537,7 @@ if __name__ == "__main__":
     parser.add_argument('--task_file', type=str, default='', help='task split file')
     parser.add_argument('--single', action='store_true', help='use single')
     parser.add_argument('--test', action='store_true', help='test')
+    parser.add_argument('--test_watertight', action='store_true', help='test rendering watertight meshes')
     parser.add_argument('--model_class', type=str, default='', help='model class')
     parser.add_argument('--model_id', type=str, default='', help='model id')
 
@@ -476,6 +546,9 @@ if __name__ == "__main__":
 
     if args.test:
         test()
+        exit(0)
+    elif args.test_watertight:
+        test_watertight()
         exit(0)
 
     if not args.single:

@@ -21,7 +21,7 @@ def convert_OpenEXR_to_sRGB(path):
     image = OpenEXR.InputFile(path)
     x, y = get_exr_dim(image)
 
-    if 'A' in image.header():
+    if 'A' in image.header()['channels']:
         im = numpy.zeros((x,y,4))
     else:
         im = numpy.zeros((x,y,3))
@@ -181,7 +181,7 @@ def test():
                 img_rgb = Image.alpha_composite(background, img)
                 img_rgb_save_path = os.path.join(save_root, '%.2d_rgb.png' % view_id)
                 img_rgb.convert('RGB').save(img_rgb_save_path)
-                print('depth min:', depth_min, ',max:', depth_max)
+                #print('depth min:', depth_min, ',max:', depth_max)
             else:
                 img = Image.fromarray(img)
                 img_save_path = os.path.join(save_root, '%.2d_rgb.png' % view_id)
