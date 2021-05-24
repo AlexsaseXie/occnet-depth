@@ -14,6 +14,7 @@ setup(
       [
         'pyrender.pyx',
         'offscreen.cpp',
+        'offscreen_new.cpp'
       ],
       language='c++',
       include_dirs=[np.get_include()],

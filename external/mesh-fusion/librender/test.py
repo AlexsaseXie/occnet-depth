@@ -88,6 +88,42 @@ def render(vertices, faces):
     pyplot.imshow(img)
     pyplot.show()
 
+def model_new():
+    vertices, faces = model()
+
+    vertices = np.array(vertices).astype(np.float32)
+    faces = np.array(faces).astype(np.int)
+
+    # no color info
+    color_array = np.empty((1), dtype=np.float32)
+
+    vertex_array = vertices[faces].astype(np.float32) #F * 3 * 3
+    normal_array = np.cross((vertex_array[:, 1, :] - vertex_array[:, 0, :]), (vertex_array[:, 2, :] - vertex_array[:, 0, :]))
+    normal_array = np.repeat(normal_array, 3, axis=0).copy()
+    vertex_array = vertex_array.reshape(-1,3).copy()
+
+    return vertex_array, normal_array, color_array
+
+def render_new(vertex_array, normal_array, color_array):
+    x = 0
+    y = math.pi/4
+    z = 0
+
+    cam_position = np.array([[-1.5 * math.sin(y), 0, - 1.5 * math.cos(y)]], dtype=np.float32)
+
+    cam_intr = np.array([fx, fy, cx, cy], dtype=np.float32)
+    znf = np.array([1., 2.], dtype=np.float32)
+    img_size = np.array([img_h, img_w], dtype=np.int32)
+    depth, mask, img, normal, vertex = pyrender.render_new(vertex_array, color_array, normal_array, cam_position, cam_intr, znf, img_size)
+
+    pyplot.imshow(depth[0])
+    pyplot.show()
+    pyplot.imshow(normal[0,:,:,:3])
+    pyplot.show()
+
 if __name__ == '__main__':
     vertices, faces = model()
     render(vertices, faces)
+
+    vertex_array, normal_array, color_array = model_new()
+    render_new(vertex_array, normal_array, color_array)
