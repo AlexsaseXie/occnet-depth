@@ -1,22 +1,26 @@
-#ifndef LIBRENDER_OFFSCREEN_H
-#define LIBRENDER_OFFSCREEN_H
+#ifndef LIBRENDER_OFFSCREEN_NEW_H
+#define LIBRENDER_OFFSCREEN_NEW_H
 
 #include "GL/glew.h"
 #include "GL/gl.h"
 #include "GL/glu.h"
 #include "GL/glut.h"
+#include <glm/glm.hpp>
 
-class OffscreenGL {
+class OffscreenGL_New {
 
 public:
-  OffscreenGL(int maxHeight, int maxWidth);
-  ~OffscreenGL();
+  OffscreenGL_New(int maxHeight, int maxWidth);
+  ~OffscreenGL_New();
+
+public:
+  glm::mat4 view_mat;
 
 private:
   static int glutWin;
   static bool glutInitialized;
   GLuint FBO;
-  GLuint depth_tex;
+  GLuint rbo;
   GLuint normal_tex;
   GLuint vertex_tex;
   GLuint render_tex;
@@ -26,20 +30,23 @@ private:
   GLuint frag_shader;
   GLuint vert_shader;
   GLuint shader_program;
-  bool initialize_shaders();
-
   // VAO
   GLuint VAO;
+  GLuint VBO[4];
   // temp VBO
   float * t_color_array = nullptr;
-  bool delete_color_frag = false;
+  bool delete_color_flag = false;
   int * idx_array = nullptr;
+  int face_count;
+  // functions:
+public:
+  bool initialize_shaders();
+
   void prepare_vertex_info(
     float *vertex_array, float *color_array, float *normal_array, int fM, // 3 * N array
     bool use_color = true
   );
 
-private:
   void camera_setup(
     float zNear, float zFar, float *intrinsics, 
     unsigned int imgHeight, unsigned int imgWidth,
@@ -50,13 +57,15 @@ private:
     unsigned char *imageBuffer, float *depthBuffer, bool *maskBuffer,
     float *normalBuffer, float *vertexBuffer,
     unsigned int imgHeight, unsigned int imgWidth,
-    double *zNearFarV,
-    int index, bool use_color = true,
+    float *zNearFarV,
+    int index, bool use_color = true
   );
+
+  void copy_view_mat(float * viewMatBuffer, int index);
 };
 
 
-void render(
+void render_mesh(
   // model information
   float *vertex_array, float *color_array, float *normal_array, int fM, // N * 3 array
   // use color or normal ?
@@ -67,7 +76,17 @@ void render(
   float *intrinsics, int *imgSizeV, float *zNearFarV,
   // output buffer
   unsigned char * imageBuffer, float *depthBuffer, bool *maskBuffer,
-  float *normalBuffer, float *vertexBuffer 
+  float *normalBuffer, float *vertexBuffer, float * viewMatBuffer
+);
+
+void select_vertex(
+  // input
+  float * vertexBuffer, float * normalBuffer,
+  int * imgSizeV,
+  int fM, int T,
+  // output
+  float *point_cloud, int *point_cloud_size, 
+  int *stats
 );
 
 #endif

@@ -53,13 +53,21 @@ def render(double[:,::1] vertices, double[:,::1] faces, double[::1] cam_intr, do
 
 # new render function
 cdef extern from "offscreen_new.h":
-  void render( \
+  void render_mesh( \
     float *vertex_array, float *color_array, float *normal_array, int fM, \
     bool use_color, \
     float *camera_position, int T, \
     float *intrinsics, int *imgSizeV, float *zNearFarV, \
     unsigned char * imageBuffer, float *depthBuffer, bool *maskBuffer, \
-    float *normalBuffer, float *vertexBuffer \
+    float *normalBuffer, float *vertexBuffer, float* viewMatBuffer \
+  );
+
+  void select_vertex( \
+    float * vertexBuffer, float * normalBuffer, \
+    int * imgSizeV, \
+    int fM, int T, \
+    float *point_cloud, int *point_cloud_size, \
+    int * stats \
   );
 
 def render_new(float[:,::1] vertex_array, float[:,::1] color_array, float[:,::1] normal_array, \
@@ -73,6 +81,7 @@ def render_new(float[:,::1] vertex_array, float[:,::1] color_array, float[:,::1]
   cdef int vertex_num = vertex_array.shape[0]
   assert vertex_num % 3 == 0
   cdef int fM = vertex_num // 3 # face num = v_count / 3
+  #print("face count:", fM)
   assert normal_array.shape[0] == vertex_num
 
   cdef float* vertex_arr = &(vertex_array[0,0])
@@ -101,28 +110,68 @@ def render_new(float[:,::1] vertex_array, float[:,::1] color_array, float[:,::1]
     raise Exception('znf must be a [2] float vector')
 
   cdef float* intrinsics = &(cam_intr[0])
-  cdef float* zNearVarV = &(znf[0])
-  cdef int* imgSize = &(img_size[0])    # [height, width]
-
+  cdef float* zNearFarV = &(znf[0])
+  cdef int* imgSizeV = &(img_size[0])    # [height, width]
 
   depth = np.empty((T, img_size[0], img_size[1]), dtype=np.float32)
   mask  = np.empty((T, img_size[0], img_size[1]), dtype=np.uint8)
   img   = np.empty((T, img_size[0], img_size[1], 4), dtype=np.uint8)
   normal = np.empty((T, img_size[0], img_size[1], 4), dtype=np.float32)
   vertex = np.empty((T, img_size[0], img_size[1], 4), dtype=np.float32)
-  cdef float* depthBuffer = &(depth[0,0,0])
-  cdef bool* maskBuffer = <bool*> &(mask[0,0,0])
-  cdef unsigned char* imgBuffer = &(img[0,0,0,0])
-  cdef float * normalBuffer = &(normal[0,0,0,0])
-  cdef float * vertexBuffer = &(vertex[0,0,0,0])
+  view_mat = np.empty((T, 4, 4), dtype=np.float32)
+  cdef float[:,:,::1] depth_view = depth
+  cdef unsigned char[:,:,::1] mask_view = mask
+  cdef unsigned char[:,:,:,::1] img_view = img
+  cdef float[:,:,:,::1] normal_view = normal
+  cdef float[:,:,:,::1] vertex_view = vertex
+  cdef float[:,:,::1] view_mat_view = view_mat
 
-  renderDepthMesh( \
+  cdef float* depthBuffer = &(depth_view[0,0,0])
+  cdef bool* maskBuffer = <bool*> &(mask_view[0,0,0])
+  cdef unsigned char* imageBuffer = &(img_view[0,0,0,0])
+  cdef float * normalBuffer = &(normal_view[0,0,0,0])
+  cdef float * vertexBuffer = &(vertex_view[0,0,0,0])
+  cdef float * viewMatBuffer = &(view_mat_view[0,0,0])
+
+  render_mesh( \
     vertex_arr, color_arr, normal_arr, fM, \
     use_color, \
     cam_pos, T, \
     intrinsics, imgSizeV, zNearFarV, \
     imageBuffer, depthBuffer, maskBuffer, \
-    normalBuffer, vertexBuffer \
+    normalBuffer, vertexBuffer, viewMatBuffer \
   );
 
-  return depth, mask, img, normal, vertex
+  #print('Depth:', depth.shape, depth)
+  #print('Normal:', normal.shape, normal)
+  return depth, mask, img, normal, vertex, view_mat
+
+def select_vertex_from_buffer(float[:,:,:,::1] normal, float[:,:,:,::1] vertex, int fM, int[::1] img_size, int max_pointcloud_size = 500000):
+  cdef int pointcloud_size = max_pointcloud_size
+  cdef int * pointcloud_size_pt = &pointcloud_size
+
+  cdef int T = normal.shape[0]
+  cdef int* imgSizeV = &(img_size[0])
+  cdef float * vertexBuffer = &(vertex[0,0,0,0])
+  cdef float * normalBuffer = &(normal[0,0,0,0]) 
+
+  pointcloud = np.empty((pointcloud_size, 6), dtype=np.float32)
+  cdef float[:,::1] pointcloud_view = pointcloud
+  cdef float * point_cloud_buffer = &(pointcloud_view[0,0])
+
+  stats = np.empty((3), dtype=np.int32)
+  cdef int[::1] stats_view = stats
+  cdef int * stats_buffer = &(stats_view[0])
+
+  # select
+  select_vertex( \
+    vertexBuffer, normalBuffer, \
+    imgSizeV, \
+    fM, T, \
+    point_cloud_buffer, pointcloud_size_pt, \
+    stats_buffer);
+  
+  # slice
+  pointcloud = pointcloud[:pointcloud_size, :]
+
+  return pointcloud, stats
