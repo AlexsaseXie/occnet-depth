@@ -31,15 +31,23 @@ cdef extern from "fusion.h":
     int width_;
     float* data_;
 
+  cdef cppclass Points:
+    Points()
+    int n_pts_;
+    int c_dim_;
+    float * data_;
+
 
   void fusion_projectionmask_gpu(const Views& views, float vx_size, bool unknown_is_free, Volume& vol);
   void fusion_occupancy_gpu(const Views& views, float vx_size, float truncation, bool unknown_is_free, Volume& vol);
   void fusion_tsdfmask_gpu(const Views& views, float vx_size, float truncation, bool unknown_is_free, Volume& vol);
   void fusion_tsdf_gpu(const Views& views, float vx_size, float truncation, bool unknown_is_free, Volume& vol);
   void fusion_tsdf_hist_gpu(const Views& views, float vx_size, float truncation, bool unknown_is_free, float* bin_centers, int n_bins, bool unobserved_is_occupied, Volume& vol);
-
+  void fusion_tsdf_strict_gpu(const Views& views, float vx_size, float truncation, bool unknown_is_free, Volume& vol);
+  void fusion_tsdf_range_gpu(const Views& views, float vx_size, float truncation, bool unknown_is_free, Volume& vol);
   void fusion_hist_zach_tvl1_gpu(const Volume& hist, bool hist_on_gpu, float truncation, float lambda_param, int iterations, Volume& vol);
   void fusion_zach_tvl1_gpu(const Views& views, float vx_size, float truncation, bool unknown_is_free, float* bin_centers, int n_bins, float lambda_param, int iterations, Volume& vol);
+  void fusion_inside_gpu(const Views &views, int n_pts, Points & points);
 
 
 cdef class PyViews:
@@ -92,6 +100,16 @@ cdef class PyVolume:
     self.vol.width_ = data.shape[3]
 
 
+cdef class PyPoints:
+  cdef Points points
+
+  def __init__(self, float[:,::1] data):
+    self.points = Points()
+    self.points.data_ = &(data[0,0])
+    self.points.n_pts_ = data.shape[0]
+    self.points.c_dim_ = data.shape[1]
+
+
 def projmask_gpu(PyViews views, int depth, int height, int width, float vx_size, bool unknown_is_free):
   vol = np.empty((1, depth, height, width), dtype=np.float32)
   cdef float[:,:,:,::1] vol_view = vol
@@ -117,6 +135,20 @@ def tsdf_gpu(PyViews views, int depth, int height, int width, float vx_size, flo
   cdef float[:,:,:,::1] vol_view = vol
   cdef PyVolume py_vol = PyVolume(vol_view)
   fusion_tsdf_gpu(views.views, vx_size, truncation, unknown_is_free, py_vol.vol)
+  return vol
+
+def tsdf_strict_gpu(PyViews views, int depth, int height, int width, float vx_size, float truncation, bool unknown_is_free):
+  vol = np.empty((1, depth, height, width), dtype=np.float32)
+  cdef float[:,:,:,::1] vol_view = vol
+  cdef PyVolume py_vol = PyVolume(vol_view)
+  fusion_tsdf_strict_gpu(views.views, vx_size, truncation, unknown_is_free, py_vol.vol)
+  return vol
+
+def tsdf_range_gpu(PyViews views, int depth, int height, int width, float vx_size, float truncation, bool unknown_is_free):
+  vol = np.empty((1, depth, height, width), dtype=np.float32)
+  cdef float[:,:,:,::1] vol_view = vol
+  cdef PyVolume py_vol = PyVolume(vol_view)
+  fusion_tsdf_range_gpu(views.views, vx_size, truncation, unknown_is_free, py_vol.vol)
   return vol
 
 def tsdf_hist_gpu(PyViews views, int depth, int height, int width, float vx_size, float truncation, bool unknown_is_free, float[::1] bins, bool unobserved_is_occupied=True):
@@ -148,3 +180,14 @@ def zach_tvl1(PyViews views, int depth, int height, int width, float vx_size, fl
   cdef PyVolume py_vol = PyVolume(vol_view)
   fusion_zach_tvl1_gpu(views.views, vx_size, truncation, unknown_is_free, &(bins[0]), n_bins, lambda_param, iterations, py_vol.vol)
   return vol
+
+def judge_inside(PyViews views, points):
+  cdef int n_pts = points.shape[0]
+  cdef int c_dim = points.shape[1]
+  return_points = np.zeros((n_pts, c_dim + 2), dtype=np.float32)
+  return_points[:,:c_dim] = points[:,:c_dim]
+
+  cdef float[:,::1] return_points_view = return_points
+  cdef PyPoints py_points = PyPoints(return_points_view)
+  fusion_inside_gpu(views.views, n_pts, py_points.points)
+  return return_points

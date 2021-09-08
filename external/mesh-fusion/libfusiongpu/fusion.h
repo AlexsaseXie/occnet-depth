@@ -24,6 +24,15 @@ public:
   Views() : n_views_(0), depthmaps_(0), rows_(0), cols_(0), Ks_(0), Rs_(0), Ts_(0) {}
 };
 
+class Points{
+public:
+  int n_pts_;
+  int c_dim_;
+  float * data_; // x, y, z, nx, ny, nz
+
+  Points() : n_pts_(0), c_dim_(0), data_(0) {}
+};
+
 class Volume {
 public:
   int channels_;
@@ -286,9 +295,119 @@ struct TsdfHistFusionFunctor : public FusionFunctor {
 void fusion_tsdf_hist_gpu(const Views& views, float vx_size, float truncation, bool unknown_is_free, float* bin_centers, int n_bins, bool unobserved_is_occupied, Volume& vol);
 
 
+struct TsdfStrictFusionFunctor : public FusionFunctor {
+  float truncation_;
+  bool unknown_is_free_;
+  TsdfStrictFusionFunctor(float truncation, bool unknown_is_free) :
+    truncation_(truncation), unknown_is_free_(unknown_is_free) {}
 
+  FUSION_FUNCTION
+  virtual void before_sample(Volume* vol, int d, int h, int w) const {
+    for(int c = 0; c < vol->channels_; ++c) {
+      volume_set(vol, c,d,h,w, -truncation_);
+    }
+  }
+
+  FUSION_FUNCTION
+  virtual bool new_sample(Volume* vol, float vx_depth, float dm_depth, int d, int h, int w, int* n_valid_views) const {
+    if(unknown_is_free_ && dm_depth < 0) {
+      dm_depth = 1e9;
+    }
+    float dist = dm_depth - vx_depth;
+    float truncated_dist = fminf(truncation_, fmaxf(-truncation_, dist));
+    if(dm_depth > 0 && dist >= -truncation_) {
+      // find min tsdf in the voxel
+      float current_dist = volume_get(vol, 0, d, h, w);
+      //(*n_valid_views) ++;
+      if (truncated_dist >= 0) {
+        // outside
+        if (current_dist < 0 || (current_dist >= 0 && truncated_dist < current_dist)) {
+          volume_set(vol, 0, d, h, w, truncated_dist);
+        }
+      }
+      else {
+        // inside
+        if (current_dist < 0 && truncated_dist > current_dist) {
+          volume_set(vol, 0, d, h, w, truncated_dist);
+        }
+      }
+    }
+    return true;
+  }
+
+  FUSION_FUNCTION 
+  virtual void after_sample(Volume* vol, int d, int h, int w, int n_valid_views) const {
+	  //if (n_valid_views <= 0) {
+    //  volume_set(vol, 0,d,h,w, -truncation_);
+    //}
+  }
+};
+
+void fusion_tsdf_strict_gpu(const Views& views, float vx_size, float truncation, bool unknown_is_free, Volume& vol);
+
+struct TsdfRangeFusionFunctor : public FusionFunctor {
+  float truncation_;
+  bool unknown_is_free_;
+  TsdfRangeFusionFunctor(float truncation, bool unknown_is_free) :
+    truncation_(truncation), unknown_is_free_(unknown_is_free) {}
+
+  FUSION_FUNCTION
+  virtual void before_sample(Volume* vol, int d, int h, int w) const {
+    for(int c = 0; c < vol->channels_; ++c) {
+      volume_set(vol, c,d,h,w, 0);
+    }
+  }
+
+  FUSION_FUNCTION
+  virtual bool new_sample(Volume* vol, float vx_depth, float dm_depth, int d, int h, int w, int* n_valid_views) const {
+    if(unknown_is_free_ && dm_depth < 0) {
+      dm_depth = 1e9;
+    }
+    float dist = dm_depth - vx_depth;
+    float truncated_dist = fminf(truncation_, fmaxf(-truncation_, dist));
+    if (dm_depth >= 1.75) {
+      (*n_valid_views) = -1;
+    }
+    else if(dm_depth > 0) {
+      if (dist <= truncation_ && dist >= -truncation_) {
+        if (*n_valid_views >= 0) {
+          (*n_valid_views)++;
+          volume_add(vol, 0,d,h,w, truncated_dist);
+        }
+        else {
+          (*n_valid_views) = 1;
+          volume_add(vol, 0,d,h,w, truncated_dist);
+        }
+      }
+      else {
+        if (truncated_dist == truncation_ && (*n_valid_views) == 0) {
+          (*n_valid_views) = -1;
+        }
+      }
+    }
+    return true;
+  }
+
+  FUSION_FUNCTION 
+  virtual void after_sample(Volume* vol, int d, int h, int w, int n_valid_views) const {
+    if(n_valid_views > 0) {
+      volume_div(vol, 0,d,h,w, n_valid_views);
+    } 
+    else if (n_valid_views == 0) {
+      volume_set(vol, 0,d,h,w, -truncation_);
+    }
+    else {
+      // n_valid_views == -1
+      volume_set(vol, 0,d,h,w, truncation_);
+    }
+  }
+};
+
+void fusion_tsdf_range_gpu(const Views& views, float vx_size, float truncation, bool unknown_is_free, Volume& vol);
 
 void fusion_hist_zach_tvl1_gpu(const Volume& hist, bool hist_on_gpu, float truncation, float lambda, int iterations, Volume& vol);
 void fusion_zach_tvl1_gpu(const Views& views, float vx_size, float truncation, bool unknown_is_free, float* bin_centers, int n_bins, float lambda, int iterations, Volume& vol);
+
+void fusion_inside_gpu(const Views &views, int n_pts, Points & points);
 
 #endif

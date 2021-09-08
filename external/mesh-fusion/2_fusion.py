@@ -6,6 +6,7 @@ from scipy.interpolate import RegularGridInterpolator as rgi
 import common
 import argparse
 import ntpath
+import trimesh
 
 # Import shipped libraries.
 import librender
@@ -16,6 +17,9 @@ use_gpu = True
 if use_gpu:
     import libfusiongpu as libfusion
     from libfusiongpu import tsdf_gpu as compute_tsdf
+    from libfusiongpu import tsdf_strict_gpu as compute_tsdf_strict
+    from libfusiongpu import tsdf_range_gpu as compute_tsdf_range
+    from libfusiongpu import judge_inside as compute_judge_inside
 else:
     import libfusioncpu as libfusion
     from libfusioncpu import tsdf_cpu as compute_tsdf
@@ -113,6 +117,14 @@ class Fusion:
             '--truncation_factor', type=float, default=10,
             help='Truncation for fusion is derived as truncation_factor*voxel_size.')
 
+        parser.add_argument('--type', type=str, default='tsdf', help='tsdf fusion type')
+
+        # sample related params
+        parser.add_argument('--points_size', type=int, default=100000)
+        parser.add_argument('--points_uniform_ratio', type=float, default=1.)
+        parser.add_argument('--points_padding', type=float, default=0.1)
+        parser.add_argument('--outside_min_view', type=int, default=1)
+        parser.add_argument('--bbox_in_folder', type=str, default=None)
         return parser
 
     def read_directory(self, directory):
@@ -152,6 +164,9 @@ class Fusion:
         elif self.options.mode == 'fuse':
             modelname = os.path.splitext(os.path.splitext(filename)[0])[0]
             outpath = os.path.join(self.options.out_dir, modelname + '.off')
+        elif self.options.mode == 'judge_inside':
+            modelname = os.path.splitext(os.path.splitext(filename)[0])[0]
+            outpath = os.path.join(self.options.out_dir, modelname + '.npz')
         elif self.options.mode == 'sample':
             modelname = os.path.splitext(os.path.splitext(filename)[0])[0]
             outpath = os.path.join(self.options.out_dir, modelname + '.npz')
@@ -246,7 +261,7 @@ class Fusion:
             # (by subtracting a constant from the depth map).
             # Dilation additionally enlarges thin structures (e.g. for chairs).
             depthmap -= self.options.depth_offset_factor * self.voxel_size
-            depthmap = ndimage.morphology.grey_erosion(depthmap, size=(3, 3))
+            #depthmap = ndimage.morphology.grey_erosion(depthmap, size=(3, 3))
 
             depthmaps.append(depthmap)
 
@@ -279,12 +294,40 @@ class Fusion:
         views = libfusion.PyViews(depthmaps, Ks, Rs, Ts)
 
         # Note that this is an alias defined as libfusiongpu.tsdf_gpu or libfusioncpu.tsdf_cpu!
-        tsdf = compute_tsdf(views,
+        if self.options.type == 'tsdf':
+            tsdf = compute_tsdf(views,
                             self.options.resolution, self.options.resolution,
                             self.options.resolution, self.voxel_size, self.truncation, False)
+        elif self.options.type == 'tsdf_strict':
+            tsdf = compute_tsdf_strict(views,
+                            self.options.resolution, self.options.resolution,
+                            self.options.resolution, self.voxel_size, self.truncation, False)
+        elif self.options.type == 'tsdf_range':
+            tsdf = compute_tsdf_range(views,
+                            self.options.resolution, self.options.resolution,
+                            self.options.resolution, self.voxel_size, self.truncation, True)
+        else:
+            raise NotImplementedError
 
         tsdf = np.transpose(tsdf[0], [2, 1, 0])
         return tsdf
+
+    def judge_inside(self, depthmaps, Rs, points_buffer):
+        Ks = self.fusion_intrisics.reshape((1, 3, 3))
+        Ks = np.repeat(Ks, len(depthmaps), axis=0).astype(np.float32)
+
+        Ts = []
+        for i in range(len(Rs)):
+            Rs[i] = Rs[i]
+            Ts.append(np.array([0, 0, 1]))
+
+        Ts = np.array(Ts).astype(np.float32)
+        Rs = np.array(Rs).astype(np.float32)
+
+        depthmaps = np.array(depthmaps).astype(np.float32)
+        views = libfusion.PyViews(depthmaps, Ks, Rs, Ts)
+
+        return compute_judge_inside(views, points_buffer)
 
     def run(self):
         """
@@ -299,6 +342,8 @@ class Fusion:
             method = self.run_fuse
         elif self.options.mode == 'sample':
             method = self.run_sample
+        elif self.options.mode == 'judge_inside':
+            method = self.run_judge_inside
         else:
             print('Invalid model, choose render or fuse.')
             exit()
@@ -353,6 +398,61 @@ class Fusion:
 
         off_file = self.get_outpath(filepath)
         libmcubes.export_off(vertices, triangles, off_file)
+        print('[Data] wrote %s (%f seconds)' % (off_file, timer.elapsed()))
+
+    def run_judge_inside(self, filepath):
+        timer = common.Timer()
+        Rs = self.get_views()
+
+        # As rendering might be slower, we wait for rendering to finish.
+        # This allows to run rendering and fusing in parallel (more or less).
+        depths = common.read_hdf5(filepath)
+        timer.reset()
+
+        # get bbox loc & scale
+        # if self.options.bbox_in_folder is not None:
+        #     model_name = filepath.split('/')[-1].split('.')[0]
+        #     bbox_model_file_name = os.path.join(self.options.bbox_in_folder, model_name)
+        #     mesh_tmp = trimesh.load(bbox_model_file_name, process=False)
+        #     bbox = mesh_tmp.bounding_box.bounds
+
+        #     loc = (bbox[0] + bbox[1]) / 2
+        #     scale = (bbox[1] - bbox[0]).max() / 1.
+        # else:
+        #     loc = np.zeros(3)
+        #     scale = 1.
+
+        modelname = os.path.splitext(os.path.splitext(os.path.basename(filepath))[0])[0]
+        loc, scale = self.get_transform(modelname)
+
+        n_points_uniform = int(self.options.points_size * self.options.points_uniform_ratio)
+        assert self.options.points_uniform_ratio == 1.
+
+        boxsize = 1 + self.options.points_padding
+        points_uniform = np.random.rand(n_points_uniform, 3) # dtype == np.float64
+        points_uniform = boxsize * (points_uniform - 0.5)
+
+        points_buffer = points_uniform.astype(np.float32)
+        #points_zeros = np.zeros((n_points_uniform, 2))
+        #points_buffer = np.concatenate((points_uniform, points_zeros), axis=1).astype(np.float32) # n * 5
+    
+        points_buffer = self.judge_inside(depths, Rs, points_buffer)
+
+        points_outside_view_count = points_buffer[:, 3]
+        print('Points_outside_view_count max:', points_outside_view_count.max(), 
+            'min:', points_outside_view_count.min())
+        print(points_outside_view_count)
+        points_inside_view_count = points_buffer[:, 4]
+        print(points_inside_view_count)
+        print(points_inside_view_count + points_outside_view_count)
+        #points_inside_view_count = np.floor(points_buffer[:, 5] + 0.1).astype(np.int)
+
+        occupancies = ~(points_outside_view_count > self.options.outside_min_view - 0.5)
+        points = points_buffer[:,:3]
+
+        off_file = self.get_outpath(filepath)
+        np.savez(off_file, points=points, occupancies=occupancies,
+             loc=loc, scale=scale)
         print('[Data] wrote %s (%f seconds)' % (off_file, timer.elapsed()))
 
     def run_sample(self, filepath):

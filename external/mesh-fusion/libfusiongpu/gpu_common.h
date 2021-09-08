@@ -147,7 +147,44 @@ void device_to_device(const T* dptr, T* hptr, long N) {
 }
 
 
+// points related functions
+inline void points_to_gpu(const Points &points_cpu, Points &points_gpu, bool alloc) {
+  points_gpu.c_dim_ = points_cpu.c_dim_;
+  points_gpu.n_pts_ = points_cpu.n_pts_;
+  
+  printf("    points_to_gpu with %dx%d\n", points_gpu.n_pts_, points_gpu.c_dim_);
+  int N = points_cpu.n_pts_ * points_cpu.c_dim_;
+  if (alloc) {
+    points_gpu.data_ = device_malloc<float>(N);
+  }
+  host_to_device(points_cpu.data_, points_gpu.data_, N);
+}
 
+inline void points_free_gpu(Points & points_gpu) {
+  device_free(points_gpu.data_);
+}
+
+inline void points_alloc_gpu(int n_pts, int c_dim, Points &points_gpu){
+  points_gpu.n_pts_ = n_pts;
+  points_gpu.c_dim_ = c_dim;
+
+  int N = n_pts * c_dim;
+  printf("  points_alloc_gpu gpu memory for points %dx%d\n", points_gpu.n_pts_, points_gpu.c_dim_);
+  points_gpu.data_ = device_malloc<float>(N);
+}
+
+inline void points_to_cpu(const Points& points_gpu, Points& points_cpu, bool alloc) {
+  points_cpu.n_pts_ = points_gpu.n_pts_;
+  points_cpu.c_dim_ = points_gpu.c_dim_;
+
+  int N = points_gpu.n_pts_ * points_gpu.c_dim_;
+  if(alloc) {
+    points_cpu.data_ = new float[N];
+  }
+  device_to_host(points_gpu.data_, points_cpu.data_, N);
+}
+
+// view related functions
 inline void views_to_gpu(const Views& views_cpu, Views& views_gpu, bool alloc) {
   views_gpu.n_views_ = views_cpu.n_views_;
   views_gpu.rows_ = views_cpu.rows_;
@@ -187,7 +224,7 @@ inline void views_free_gpu(Views& views_gpu) {
 }
 
 
-
+// Volume related functions
 inline void volume_alloc_like_gpu(const Volume& vol_cpu, Volume& vol_gpu) {
   vol_gpu.channels_ = vol_cpu.channels_;
   vol_gpu.depth_ = vol_cpu.depth_;
@@ -260,6 +297,8 @@ inline void volume_free_gpu(Volume& vol_gpu) {
 
 
 
-
+// entrace
 template <typename FusionFunctorT>
 __global__ void kernel_fusion(int vx_res3, const Views views, const FusionFunctorT functor, float vx_size, Volume vol);
+
+__global__ void kernel_inside_fusion(int n_pts, const Views views, Points points);
