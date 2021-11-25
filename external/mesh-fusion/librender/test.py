@@ -186,8 +186,11 @@ def render_new(vertex_array, normal_array, color_array, cam_position=None, show=
 
     print('Testing rendering')
     t0 = time.time()
-    depth, mask, img, normal, vertex, view_mats = pyrender.render_new(vertex_array, color_array, normal_array, cam_position, cam_intr, znf, img_size)
-    print('render %d pics:' % cam_position.shape[0], time.time() - t0, 'secs')
+    for i in range(1):
+        depth, mask, img, normal, vertex, view_mats = pyrender.render_new(vertex_array, color_array, normal_array, cam_position, cam_intr, znf, img_size)
+        print('%d render %d pics:' % (i, cam_position.shape[0]), time.time() - t0, 'secs')
+        t0 = time.time()
+
 
     fusion_intrisics = np.array([
             [fx, 0, cx],
@@ -196,7 +199,7 @@ def render_new(vertex_array, normal_array, color_array, cam_position=None, show=
         ], dtype=np.float32)
 
     if show:
-        for i in range(min(T, 5)):
+        for i in range(0, 100, 10):
             #pyplot.imshow(depth[i])
             #pyplot.show()
 
@@ -234,13 +237,35 @@ def render_new(vertex_array, normal_array, color_array, cam_position=None, show=
             pyplot.scatter(t[0], t[1], color='red')
             pyplot.show()
 
+    if True:
+        for i in range(0, 100, 10):
+            Rt = view_mats[i,:,:]
+            Rt[:,1:3] = -Rt[:,1:3]
+
+            normal_copy = normal.copy()
+            normal_copy[i,:,:,3] /= 12
+            normal_copy[i,:,:,:3] = (normal_copy[i,:,:,:3] + 1.) / 2.
+            pyplot.imshow(normal_copy[i,:,:,:4])
+            for x in [0.2, -0.2]:
+                for y in [0.2, -0.2]:
+                    for z in [0.2, -0.2]:
+                        v = np.array([x,y,z, 1.0])
+                        t = np.dot(v, Rt)[:3]
+                        t = np.dot(t, fusion_intrisics.T)
+                        print(t)
+                        t /= t[2] 
+                        pyplot.scatter(t[0], t[1], color='red')
+
+            pyplot.show()
+
     print('Testing select')
     t0 = time.time()
     fM = vertex_array.shape[0] // 3
-    pointcloud, stats = pyrender.select_vertex_from_buffer(normal, vertex, fM,  img_size, 5000000)
+    pointcloud, face_normal, stats = pyrender.select_vertex_from_buffer(normal, vertex, fM,  img_size, 5000000)
     print('select vertex:', time.time() - t0, 'secs')
+    print('face normals:', face_normal)
     print('double-sides faces: %d, bad faces: %d, total faces: %d' % (stats[0], stats[1], stats[2]))
-    print(pointcloud.shape)
+    print('pointcloud.shape:', pointcloud.shape)
     print(pointcloud)
 
 if __name__ == '__main__':
@@ -250,6 +275,8 @@ if __name__ == '__main__':
     #render(vertices, faces, R = Rs[30])
 
     vertex_array, normal_array, color_array = model_new()
-    render_new(vertex_array, normal_array, color_array, cam_position = np.array(pts[:], dtype=np.float32), show=True)
+
+    print('input normal array:', normal_array)
+    render_new(vertex_array, normal_array, color_array, cam_position = np.array(pts[:], dtype=np.float32), show=False)
 
     

@@ -4,6 +4,10 @@
 #include <iostream>
 #include <vector>
 #include <fstream>
+#include <unistd.h>
+#include <string>
+#include <cstdlib>
+#include <ctime>
 #include <glm/glm.hpp>
 #include <glm/gtc/matrix_transform.hpp>
 #include <glm/gtc/type_ptr.hpp>
@@ -12,6 +16,10 @@ using namespace std;
 
 int OffscreenGL_New::glutWin = -1;
 bool OffscreenGL_New::glutInitialized = false;
+bool OffscreenGL_New::shaderInitialized = false;
+GLuint OffscreenGL_New::shader_program = -1;
+GLuint OffscreenGL_New::FBO = -1;
+GLuint OffscreenGL_New::rbo = -1;
 
 OffscreenGL_New::OffscreenGL_New(int maxHeight, int maxWidth) {
 
@@ -61,8 +69,7 @@ OffscreenGL_New::OffscreenGL_New(int maxHeight, int maxWidth) {
     GLenum draw_buffers[3] = {GL_COLOR_ATTACHMENT0, GL_COLOR_ATTACHMENT1, GL_COLOR_ATTACHMENT2};
     
     glDrawBuffers(3, draw_buffers);
-
-    glBindFramebuffer(GL_FRAMEBUFFER, 0);
+    //glBindFramebuffer(GL_FRAMEBUFFER, 0);
   } else {
     // WARNING: shouldn't be called
     glutSetWindow(glutWin);
@@ -70,9 +77,11 @@ OffscreenGL_New::OffscreenGL_New(int maxHeight, int maxWidth) {
 }
 
 OffscreenGL_New::~OffscreenGL_New() {
+  glDeleteVertexArrays(1, &this->VAO);
+  glDeleteBuffers(4, this->VBO);
   // free space
   if (this->delete_color_flag)
-    delete [] this->t_color_array;
+   delete [] this->t_color_array;
   
   delete [] this->idx_array;
 }
@@ -140,11 +149,31 @@ void checkCompileErrors(GLuint shader, const char * type) {
 }
 
 bool OffscreenGL_New::initialize_shaders() {
+  if (shaderInitialized) {
+    return true;
+  }
+
   this->vert_shader = glCreateShader(GL_VERTEX_SHADER);
   this->frag_shader = glCreateShader(GL_FRAGMENT_SHADER);
 
-  bool vert_flag = compileShader(this->vert_shader, "./shaders/vert_shader.vs");
-  bool frag_flag = compileShader(this->frag_shader, "./shaders/frag_shader.fs");
+  string base_p;
+#ifdef projectdir
+  base_p = projectdir;
+  //cout << "Base path:" << base_p << endl;
+#else
+  base_p = ".";
+  //cout << "Base path:" << base_p << endl;
+#endif
+
+  string vs_p = "/shaders/vert_shader.vs";
+  string fs_p = "/shaders/frag_shader.fs";
+  
+  string vs_abs_p = base_p + vs_p;
+  string fs_abs_p = base_p + fs_p;
+
+
+  bool vert_flag = compileShader(this->vert_shader, vs_abs_p.c_str());
+  bool frag_flag = compileShader(this->frag_shader, fs_abs_p.c_str());
 
   if (!vert_flag || !frag_flag) 
     return false;
@@ -168,6 +197,8 @@ bool OffscreenGL_New::initialize_shaders() {
   checkCompileErrors(this->shader_program, "PROGRAM");
   glUseProgram(this->shader_program);
 
+  shaderInitialized = true;
+
   return true;
 }
 
@@ -187,8 +218,10 @@ void OffscreenGL_New::prepare_vertex_info(
 
     this->delete_color_flag = true;
   }
-  else 
+  else {
+    this->delete_color_flag = false;
     this->t_color_array = color_array;
+  }
     
   // idx array
   this->idx_array = new int [fM * 3];
@@ -237,6 +270,7 @@ void OffscreenGL_New::prepare_vertex_info(
   glEnableVertexAttribArray(3);
   glVertexAttribIPointer(3, 1, GL_INT, 0, 0);
   
+  glBindBuffer(GL_ARRAY_BUFFER, 0);
   glBindVertexArray(0);
 }
 
@@ -285,15 +319,15 @@ void OffscreenGL_New::draw(
   float *zNearFarV, int index, bool use_color) {
 
   // bind VAO, FBO & draw
-  glBindFramebuffer(GL_FRAMEBUFFER, this->FBO);
+  //glBindFramebuffer(GL_FRAMEBUFFER, this->FBO);
   glEnable(GL_DEPTH_TEST);
   glClear(GL_COLOR_BUFFER_BIT|GL_DEPTH_BUFFER_BIT);
 
-  glUseProgram(this->shader_program);
+  //glUseProgram(this->shader_program);
   glBindVertexArray(this->VAO);
   glDrawArrays(GL_TRIANGLES, 0, this->face_count * 3);
 
-  //glFlush();
+  glFlush();
 
   // bug fix for Nvidia
   unsigned int paddedWidth = imgWidth % 4;
@@ -334,8 +368,8 @@ void OffscreenGL_New::draw(
   float f = zNearFarV[1];
   // numpy save mat: H * W * C
   // C order saving
-  for (int i = 0; i < imgHeight; i++) {
-    for (int j = 0; j < imgWidth; j++, npImgIndex++) {
+  for (unsigned int i = 0; i < imgHeight; i++) {
+    for (unsigned int j = 0; j < imgWidth; j++, npImgIndex++) {
       oglImageIndex = (j + (imgHeight-1-i) * paddedWidth);
       float depth = (float) data_buffer_depth[oglImageIndex];
 
@@ -376,7 +410,7 @@ void OffscreenGL_New::draw(
   // unbind FBO
   // unbind VAO
   glBindVertexArray(0);
-  glBindFramebuffer(GL_FRAMEBUFFER, 0);
+  //glBindFramebuffer(GL_FRAMEBUFFER, 0);
 }
 
 void OffscreenGL_New::copy_view_mat(float * viewMatBuffer, int index) {
@@ -418,6 +452,7 @@ void render_mesh(
     //printf("After draw %u\n", a);
     ogl.copy_view_mat(viewMatBuffer, i);
   }
+  // delete ogl
 }
 
 void select_vertex(  // input
@@ -426,6 +461,7 @@ void select_vertex(  // input
   int fM, int T,
   // output
   float *point_cloud, int *point_cloud_size,
+  float *face_normal_buffer,
   int *stats
 ) {
   int H = imgSizeV[0];
@@ -451,48 +487,61 @@ void select_vertex(  // input
   int offset = 4;
   float * normalBufferPointer = normalBuffer;
   int total_pixel_count = T * H * W;
+  bool * side = new bool[total_pixel_count];
   // decide the normal
-  //for (int t=0;t<T;t++) {
-  //  for (int y=0;y<H;y++) {
-  //    for (int x=0;x<W;x++) {
-  for (int i=0; i < total_pixel_count; i++) {
-    normalBufferPointer += offset;
+  for (int i=0;i<total_pixel_count;i++) {
     int face_id = static_cast<int>(*(normalBufferPointer + 3) + 0.1) - 1;
     if (face_id >= 0) {
       glm::vec3 cur_normal = glm::vec3(*(normalBufferPointer), *(normalBufferPointer + 1), *(normalBufferPointer + 2));
-      if (face_normal[face_id] == glm::vec3(0,0,0)) {
+      if (face_normal_pixel_count[face_id][0] == 0) {
         face_normal[face_id] = cur_normal;
         face_normal_pixel_count[face_id][0] = 1;
 
         total_visible_face_count ++;
+        side[i] = true;
       }
       else {
         bool cur_positive = glm::dot(face_normal[face_id], cur_normal) >= 0; // face_normal[face_id] == cur_normal;
         face_normal_pixel_count[face_id][cur_positive ? 0 : 1] ++;
+
+        side[i] = cur_positive ? true : false;
       }
     }
+    else {
+      side[i] = false;
+    }
+    normalBufferPointer += offset;
   }
-  //    }
-  //  }
-  //}
 
   //flip if needed
+  int valid_point_count = 0;
+  bool * flipped = new bool[fM];
   for (int i=0;i<fM;i++) {
     if (face_normal_pixel_count[i][0] > 0) {
-      if (face_normal[i][1] > 0) 
-        double_sided_face_count ++;
-
       if (face_normal_pixel_count[i][0] < face_normal_pixel_count[i][1]) {
-        face_normal[0] = -face_normal[0];
-        face_normal[1] = -face_normal[1];
-        face_normal[2] = -face_normal[2];
+        face_normal[i] = -face_normal[i];
         int tmp = face_normal_pixel_count[i][0];
         face_normal_pixel_count[i][0] = face_normal_pixel_count[i][1];
         face_normal_pixel_count[i][1] = tmp;
+
+        flipped[i] = true;
+      }
+      else 
+        flipped[i] = false;
+
+      if (static_cast<float>(face_normal_pixel_count[i][1]) >= static_cast<float>(face_normal_pixel_count[i][0]) * 0.1f) {
+      //if (face_normal_pixel_count[i][1] > 0) {
+        double_sided_face_count ++;
+        //cout << "Face " << i << "-" <<face_normal_pixel_count[i][0] << ":" << face_normal_pixel_count[i][1] << endl;
+        //cout << "vec:" << face_normal[i][0] << "," << face_normal[i][1] << "," << face_normal[i][2] << endl;
       }
 
-      if (static_cast<float>(face_normal_pixel_count[i][1]) >= static_cast<float>(face_normal_pixel_count[i][0]) * 0.1f)
+      if (static_cast<float>(face_normal_pixel_count[i][1]) >= static_cast<float>(face_normal_pixel_count[i][0]) * 0.2f) {
         bad_face_count ++;
+      }
+
+      // can be checked by 
+      valid_point_count += face_normal_pixel_count[i][0];
     }
   }
 
@@ -503,37 +552,82 @@ void select_vertex(  // input
   normalBufferPointer = normalBuffer;
 
   int max_pointcloud_size = *point_cloud_size;
-  int point_cloud_count = 0;
-  float * current_head = point_cloud;
+  //int point_cloud_count = 0;
+  //float * current_head = point_cloud;
+  int * valid_point_indices = new int[valid_point_count];
+  int current_valid_point_index = 0;
   for (int i=0;i<total_pixel_count;i++) {
-    vertexBufferPointer += offset;
-    normalBufferPointer += offset;
     int face_id = static_cast<int>(*(normalBufferPointer + 3) + 0.1) - 1;
     if (face_id >= 0) {
-      glm::vec3 cur_normal = glm::vec3(*(normalBufferPointer), *(normalBufferPointer + 1), *(normalBufferPointer + 2));
-      bool cur_positive = glm::dot(face_normal[face_id], cur_normal) >= 0; // face_normal[face_id] == cur_normal;
-      if (cur_positive) {          
-        *(current_head) = *(vertexBufferPointer);
-        *(current_head + 1) = *(vertexBufferPointer + 1);
-        *(current_head + 2) = *(vertexBufferPointer + 2);
-        *(current_head + 3) = cur_normal[0];
-        *(current_head + 4) = cur_normal[1];
-        *(current_head + 5) = cur_normal[2];
+      bool face_flipped = flipped[face_id];
+      bool cur_positive = face_flipped ? (side[i] == false) : (side[i] == true);
+      
+      // glm::vec3 cur_normal = glm::vec3(*(normalBufferPointer), *(normalBufferPointer + 1), *(normalBufferPointer + 2));
+      // bool cur_positive = glm::dot(face_normal[face_id], cur_normal) >= 0; // face_normal[face_id] == cur_normal;
+      // if (cur_positive) {          
+      //   *(current_head) = *(vertexBufferPointer);
+      //   *(current_head + 1) = *(vertexBufferPointer + 1);
+      //   *(current_head + 2) = *(vertexBufferPointer + 2);
+      //   *(current_head + 3) = cur_normal[0];
+      //   *(current_head + 4) = cur_normal[1];
+      //   *(current_head + 5) = cur_normal[2];
 
-        current_head += 6;
-        point_cloud_count ++;
-        if (point_cloud_count >= max_pointcloud_size) break;
+      //   current_head += 6;
+      //   point_cloud_count ++;
+      //   if (point_cloud_count >= max_pointcloud_size) break;
+      // }
+
+      if (cur_positive) {
+        valid_point_indices[current_valid_point_index] = i;
+        current_valid_point_index ++;
+
+        if (current_valid_point_index >= valid_point_count) break;
       }
     }
+    //vertexBufferPointer += offset;
+    normalBufferPointer += offset;
   }
 
-  *point_cloud_size = point_cloud_count;
-  printf("point cloud size: %d\n", point_cloud_count);
+  // random choose
+  float * current_head = point_cloud;
+  srand(time(0));
+  for (int i=0;i<max_pointcloud_size;i++) {
+    int index = rand() % valid_point_count;
+    int p_index = valid_point_indices[index];
+    
+    vertexBufferPointer = vertexBuffer + offset * p_index;
+    normalBufferPointer = normalBuffer + offset * p_index;
+
+    *(current_head) = *(vertexBufferPointer);
+    *(current_head + 1) = *(vertexBufferPointer + 1);
+    *(current_head + 2) = *(vertexBufferPointer + 2);
+    *(current_head + 3) = *(normalBufferPointer);
+    *(current_head + 4) = *(normalBufferPointer + 1);
+    *(current_head + 5) = *(normalBufferPointer + 2);
+
+    current_head += 6;
+  }
+  
+
+  //*point_cloud_size = point_cloud_count;
+  *point_cloud_size = max_pointcloud_size;
+  //printf("point cloud size: %d\n", *point_cloud_size);
   stats[0] = double_sided_face_count;
   stats[1] = bad_face_count;
   stats[2] = total_visible_face_count;
 
+  // copy buffer
+  for (int i=0;i<fM;i++) {
+    for (int j=0;j<3;j++) {
+      face_normal_buffer[j] = face_normal[i][j];
+    }
+    face_normal_buffer += 3;
+  }
+
   // free space
+  delete [] valid_point_indices;
+  delete [] side;
+  delete [] flipped;
   delete [] face_normal;
   for (int i=0;i<fM;i++) {
     delete [] face_normal_pixel_count[i];

@@ -156,8 +156,8 @@ void drawPatchToDepthBuffer(GLuint listName, unsigned char *imageBuffer, float *
 
   float n = zNearFarV[0];
   float f = zNearFarV[1];
-  for (int j = 0; j < imgWidth; j++) {
-    for (int i = 0; i < imgHeight; i++, matlabImgIndex++) {
+  for (unsigned int j = 0; j < imgWidth; j++) {
+    for (unsigned int i = 0; i < imgHeight; i++, matlabImgIndex++) {
       oglImageIndex = (j + (imgHeight-1-i) * paddedWidth);
       float depth = dataBuffer_depth[oglImageIndex];
 

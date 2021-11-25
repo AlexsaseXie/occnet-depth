@@ -2379,6 +2379,7 @@ static const char __pyx_k_MemoryError[] = "MemoryError";
 static const char __pyx_k_PickleError[] = "PickleError";
 static const char __pyx_k_color_array[] = "color_array";
 static const char __pyx_k_depthBuffer[] = "depthBuffer";
+static const char __pyx_k_face_normal[] = "face_normal";
 static const char __pyx_k_imageBuffer[] = "imageBuffer";
 static const char __pyx_k_normal_view[] = "normal_view";
 static const char __pyx_k_vertex_view[] = "vertex_view";
@@ -2403,8 +2404,10 @@ static const char __pyx_k_pointcloud_size[] = "pointcloud_size";
 static const char __pyx_k_pointcloud_view[] = "pointcloud_view";
 static const char __pyx_k_pyx_PickleError[] = "__pyx_PickleError";
 static const char __pyx_k_setstate_cython[] = "__setstate_cython__";
+static const char __pyx_k_face_normal_view[] = "face_normal_view";
 static const char __pyx_k_pyx_unpickle_Enum[] = "__pyx_unpickle_Enum";
 static const char __pyx_k_cline_in_traceback[] = "cline_in_traceback";
+static const char __pyx_k_face_normal_buffer[] = "face_normal_buffer";
 static const char __pyx_k_point_cloud_buffer[] = "point_cloud_buffer";
 static const char __pyx_k_pointcloud_size_pt[] = "pointcloud_size_pt";
 static const char __pyx_k_strided_and_direct[] = "<strided and direct>";
@@ -2513,6 +2516,9 @@ static PyObject *__pyx_n_s_enumerate;
 static PyObject *__pyx_n_s_error;
 static PyObject *__pyx_n_s_fM;
 static PyObject *__pyx_n_s_fNum;
+static PyObject *__pyx_n_s_face_normal;
+static PyObject *__pyx_n_s_face_normal_buffer;
+static PyObject *__pyx_n_s_face_normal_view;
 static PyObject *__pyx_n_s_faces;
 static PyObject *__pyx_kp_s_faces_must_be_a_3xM_double_array;
 static PyObject *__pyx_n_s_flags;
@@ -3567,7 +3573,7 @@ static PyObject *__pyx_pf_8pyrender_render(CYTHON_UNUSED PyObject *__pyx_self, _
   return __pyx_r;
 }
 
-/* "pyrender.pyx":73
+/* "pyrender.pyx":74
  *   );
  * 
  * def render_new(float[:,::1] vertex_array, float[:,::1] color_array, float[:,::1] normal_array, \             # <<<<<<<<<<<<<<
@@ -3622,41 +3628,41 @@ static PyObject *__pyx_pw_8pyrender_3render_new(PyObject *__pyx_self, PyObject *
         case  1:
         if (likely((values[1] = __Pyx_PyDict_GetItemStr(__pyx_kwds, __pyx_n_s_color_array)) != 0)) kw_args--;
         else {
-          __Pyx_RaiseArgtupleInvalid("render_new", 1, 7, 7, 1); __PYX_ERR(0, 73, __pyx_L3_error)
+          __Pyx_RaiseArgtupleInvalid("render_new", 1, 7, 7, 1); __PYX_ERR(0, 74, __pyx_L3_error)
         }
         CYTHON_FALLTHROUGH;
         case  2:
         if (likely((values[2] = __Pyx_PyDict_GetItemStr(__pyx_kwds, __pyx_n_s_normal_array)) != 0)) kw_args--;
         else {
-          __Pyx_RaiseArgtupleInvalid("render_new", 1, 7, 7, 2); __PYX_ERR(0, 73, __pyx_L3_error)
+          __Pyx_RaiseArgtupleInvalid("render_new", 1, 7, 7, 2); __PYX_ERR(0, 74, __pyx_L3_error)
         }
         CYTHON_FALLTHROUGH;
         case  3:
         if (likely((values[3] = __Pyx_PyDict_GetItemStr(__pyx_kwds, __pyx_n_s_cam_position)) != 0)) kw_args--;
         else {
-          __Pyx_RaiseArgtupleInvalid("render_new", 1, 7, 7, 3); __PYX_ERR(0, 73, __pyx_L3_error)
+          __Pyx_RaiseArgtupleInvalid("render_new", 1, 7, 7, 3); __PYX_ERR(0, 74, __pyx_L3_error)
         }
         CYTHON_FALLTHROUGH;
         case  4:
         if (likely((values[4] = __Pyx_PyDict_GetItemStr(__pyx_kwds, __pyx_n_s_cam_intr)) != 0)) kw_args--;
         else {
-          __Pyx_RaiseArgtupleInvalid("render_new", 1, 7, 7, 4); __PYX_ERR(0, 73, __pyx_L3_error)
+          __Pyx_RaiseArgtupleInvalid("render_new", 1, 7, 7, 4); __PYX_ERR(0, 74, __pyx_L3_error)
         }
         CYTHON_FALLTHROUGH;
         case  5:
         if (likely((values[5] = __Pyx_PyDict_GetItemStr(__pyx_kwds, __pyx_n_s_znf)) != 0)) kw_args--;
         else {
-          __Pyx_RaiseArgtupleInvalid("render_new", 1, 7, 7, 5); __PYX_ERR(0, 73, __pyx_L3_error)
+          __Pyx_RaiseArgtupleInvalid("render_new", 1, 7, 7, 5); __PYX_ERR(0, 74, __pyx_L3_error)
         }
         CYTHON_FALLTHROUGH;
         case  6:
         if (likely((values[6] = __Pyx_PyDict_GetItemStr(__pyx_kwds, __pyx_n_s_img_size)) != 0)) kw_args--;
         else {
-          __Pyx_RaiseArgtupleInvalid("render_new", 1, 7, 7, 6); __PYX_ERR(0, 73, __pyx_L3_error)
+          __Pyx_RaiseArgtupleInvalid("render_new", 1, 7, 7, 6); __PYX_ERR(0, 74, __pyx_L3_error)
         }
       }
       if (unlikely(kw_args > 0)) {
-        if (unlikely(__Pyx_ParseOptionalKeywords(__pyx_kwds, __pyx_pyargnames, 0, values, pos_args, "render_new") < 0)) __PYX_ERR(0, 73, __pyx_L3_error)
+        if (unlikely(__Pyx_ParseOptionalKeywords(__pyx_kwds, __pyx_pyargnames, 0, values, pos_args, "render_new") < 0)) __PYX_ERR(0, 74, __pyx_L3_error)
       }
     } else if (PyTuple_GET_SIZE(__pyx_args) != 7) {
       goto __pyx_L5_argtuple_error;
@@ -3669,17 +3675,17 @@ static PyObject *__pyx_pw_8pyrender_3render_new(PyObject *__pyx_self, PyObject *
       values[5] = PyTuple_GET_ITEM(__pyx_args, 5);
       values[6] = PyTuple_GET_ITEM(__pyx_args, 6);
     }
-    __pyx_v_vertex_array = __Pyx_PyObject_to_MemoryviewSlice_d_dc_float(values[0], PyBUF_WRITABLE); if (unlikely(!__pyx_v_vertex_array.memview)) __PYX_ERR(0, 73, __pyx_L3_error)
-    __pyx_v_color_array = __Pyx_PyObject_to_MemoryviewSlice_d_dc_float(values[1], PyBUF_WRITABLE); if (unlikely(!__pyx_v_color_array.memview)) __PYX_ERR(0, 73, __pyx_L3_error)
-    __pyx_v_normal_array = __Pyx_PyObject_to_MemoryviewSlice_d_dc_float(values[2], PyBUF_WRITABLE); if (unlikely(!__pyx_v_normal_array.memview)) __PYX_ERR(0, 73, __pyx_L3_error)
-    __pyx_v_cam_position = __Pyx_PyObject_to_MemoryviewSlice_d_dc_float(values[3], PyBUF_WRITABLE); if (unlikely(!__pyx_v_cam_position.memview)) __PYX_ERR(0, 74, __pyx_L3_error)
-    __pyx_v_cam_intr = __Pyx_PyObject_to_MemoryviewSlice_dc_float(values[4], PyBUF_WRITABLE); if (unlikely(!__pyx_v_cam_intr.memview)) __PYX_ERR(0, 74, __pyx_L3_error)
-    __pyx_v_znf = __Pyx_PyObject_to_MemoryviewSlice_dc_float(values[5], PyBUF_WRITABLE); if (unlikely(!__pyx_v_znf.memview)) __PYX_ERR(0, 74, __pyx_L3_error)
-    __pyx_v_img_size = __Pyx_PyObject_to_MemoryviewSlice_dc_int(values[6], PyBUF_WRITABLE); if (unlikely(!__pyx_v_img_size.memview)) __PYX_ERR(0, 74, __pyx_L3_error)
+    __pyx_v_vertex_array = __Pyx_PyObject_to_MemoryviewSlice_d_dc_float(values[0], PyBUF_WRITABLE); if (unlikely(!__pyx_v_vertex_array.memview)) __PYX_ERR(0, 74, __pyx_L3_error)
+    __pyx_v_color_array = __Pyx_PyObject_to_MemoryviewSlice_d_dc_float(values[1], PyBUF_WRITABLE); if (unlikely(!__pyx_v_color_array.memview)) __PYX_ERR(0, 74, __pyx_L3_error)
+    __pyx_v_normal_array = __Pyx_PyObject_to_MemoryviewSlice_d_dc_float(values[2], PyBUF_WRITABLE); if (unlikely(!__pyx_v_normal_array.memview)) __PYX_ERR(0, 74, __pyx_L3_error)
+    __pyx_v_cam_position = __Pyx_PyObject_to_MemoryviewSlice_d_dc_float(values[3], PyBUF_WRITABLE); if (unlikely(!__pyx_v_cam_position.memview)) __PYX_ERR(0, 75, __pyx_L3_error)
+    __pyx_v_cam_intr = __Pyx_PyObject_to_MemoryviewSlice_dc_float(values[4], PyBUF_WRITABLE); if (unlikely(!__pyx_v_cam_intr.memview)) __PYX_ERR(0, 75, __pyx_L3_error)
+    __pyx_v_znf = __Pyx_PyObject_to_MemoryviewSlice_dc_float(values[5], PyBUF_WRITABLE); if (unlikely(!__pyx_v_znf.memview)) __PYX_ERR(0, 75, __pyx_L3_error)
+    __pyx_v_img_size = __Pyx_PyObject_to_MemoryviewSlice_dc_int(values[6], PyBUF_WRITABLE); if (unlikely(!__pyx_v_img_size.memview)) __PYX_ERR(0, 75, __pyx_L3_error)
   }
   goto __pyx_L4_argument_unpacking_done;
   __pyx_L5_argtuple_error:;
-  __Pyx_RaiseArgtupleInvalid("render_new", 1, 7, 7, PyTuple_GET_SIZE(__pyx_args)); __PYX_ERR(0, 73, __pyx_L3_error)
+  __Pyx_RaiseArgtupleInvalid("render_new", 1, 7, 7, PyTuple_GET_SIZE(__pyx_args)); __PYX_ERR(0, 74, __pyx_L3_error)
   __pyx_L3_error:;
   __Pyx_AddTraceback("pyrender.render_new", __pyx_clineno, __pyx_lineno, __pyx_filename);
   __Pyx_RefNannyFinishContext();
@@ -3780,7 +3786,7 @@ static PyObject *__pyx_pf_8pyrender_2render_new(CYTHON_UNUSED PyObject *__pyx_se
   Py_ssize_t __pyx_t_54;
   __Pyx_RefNannySetupContext("render_new", 0);
 
-  /* "pyrender.pyx":76
+  /* "pyrender.pyx":77
  *   float[:, ::1] cam_position, float[::1] cam_intr, float[::1] znf, int[::1] img_size):
  *   # input infos
  *   if vertex_array.shape[1] != 3:             # <<<<<<<<<<<<<<
@@ -3790,20 +3796,20 @@ static PyObject *__pyx_pf_8pyrender_2render_new(CYTHON_UNUSED PyObject *__pyx_se
   __pyx_t_1 = (((__pyx_v_vertex_array.shape[1]) != 3) != 0);
   if (unlikely(__pyx_t_1)) {
 
-    /* "pyrender.pyx":77
+    /* "pyrender.pyx":78
  *   # input infos
  *   if vertex_array.shape[1] != 3:
  *     raise Exception('vertices must be a [N, 3] float array')             # <<<<<<<<<<<<<<
  *   if normal_array.shape[1] != 3:
  *     raise Exception('normals must be a [N, 3] float array')
  */
-    __pyx_t_2 = __Pyx_PyObject_Call(((PyObject *)(&((PyTypeObject*)PyExc_Exception)[0])), __pyx_tuple__6, NULL); if (unlikely(!__pyx_t_2)) __PYX_ERR(0, 77, __pyx_L1_error)
+    __pyx_t_2 = __Pyx_PyObject_Call(((PyObject *)(&((PyTypeObject*)PyExc_Exception)[0])), __pyx_tuple__6, NULL); if (unlikely(!__pyx_t_2)) __PYX_ERR(0, 78, __pyx_L1_error)
     __Pyx_GOTREF(__pyx_t_2);
     __Pyx_Raise(__pyx_t_2, 0, 0, 0);
     __Pyx_DECREF(__pyx_t_2); __pyx_t_2 = 0;
-    __PYX_ERR(0, 77, __pyx_L1_error)
+    __PYX_ERR(0, 78, __pyx_L1_error)
 
-    /* "pyrender.pyx":76
+    /* "pyrender.pyx":77
  *   float[:, ::1] cam_position, float[::1] cam_intr, float[::1] znf, int[::1] img_size):
  *   # input infos
  *   if vertex_array.shape[1] != 3:             # <<<<<<<<<<<<<<
@@ -3812,7 +3818,7 @@ static PyObject *__pyx_pf_8pyrender_2render_new(CYTHON_UNUSED PyObject *__pyx_se
  */
   }
 
-  /* "pyrender.pyx":78
+  /* "pyrender.pyx":79
  *   if vertex_array.shape[1] != 3:
  *     raise Exception('vertices must be a [N, 3] float array')
  *   if normal_array.shape[1] != 3:             # <<<<<<<<<<<<<<
@@ -3822,20 +3828,20 @@ static PyObject *__pyx_pf_8pyrender_2render_new(CYTHON_UNUSED PyObject *__pyx_se
   __pyx_t_1 = (((__pyx_v_normal_array.shape[1]) != 3) != 0);
   if (unlikely(__pyx_t_1)) {
 
-    /* "pyrender.pyx":79
+    /* "pyrender.pyx":80
  *     raise Exception('vertices must be a [N, 3] float array')
  *   if normal_array.shape[1] != 3:
  *     raise Exception('normals must be a [N, 3] float array')             # <<<<<<<<<<<<<<
  * 
  *   cdef int vertex_num = vertex_array.shape[0]
  */
-    __pyx_t_2 = __Pyx_PyObject_Call(((PyObject *)(&((PyTypeObject*)PyExc_Exception)[0])), __pyx_tuple__7, NULL); if (unlikely(!__pyx_t_2)) __PYX_ERR(0, 79, __pyx_L1_error)
+    __pyx_t_2 = __Pyx_PyObject_Call(((PyObject *)(&((PyTypeObject*)PyExc_Exception)[0])), __pyx_tuple__7, NULL); if (unlikely(!__pyx_t_2)) __PYX_ERR(0, 80, __pyx_L1_error)
     __Pyx_GOTREF(__pyx_t_2);
     __Pyx_Raise(__pyx_t_2, 0, 0, 0);
     __Pyx_DECREF(__pyx_t_2); __pyx_t_2 = 0;
-    __PYX_ERR(0, 79, __pyx_L1_error)
+    __PYX_ERR(0, 80, __pyx_L1_error)
 
-    /* "pyrender.pyx":78
+    /* "pyrender.pyx":79
  *   if vertex_array.shape[1] != 3:
  *     raise Exception('vertices must be a [N, 3] float array')
  *   if normal_array.shape[1] != 3:             # <<<<<<<<<<<<<<
@@ -3844,7 +3850,7 @@ static PyObject *__pyx_pf_8pyrender_2render_new(CYTHON_UNUSED PyObject *__pyx_se
  */
   }
 
-  /* "pyrender.pyx":81
+  /* "pyrender.pyx":82
  *     raise Exception('normals must be a [N, 3] float array')
  * 
  *   cdef int vertex_num = vertex_array.shape[0]             # <<<<<<<<<<<<<<
@@ -3853,7 +3859,7 @@ static PyObject *__pyx_pf_8pyrender_2render_new(CYTHON_UNUSED PyObject *__pyx_se
  */
   __pyx_v_vertex_num = (__pyx_v_vertex_array.shape[0]);
 
-  /* "pyrender.pyx":82
+  /* "pyrender.pyx":83
  * 
  *   cdef int vertex_num = vertex_array.shape[0]
  *   assert vertex_num % 3 == 0             # <<<<<<<<<<<<<<
@@ -3864,12 +3870,12 @@ static PyObject *__pyx_pf_8pyrender_2render_new(CYTHON_UNUSED PyObject *__pyx_se
   if (unlikely(!Py_OptimizeFlag)) {
     if (unlikely(!((__Pyx_mod_long(__pyx_v_vertex_num, 3) == 0) != 0))) {
       PyErr_SetNone(PyExc_AssertionError);
-      __PYX_ERR(0, 82, __pyx_L1_error)
+      __PYX_ERR(0, 83, __pyx_L1_error)
     }
   }
   #endif
 
-  /* "pyrender.pyx":83
+  /* "pyrender.pyx":84
  *   cdef int vertex_num = vertex_array.shape[0]
  *   assert vertex_num % 3 == 0
  *   cdef int fM = vertex_num // 3 # face num = v_count / 3             # <<<<<<<<<<<<<<
@@ -3878,7 +3884,7 @@ static PyObject *__pyx_pf_8pyrender_2render_new(CYTHON_UNUSED PyObject *__pyx_se
  */
   __pyx_v_fM = __Pyx_div_long(__pyx_v_vertex_num, 3);
 
-  /* "pyrender.pyx":85
+  /* "pyrender.pyx":86
  *   cdef int fM = vertex_num // 3 # face num = v_count / 3
  *   #print("face count:", fM)
  *   assert normal_array.shape[0] == vertex_num             # <<<<<<<<<<<<<<
@@ -3889,12 +3895,12 @@ static PyObject *__pyx_pf_8pyrender_2render_new(CYTHON_UNUSED PyObject *__pyx_se
   if (unlikely(!Py_OptimizeFlag)) {
     if (unlikely(!(((__pyx_v_normal_array.shape[0]) == __pyx_v_vertex_num) != 0))) {
       PyErr_SetNone(PyExc_AssertionError);
-      __PYX_ERR(0, 85, __pyx_L1_error)
+      __PYX_ERR(0, 86, __pyx_L1_error)
     }
   }
   #endif
 
-  /* "pyrender.pyx":87
+  /* "pyrender.pyx":88
  *   assert normal_array.shape[0] == vertex_num
  * 
  *   cdef float* vertex_arr = &(vertex_array[0,0])             # <<<<<<<<<<<<<<
@@ -3914,11 +3920,11 @@ static PyObject *__pyx_pf_8pyrender_2render_new(CYTHON_UNUSED PyObject *__pyx_se
   } else if (unlikely(__pyx_t_4 >= __pyx_v_vertex_array.shape[1])) __pyx_t_5 = 1;
   if (unlikely(__pyx_t_5 != -1)) {
     __Pyx_RaiseBufferIndexError(__pyx_t_5);
-    __PYX_ERR(0, 87, __pyx_L1_error)
+    __PYX_ERR(0, 88, __pyx_L1_error)
   }
   __pyx_v_vertex_arr = (&(*((float *) ( /* dim=1 */ ((char *) (((float *) ( /* dim=0 */ (__pyx_v_vertex_array.data + __pyx_t_3 * __pyx_v_vertex_array.strides[0]) )) + __pyx_t_4)) ))));
 
-  /* "pyrender.pyx":88
+  /* "pyrender.pyx":89
  * 
  *   cdef float* vertex_arr = &(vertex_array[0,0])
  *   cdef float* normal_arr = &(normal_array[0,0])             # <<<<<<<<<<<<<<
@@ -3938,11 +3944,11 @@ static PyObject *__pyx_pf_8pyrender_2render_new(CYTHON_UNUSED PyObject *__pyx_se
   } else if (unlikely(__pyx_t_7 >= __pyx_v_normal_array.shape[1])) __pyx_t_5 = 1;
   if (unlikely(__pyx_t_5 != -1)) {
     __Pyx_RaiseBufferIndexError(__pyx_t_5);
-    __PYX_ERR(0, 88, __pyx_L1_error)
+    __PYX_ERR(0, 89, __pyx_L1_error)
   }
   __pyx_v_normal_arr = (&(*((float *) ( /* dim=1 */ ((char *) (((float *) ( /* dim=0 */ (__pyx_v_normal_array.data + __pyx_t_6 * __pyx_v_normal_array.strides[0]) )) + __pyx_t_7)) ))));
 
-  /* "pyrender.pyx":90
+  /* "pyrender.pyx":91
  *   cdef float* normal_arr = &(normal_array[0,0])
  * 
  *   cdef bool use_color = False             # <<<<<<<<<<<<<<
@@ -3951,7 +3957,7 @@ static PyObject *__pyx_pf_8pyrender_2render_new(CYTHON_UNUSED PyObject *__pyx_se
  */
   __pyx_v_use_color = 0;
 
-  /* "pyrender.pyx":91
+  /* "pyrender.pyx":92
  * 
  *   cdef bool use_color = False
  *   cdef float* color_arr = NULL             # <<<<<<<<<<<<<<
@@ -3960,22 +3966,22 @@ static PyObject *__pyx_pf_8pyrender_2render_new(CYTHON_UNUSED PyObject *__pyx_se
  */
   __pyx_v_color_arr = NULL;
 
-  /* "pyrender.pyx":92
+  /* "pyrender.pyx":93
  *   cdef bool use_color = False
  *   cdef float* color_arr = NULL
  *   if (color_array.ndim == 2) and (color_array.shape[1] == 3) and (color_array.shape[0] != 0):             # <<<<<<<<<<<<<<
  *     # N * 3 color
  *     assert color_array.shape[0] == vertex_num
  */
-  __pyx_t_2 = __pyx_memoryview_fromslice(__pyx_v_color_array, 2, (PyObject *(*)(char *)) __pyx_memview_get_float, (int (*)(char *, PyObject *)) __pyx_memview_set_float, 0);; if (unlikely(!__pyx_t_2)) __PYX_ERR(0, 92, __pyx_L1_error)
+  __pyx_t_2 = __pyx_memoryview_fromslice(__pyx_v_color_array, 2, (PyObject *(*)(char *)) __pyx_memview_get_float, (int (*)(char *, PyObject *)) __pyx_memview_set_float, 0);; if (unlikely(!__pyx_t_2)) __PYX_ERR(0, 93, __pyx_L1_error)
   __Pyx_GOTREF(__pyx_t_2);
-  __pyx_t_8 = __Pyx_PyObject_GetAttrStr(__pyx_t_2, __pyx_n_s_ndim); if (unlikely(!__pyx_t_8)) __PYX_ERR(0, 92, __pyx_L1_error)
+  __pyx_t_8 = __Pyx_PyObject_GetAttrStr(__pyx_t_2, __pyx_n_s_ndim); if (unlikely(!__pyx_t_8)) __PYX_ERR(0, 93, __pyx_L1_error)
   __Pyx_GOTREF(__pyx_t_8);
   __Pyx_DECREF(__pyx_t_2); __pyx_t_2 = 0;
-  __pyx_t_2 = __Pyx_PyInt_EqObjC(__pyx_t_8, __pyx_int_2, 2, 0); if (unlikely(!__pyx_t_2)) __PYX_ERR(0, 92, __pyx_L1_error)
+  __pyx_t_2 = __Pyx_PyInt_EqObjC(__pyx_t_8, __pyx_int_2, 2, 0); if (unlikely(!__pyx_t_2)) __PYX_ERR(0, 93, __pyx_L1_error)
   __Pyx_GOTREF(__pyx_t_2);
   __Pyx_DECREF(__pyx_t_8); __pyx_t_8 = 0;
-  __pyx_t_9 = __Pyx_PyObject_IsTrue(__pyx_t_2); if (unlikely(__pyx_t_9 < 0)) __PYX_ERR(0, 92, __pyx_L1_error)
+  __pyx_t_9 = __Pyx_PyObject_IsTrue(__pyx_t_2); if (unlikely(__pyx_t_9 < 0)) __PYX_ERR(0, 93, __pyx_L1_error)
   __Pyx_DECREF(__pyx_t_2); __pyx_t_2 = 0;
   if (__pyx_t_9) {
   } else {
@@ -3993,7 +3999,7 @@ static PyObject *__pyx_pf_8pyrender_2render_new(CYTHON_UNUSED PyObject *__pyx_se
   __pyx_L6_bool_binop_done:;
   if (__pyx_t_1) {
 
-    /* "pyrender.pyx":94
+    /* "pyrender.pyx":95
  *   if (color_array.ndim == 2) and (color_array.shape[1] == 3) and (color_array.shape[0] != 0):
  *     # N * 3 color
  *     assert color_array.shape[0] == vertex_num             # <<<<<<<<<<<<<<
@@ -4004,12 +4010,12 @@ static PyObject *__pyx_pf_8pyrender_2render_new(CYTHON_UNUSED PyObject *__pyx_se
     if (unlikely(!Py_OptimizeFlag)) {
       if (unlikely(!(((__pyx_v_color_array.shape[0]) == __pyx_v_vertex_num) != 0))) {
         PyErr_SetNone(PyExc_AssertionError);
-        __PYX_ERR(0, 94, __pyx_L1_error)
+        __PYX_ERR(0, 95, __pyx_L1_error)
       }
     }
     #endif
 
-    /* "pyrender.pyx":95
+    /* "pyrender.pyx":96
  *     # N * 3 color
  *     assert color_array.shape[0] == vertex_num
  *     use_color = True             # <<<<<<<<<<<<<<
@@ -4018,7 +4024,7 @@ static PyObject *__pyx_pf_8pyrender_2render_new(CYTHON_UNUSED PyObject *__pyx_se
  */
     __pyx_v_use_color = 1;
 
-    /* "pyrender.pyx":96
+    /* "pyrender.pyx":97
  *     assert color_array.shape[0] == vertex_num
  *     use_color = True
  *     color_arr = &(color_array[0,0])             # <<<<<<<<<<<<<<
@@ -4038,11 +4044,11 @@ static PyObject *__pyx_pf_8pyrender_2render_new(CYTHON_UNUSED PyObject *__pyx_se
     } else if (unlikely(__pyx_t_11 >= __pyx_v_color_array.shape[1])) __pyx_t_5 = 1;
     if (unlikely(__pyx_t_5 != -1)) {
       __Pyx_RaiseBufferIndexError(__pyx_t_5);
-      __PYX_ERR(0, 96, __pyx_L1_error)
+      __PYX_ERR(0, 97, __pyx_L1_error)
     }
     __pyx_v_color_arr = (&(*((float *) ( /* dim=1 */ ((char *) (((float *) ( /* dim=0 */ (__pyx_v_color_array.data + __pyx_t_10 * __pyx_v_color_array.strides[0]) )) + __pyx_t_11)) ))));
 
-    /* "pyrender.pyx":92
+    /* "pyrender.pyx":93
  *   cdef bool use_color = False
  *   cdef float* color_arr = NULL
  *   if (color_array.ndim == 2) and (color_array.shape[1] == 3) and (color_array.shape[0] != 0):             # <<<<<<<<<<<<<<
@@ -4051,7 +4057,7 @@ static PyObject *__pyx_pf_8pyrender_2render_new(CYTHON_UNUSED PyObject *__pyx_se
  */
   }
 
-  /* "pyrender.pyx":99
+  /* "pyrender.pyx":100
  * 
  * 
  *   if cam_position.shape[1] != 3:             # <<<<<<<<<<<<<<
@@ -4061,20 +4067,20 @@ static PyObject *__pyx_pf_8pyrender_2render_new(CYTHON_UNUSED PyObject *__pyx_se
   __pyx_t_1 = (((__pyx_v_cam_position.shape[1]) != 3) != 0);
   if (unlikely(__pyx_t_1)) {
 
-    /* "pyrender.pyx":100
+    /* "pyrender.pyx":101
  * 
  *   if cam_position.shape[1] != 3:
  *     raise Exception('cam_postion must be a [T, 3] float vector')             # <<<<<<<<<<<<<<
  * 
  *   cdef int T = cam_position.shape[0]
  */
-    __pyx_t_2 = __Pyx_PyObject_Call(((PyObject *)(&((PyTypeObject*)PyExc_Exception)[0])), __pyx_tuple__8, NULL); if (unlikely(!__pyx_t_2)) __PYX_ERR(0, 100, __pyx_L1_error)
+    __pyx_t_2 = __Pyx_PyObject_Call(((PyObject *)(&((PyTypeObject*)PyExc_Exception)[0])), __pyx_tuple__8, NULL); if (unlikely(!__pyx_t_2)) __PYX_ERR(0, 101, __pyx_L1_error)
     __Pyx_GOTREF(__pyx_t_2);
     __Pyx_Raise(__pyx_t_2, 0, 0, 0);
     __Pyx_DECREF(__pyx_t_2); __pyx_t_2 = 0;
-    __PYX_ERR(0, 100, __pyx_L1_error)
+    __PYX_ERR(0, 101, __pyx_L1_error)
 
-    /* "pyrender.pyx":99
+    /* "pyrender.pyx":100
  * 
  * 
  *   if cam_position.shape[1] != 3:             # <<<<<<<<<<<<<<
@@ -4083,7 +4089,7 @@ static PyObject *__pyx_pf_8pyrender_2render_new(CYTHON_UNUSED PyObject *__pyx_se
  */
   }
 
-  /* "pyrender.pyx":102
+  /* "pyrender.pyx":103
  *     raise Exception('cam_postion must be a [T, 3] float vector')
  * 
  *   cdef int T = cam_position.shape[0]             # <<<<<<<<<<<<<<
@@ -4092,7 +4098,7 @@ static PyObject *__pyx_pf_8pyrender_2render_new(CYTHON_UNUSED PyObject *__pyx_se
  */
   __pyx_v_T = (__pyx_v_cam_position.shape[0]);
 
-  /* "pyrender.pyx":103
+  /* "pyrender.pyx":104
  * 
  *   cdef int T = cam_position.shape[0]
  *   cdef float* cam_pos = &(cam_position[0,0])             # <<<<<<<<<<<<<<
@@ -4112,11 +4118,11 @@ static PyObject *__pyx_pf_8pyrender_2render_new(CYTHON_UNUSED PyObject *__pyx_se
   } else if (unlikely(__pyx_t_13 >= __pyx_v_cam_position.shape[1])) __pyx_t_5 = 1;
   if (unlikely(__pyx_t_5 != -1)) {
     __Pyx_RaiseBufferIndexError(__pyx_t_5);
-    __PYX_ERR(0, 103, __pyx_L1_error)
+    __PYX_ERR(0, 104, __pyx_L1_error)
   }
   __pyx_v_cam_pos = (&(*((float *) ( /* dim=1 */ ((char *) (((float *) ( /* dim=0 */ (__pyx_v_cam_position.data + __pyx_t_12 * __pyx_v_cam_position.strides[0]) )) + __pyx_t_13)) ))));
 
-  /* "pyrender.pyx":105
+  /* "pyrender.pyx":106
  *   cdef float* cam_pos = &(cam_position[0,0])
  * 
  *   if cam_intr.shape[0] != 4:             # <<<<<<<<<<<<<<
@@ -4126,20 +4132,20 @@ static PyObject *__pyx_pf_8pyrender_2render_new(CYTHON_UNUSED PyObject *__pyx_se
   __pyx_t_1 = (((__pyx_v_cam_intr.shape[0]) != 4) != 0);
   if (unlikely(__pyx_t_1)) {
 
-    /* "pyrender.pyx":106
+    /* "pyrender.pyx":107
  * 
  *   if cam_intr.shape[0] != 4:
  *     raise Exception('cam_intr must be a [4] float vector')             # <<<<<<<<<<<<<<
  *   if img_size.shape[0] != 2:
  *     raise Exception('img_size must be a [2] int vector')
  */
-    __pyx_t_2 = __Pyx_PyObject_Call(((PyObject *)(&((PyTypeObject*)PyExc_Exception)[0])), __pyx_tuple__9, NULL); if (unlikely(!__pyx_t_2)) __PYX_ERR(0, 106, __pyx_L1_error)
+    __pyx_t_2 = __Pyx_PyObject_Call(((PyObject *)(&((PyTypeObject*)PyExc_Exception)[0])), __pyx_tuple__9, NULL); if (unlikely(!__pyx_t_2)) __PYX_ERR(0, 107, __pyx_L1_error)
     __Pyx_GOTREF(__pyx_t_2);
     __Pyx_Raise(__pyx_t_2, 0, 0, 0);
     __Pyx_DECREF(__pyx_t_2); __pyx_t_2 = 0;
-    __PYX_ERR(0, 106, __pyx_L1_error)
+    __PYX_ERR(0, 107, __pyx_L1_error)
 
-    /* "pyrender.pyx":105
+    /* "pyrender.pyx":106
  *   cdef float* cam_pos = &(cam_position[0,0])
  * 
  *   if cam_intr.shape[0] != 4:             # <<<<<<<<<<<<<<
@@ -4148,7 +4154,7 @@ static PyObject *__pyx_pf_8pyrender_2render_new(CYTHON_UNUSED PyObject *__pyx_se
  */
   }
 
-  /* "pyrender.pyx":107
+  /* "pyrender.pyx":108
  *   if cam_intr.shape[0] != 4:
  *     raise Exception('cam_intr must be a [4] float vector')
  *   if img_size.shape[0] != 2:             # <<<<<<<<<<<<<<
@@ -4158,20 +4164,20 @@ static PyObject *__pyx_pf_8pyrender_2render_new(CYTHON_UNUSED PyObject *__pyx_se
   __pyx_t_1 = (((__pyx_v_img_size.shape[0]) != 2) != 0);
   if (unlikely(__pyx_t_1)) {
 
-    /* "pyrender.pyx":108
+    /* "pyrender.pyx":109
  *     raise Exception('cam_intr must be a [4] float vector')
  *   if img_size.shape[0] != 2:
  *     raise Exception('img_size must be a [2] int vector')             # <<<<<<<<<<<<<<
  *   if znf.shape[0] != 2:
  *     raise Exception('znf must be a [2] float vector')
  */
-    __pyx_t_2 = __Pyx_PyObject_Call(((PyObject *)(&((PyTypeObject*)PyExc_Exception)[0])), __pyx_tuple__10, NULL); if (unlikely(!__pyx_t_2)) __PYX_ERR(0, 108, __pyx_L1_error)
+    __pyx_t_2 = __Pyx_PyObject_Call(((PyObject *)(&((PyTypeObject*)PyExc_Exception)[0])), __pyx_tuple__10, NULL); if (unlikely(!__pyx_t_2)) __PYX_ERR(0, 109, __pyx_L1_error)
     __Pyx_GOTREF(__pyx_t_2);
     __Pyx_Raise(__pyx_t_2, 0, 0, 0);
     __Pyx_DECREF(__pyx_t_2); __pyx_t_2 = 0;
-    __PYX_ERR(0, 108, __pyx_L1_error)
+    __PYX_ERR(0, 109, __pyx_L1_error)
 
-    /* "pyrender.pyx":107
+    /* "pyrender.pyx":108
  *   if cam_intr.shape[0] != 4:
  *     raise Exception('cam_intr must be a [4] float vector')
  *   if img_size.shape[0] != 2:             # <<<<<<<<<<<<<<
@@ -4180,7 +4186,7 @@ static PyObject *__pyx_pf_8pyrender_2render_new(CYTHON_UNUSED PyObject *__pyx_se
  */
   }
 
-  /* "pyrender.pyx":109
+  /* "pyrender.pyx":110
  *   if img_size.shape[0] != 2:
  *     raise Exception('img_size must be a [2] int vector')
  *   if znf.shape[0] != 2:             # <<<<<<<<<<<<<<
@@ -4190,20 +4196,20 @@ static PyObject *__pyx_pf_8pyrender_2render_new(CYTHON_UNUSED PyObject *__pyx_se
   __pyx_t_1 = (((__pyx_v_znf.shape[0]) != 2) != 0);
   if (unlikely(__pyx_t_1)) {
 
-    /* "pyrender.pyx":110
+    /* "pyrender.pyx":111
  *     raise Exception('img_size must be a [2] int vector')
  *   if znf.shape[0] != 2:
  *     raise Exception('znf must be a [2] float vector')             # <<<<<<<<<<<<<<
  * 
  *   cdef float* intrinsics = &(cam_intr[0])
  */
-    __pyx_t_2 = __Pyx_PyObject_Call(((PyObject *)(&((PyTypeObject*)PyExc_Exception)[0])), __pyx_tuple__11, NULL); if (unlikely(!__pyx_t_2)) __PYX_ERR(0, 110, __pyx_L1_error)
+    __pyx_t_2 = __Pyx_PyObject_Call(((PyObject *)(&((PyTypeObject*)PyExc_Exception)[0])), __pyx_tuple__11, NULL); if (unlikely(!__pyx_t_2)) __PYX_ERR(0, 111, __pyx_L1_error)
     __Pyx_GOTREF(__pyx_t_2);
     __Pyx_Raise(__pyx_t_2, 0, 0, 0);
     __Pyx_DECREF(__pyx_t_2); __pyx_t_2 = 0;
-    __PYX_ERR(0, 110, __pyx_L1_error)
+    __PYX_ERR(0, 111, __pyx_L1_error)
 
-    /* "pyrender.pyx":109
+    /* "pyrender.pyx":110
  *   if img_size.shape[0] != 2:
  *     raise Exception('img_size must be a [2] int vector')
  *   if znf.shape[0] != 2:             # <<<<<<<<<<<<<<
@@ -4212,7 +4218,7 @@ static PyObject *__pyx_pf_8pyrender_2render_new(CYTHON_UNUSED PyObject *__pyx_se
  */
   }
 
-  /* "pyrender.pyx":112
+  /* "pyrender.pyx":113
  *     raise Exception('znf must be a [2] float vector')
  * 
  *   cdef float* intrinsics = &(cam_intr[0])             # <<<<<<<<<<<<<<
@@ -4227,11 +4233,11 @@ static PyObject *__pyx_pf_8pyrender_2render_new(CYTHON_UNUSED PyObject *__pyx_se
   } else if (unlikely(__pyx_t_14 >= __pyx_v_cam_intr.shape[0])) __pyx_t_5 = 0;
   if (unlikely(__pyx_t_5 != -1)) {
     __Pyx_RaiseBufferIndexError(__pyx_t_5);
-    __PYX_ERR(0, 112, __pyx_L1_error)
+    __PYX_ERR(0, 113, __pyx_L1_error)
   }
   __pyx_v_intrinsics = (&(*((float *) ( /* dim=0 */ ((char *) (((float *) __pyx_v_cam_intr.data) + __pyx_t_14)) ))));
 
-  /* "pyrender.pyx":113
+  /* "pyrender.pyx":114
  * 
  *   cdef float* intrinsics = &(cam_intr[0])
  *   cdef float* zNearFarV = &(znf[0])             # <<<<<<<<<<<<<<
@@ -4246,11 +4252,11 @@ static PyObject *__pyx_pf_8pyrender_2render_new(CYTHON_UNUSED PyObject *__pyx_se
   } else if (unlikely(__pyx_t_15 >= __pyx_v_znf.shape[0])) __pyx_t_5 = 0;
   if (unlikely(__pyx_t_5 != -1)) {
     __Pyx_RaiseBufferIndexError(__pyx_t_5);
-    __PYX_ERR(0, 113, __pyx_L1_error)
+    __PYX_ERR(0, 114, __pyx_L1_error)
   }
   __pyx_v_zNearFarV = (&(*((float *) ( /* dim=0 */ ((char *) (((float *) __pyx_v_znf.data) + __pyx_t_15)) ))));
 
-  /* "pyrender.pyx":114
+  /* "pyrender.pyx":115
  *   cdef float* intrinsics = &(cam_intr[0])
  *   cdef float* zNearFarV = &(znf[0])
  *   cdef int* imgSizeV = &(img_size[0])    # [height, width]             # <<<<<<<<<<<<<<
@@ -4265,23 +4271,23 @@ static PyObject *__pyx_pf_8pyrender_2render_new(CYTHON_UNUSED PyObject *__pyx_se
   } else if (unlikely(__pyx_t_16 >= __pyx_v_img_size.shape[0])) __pyx_t_5 = 0;
   if (unlikely(__pyx_t_5 != -1)) {
     __Pyx_RaiseBufferIndexError(__pyx_t_5);
-    __PYX_ERR(0, 114, __pyx_L1_error)
+    __PYX_ERR(0, 115, __pyx_L1_error)
   }
   __pyx_v_imgSizeV = (&(*((int *) ( /* dim=0 */ ((char *) (((int *) __pyx_v_img_size.data) + __pyx_t_16)) ))));
 
-  /* "pyrender.pyx":116
+  /* "pyrender.pyx":117
  *   cdef int* imgSizeV = &(img_size[0])    # [height, width]
  * 
  *   depth = np.empty((T, img_size[0], img_size[1]), dtype=np.float32)             # <<<<<<<<<<<<<<
  *   mask  = np.empty((T, img_size[0], img_size[1]), dtype=np.uint8)
  *   img   = np.empty((T, img_size[0], img_size[1], 4), dtype=np.uint8)
  */
-  __Pyx_GetModuleGlobalName(__pyx_t_2, __pyx_n_s_np); if (unlikely(!__pyx_t_2)) __PYX_ERR(0, 116, __pyx_L1_error)
+  __Pyx_GetModuleGlobalName(__pyx_t_2, __pyx_n_s_np); if (unlikely(!__pyx_t_2)) __PYX_ERR(0, 117, __pyx_L1_error)
   __Pyx_GOTREF(__pyx_t_2);
-  __pyx_t_8 = __Pyx_PyObject_GetAttrStr(__pyx_t_2, __pyx_n_s_empty); if (unlikely(!__pyx_t_8)) __PYX_ERR(0, 116, __pyx_L1_error)
+  __pyx_t_8 = __Pyx_PyObject_GetAttrStr(__pyx_t_2, __pyx_n_s_empty); if (unlikely(!__pyx_t_8)) __PYX_ERR(0, 117, __pyx_L1_error)
   __Pyx_GOTREF(__pyx_t_8);
   __Pyx_DECREF(__pyx_t_2); __pyx_t_2 = 0;
-  __pyx_t_2 = __Pyx_PyInt_From_int(__pyx_v_T); if (unlikely(!__pyx_t_2)) __PYX_ERR(0, 116, __pyx_L1_error)
+  __pyx_t_2 = __Pyx_PyInt_From_int(__pyx_v_T); if (unlikely(!__pyx_t_2)) __PYX_ERR(0, 117, __pyx_L1_error)
   __Pyx_GOTREF(__pyx_t_2);
   __pyx_t_17 = 0;
   __pyx_t_5 = -1;
@@ -4291,9 +4297,9 @@ static PyObject *__pyx_pf_8pyrender_2render_new(CYTHON_UNUSED PyObject *__pyx_se
   } else if (unlikely(__pyx_t_17 >= __pyx_v_img_size.shape[0])) __pyx_t_5 = 0;
   if (unlikely(__pyx_t_5 != -1)) {
     __Pyx_RaiseBufferIndexError(__pyx_t_5);
-    __PYX_ERR(0, 116, __pyx_L1_error)
+    __PYX_ERR(0, 117, __pyx_L1_error)
   }
-  __pyx_t_18 = __Pyx_PyInt_From_int((*((int *) ( /* dim=0 */ ((char *) (((int *) __pyx_v_img_size.data) + __pyx_t_17)) )))); if (unlikely(!__pyx_t_18)) __PYX_ERR(0, 116, __pyx_L1_error)
+  __pyx_t_18 = __Pyx_PyInt_From_int((*((int *) ( /* dim=0 */ ((char *) (((int *) __pyx_v_img_size.data) + __pyx_t_17)) )))); if (unlikely(!__pyx_t_18)) __PYX_ERR(0, 117, __pyx_L1_error)
   __Pyx_GOTREF(__pyx_t_18);
   __pyx_t_19 = 1;
   __pyx_t_5 = -1;
@@ -4303,11 +4309,11 @@ static PyObject *__pyx_pf_8pyrender_2render_new(CYTHON_UNUSED PyObject *__pyx_se
   } else if (unlikely(__pyx_t_19 >= __pyx_v_img_size.shape[0])) __pyx_t_5 = 0;
   if (unlikely(__pyx_t_5 != -1)) {
     __Pyx_RaiseBufferIndexError(__pyx_t_5);
-    __PYX_ERR(0, 116, __pyx_L1_error)
+    __PYX_ERR(0, 117, __pyx_L1_error)
   }
-  __pyx_t_20 = __Pyx_PyInt_From_int((*((int *) ( /* dim=0 */ ((char *) (((int *) __pyx_v_img_size.data) + __pyx_t_19)) )))); if (unlikely(!__pyx_t_20)) __PYX_ERR(0, 116, __pyx_L1_error)
+  __pyx_t_20 = __Pyx_PyInt_From_int((*((int *) ( /* dim=0 */ ((char *) (((int *) __pyx_v_img_size.data) + __pyx_t_19)) )))); if (unlikely(!__pyx_t_20)) __PYX_ERR(0, 117, __pyx_L1_error)
   __Pyx_GOTREF(__pyx_t_20);
-  __pyx_t_21 = PyTuple_New(3); if (unlikely(!__pyx_t_21)) __PYX_ERR(0, 116, __pyx_L1_error)
+  __pyx_t_21 = PyTuple_New(3); if (unlikely(!__pyx_t_21)) __PYX_ERR(0, 117, __pyx_L1_error)
   __Pyx_GOTREF(__pyx_t_21);
   __Pyx_GIVEREF(__pyx_t_2);
   PyTuple_SET_ITEM(__pyx_t_21, 0, __pyx_t_2);
@@ -4318,21 +4324,21 @@ static PyObject *__pyx_pf_8pyrender_2render_new(CYTHON_UNUSED PyObject *__pyx_se
   __pyx_t_2 = 0;
   __pyx_t_18 = 0;
   __pyx_t_20 = 0;
-  __pyx_t_20 = PyTuple_New(1); if (unlikely(!__pyx_t_20)) __PYX_ERR(0, 116, __pyx_L1_error)
+  __pyx_t_20 = PyTuple_New(1); if (unlikely(!__pyx_t_20)) __PYX_ERR(0, 117, __pyx_L1_error)
   __Pyx_GOTREF(__pyx_t_20);
   __Pyx_GIVEREF(__pyx_t_21);
   PyTuple_SET_ITEM(__pyx_t_20, 0, __pyx_t_21);
   __pyx_t_21 = 0;
-  __pyx_t_21 = __Pyx_PyDict_NewPresized(1); if (unlikely(!__pyx_t_21)) __PYX_ERR(0, 116, __pyx_L1_error)
+  __pyx_t_21 = __Pyx_PyDict_NewPresized(1); if (unlikely(!__pyx_t_21)) __PYX_ERR(0, 117, __pyx_L1_error)
   __Pyx_GOTREF(__pyx_t_21);
-  __Pyx_GetModuleGlobalName(__pyx_t_18, __pyx_n_s_np); if (unlikely(!__pyx_t_18)) __PYX_ERR(0, 116, __pyx_L1_error)
+  __Pyx_GetModuleGlobalName(__pyx_t_18, __pyx_n_s_np); if (unlikely(!__pyx_t_18)) __PYX_ERR(0, 117, __pyx_L1_error)
   __Pyx_GOTREF(__pyx_t_18);
-  __pyx_t_2 = __Pyx_PyObject_GetAttrStr(__pyx_t_18, __pyx_n_s_float32); if (unlikely(!__pyx_t_2)) __PYX_ERR(0, 116, __pyx_L1_error)
+  __pyx_t_2 = __Pyx_PyObject_GetAttrStr(__pyx_t_18, __pyx_n_s_float32); if (unlikely(!__pyx_t_2)) __PYX_ERR(0, 117, __pyx_L1_error)
   __Pyx_GOTREF(__pyx_t_2);
   __Pyx_DECREF(__pyx_t_18); __pyx_t_18 = 0;
-  if (PyDict_SetItem(__pyx_t_21, __pyx_n_s_dtype, __pyx_t_2) < 0) __PYX_ERR(0, 116, __pyx_L1_error)
+  if (PyDict_SetItem(__pyx_t_21, __pyx_n_s_dtype, __pyx_t_2) < 0) __PYX_ERR(0, 117, __pyx_L1_error)
   __Pyx_DECREF(__pyx_t_2); __pyx_t_2 = 0;
-  __pyx_t_2 = __Pyx_PyObject_Call(__pyx_t_8, __pyx_t_20, __pyx_t_21); if (unlikely(!__pyx_t_2)) __PYX_ERR(0, 116, __pyx_L1_error)
+  __pyx_t_2 = __Pyx_PyObject_Call(__pyx_t_8, __pyx_t_20, __pyx_t_21); if (unlikely(!__pyx_t_2)) __PYX_ERR(0, 117, __pyx_L1_error)
   __Pyx_GOTREF(__pyx_t_2);
   __Pyx_DECREF(__pyx_t_8); __pyx_t_8 = 0;
   __Pyx_DECREF(__pyx_t_20); __pyx_t_20 = 0;
@@ -4340,19 +4346,19 @@ static PyObject *__pyx_pf_8pyrender_2render_new(CYTHON_UNUSED PyObject *__pyx_se
   __pyx_v_depth = __pyx_t_2;
   __pyx_t_2 = 0;
 
-  /* "pyrender.pyx":117
+  /* "pyrender.pyx":118
  * 
  *   depth = np.empty((T, img_size[0], img_size[1]), dtype=np.float32)
  *   mask  = np.empty((T, img_size[0], img_size[1]), dtype=np.uint8)             # <<<<<<<<<<<<<<
  *   img   = np.empty((T, img_size[0], img_size[1], 4), dtype=np.uint8)
  *   normal = np.empty((T, img_size[0], img_size[1], 4), dtype=np.float32)
  */
-  __Pyx_GetModuleGlobalName(__pyx_t_2, __pyx_n_s_np); if (unlikely(!__pyx_t_2)) __PYX_ERR(0, 117, __pyx_L1_error)
+  __Pyx_GetModuleGlobalName(__pyx_t_2, __pyx_n_s_np); if (unlikely(!__pyx_t_2)) __PYX_ERR(0, 118, __pyx_L1_error)
   __Pyx_GOTREF(__pyx_t_2);
-  __pyx_t_21 = __Pyx_PyObject_GetAttrStr(__pyx_t_2, __pyx_n_s_empty); if (unlikely(!__pyx_t_21)) __PYX_ERR(0, 117, __pyx_L1_error)
+  __pyx_t_21 = __Pyx_PyObject_GetAttrStr(__pyx_t_2, __pyx_n_s_empty); if (unlikely(!__pyx_t_21)) __PYX_ERR(0, 118, __pyx_L1_error)
   __Pyx_GOTREF(__pyx_t_21);
   __Pyx_DECREF(__pyx_t_2); __pyx_t_2 = 0;
-  __pyx_t_2 = __Pyx_PyInt_From_int(__pyx_v_T); if (unlikely(!__pyx_t_2)) __PYX_ERR(0, 117, __pyx_L1_error)
+  __pyx_t_2 = __Pyx_PyInt_From_int(__pyx_v_T); if (unlikely(!__pyx_t_2)) __PYX_ERR(0, 118, __pyx_L1_error)
   __Pyx_GOTREF(__pyx_t_2);
   __pyx_t_22 = 0;
   __pyx_t_5 = -1;
@@ -4362,9 +4368,9 @@ static PyObject *__pyx_pf_8pyrender_2render_new(CYTHON_UNUSED PyObject *__pyx_se
   } else if (unlikely(__pyx_t_22 >= __pyx_v_img_size.shape[0])) __pyx_t_5 = 0;
   if (unlikely(__pyx_t_5 != -1)) {
     __Pyx_RaiseBufferIndexError(__pyx_t_5);
-    __PYX_ERR(0, 117, __pyx_L1_error)
+    __PYX_ERR(0, 118, __pyx_L1_error)
   }
-  __pyx_t_20 = __Pyx_PyInt_From_int((*((int *) ( /* dim=0 */ ((char *) (((int *) __pyx_v_img_size.data) + __pyx_t_22)) )))); if (unlikely(!__pyx_t_20)) __PYX_ERR(0, 117, __pyx_L1_error)
+  __pyx_t_20 = __Pyx_PyInt_From_int((*((int *) ( /* dim=0 */ ((char *) (((int *) __pyx_v_img_size.data) + __pyx_t_22)) )))); if (unlikely(!__pyx_t_20)) __PYX_ERR(0, 118, __pyx_L1_error)
   __Pyx_GOTREF(__pyx_t_20);
   __pyx_t_23 = 1;
   __pyx_t_5 = -1;
@@ -4374,11 +4380,11 @@ static PyObject *__pyx_pf_8pyrender_2render_new(CYTHON_UNUSED PyObject *__pyx_se
   } else if (unlikely(__pyx_t_23 >= __pyx_v_img_size.shape[0])) __pyx_t_5 = 0;
   if (unlikely(__pyx_t_5 != -1)) {
     __Pyx_RaiseBufferIndexError(__pyx_t_5);
-    __PYX_ERR(0, 117, __pyx_L1_error)
+    __PYX_ERR(0, 118, __pyx_L1_error)
   }
-  __pyx_t_8 = __Pyx_PyInt_From_int((*((int *) ( /* dim=0 */ ((char *) (((int *) __pyx_v_img_size.data) + __pyx_t_23)) )))); if (unlikely(!__pyx_t_8)) __PYX_ERR(0, 117, __pyx_L1_error)
+  __pyx_t_8 = __Pyx_PyInt_From_int((*((int *) ( /* dim=0 */ ((char *) (((int *) __pyx_v_img_size.data) + __pyx_t_23)) )))); if (unlikely(!__pyx_t_8)) __PYX_ERR(0, 118, __pyx_L1_error)
   __Pyx_GOTREF(__pyx_t_8);
-  __pyx_t_18 = PyTuple_New(3); if (unlikely(!__pyx_t_18)) __PYX_ERR(0, 117, __pyx_L1_error)
+  __pyx_t_18 = PyTuple_New(3); if (unlikely(!__pyx_t_18)) __PYX_ERR(0, 118, __pyx_L1_error)
   __Pyx_GOTREF(__pyx_t_18);
   __Pyx_GIVEREF(__pyx_t_2);
   PyTuple_SET_ITEM(__pyx_t_18, 0, __pyx_t_2);
@@ -4389,21 +4395,21 @@ static PyObject *__pyx_pf_8pyrender_2render_new(CYTHON_UNUSED PyObject *__pyx_se
   __pyx_t_2 = 0;
   __pyx_t_20 = 0;
   __pyx_t_8 = 0;
-  __pyx_t_8 = PyTuple_New(1); if (unlikely(!__pyx_t_8)) __PYX_ERR(0, 117, __pyx_L1_error)
+  __pyx_t_8 = PyTuple_New(1); if (unlikely(!__pyx_t_8)) __PYX_ERR(0, 118, __pyx_L1_error)
   __Pyx_GOTREF(__pyx_t_8);
   __Pyx_GIVEREF(__pyx_t_18);
   PyTuple_SET_ITEM(__pyx_t_8, 0, __pyx_t_18);
   __pyx_t_18 = 0;
-  __pyx_t_18 = __Pyx_PyDict_NewPresized(1); if (unlikely(!__pyx_t_18)) __PYX_ERR(0, 117, __pyx_L1_error)
+  __pyx_t_18 = __Pyx_PyDict_NewPresized(1); if (unlikely(!__pyx_t_18)) __PYX_ERR(0, 118, __pyx_L1_error)
   __Pyx_GOTREF(__pyx_t_18);
-  __Pyx_GetModuleGlobalName(__pyx_t_20, __pyx_n_s_np); if (unlikely(!__pyx_t_20)) __PYX_ERR(0, 117, __pyx_L1_error)
+  __Pyx_GetModuleGlobalName(__pyx_t_20, __pyx_n_s_np); if (unlikely(!__pyx_t_20)) __PYX_ERR(0, 118, __pyx_L1_error)
   __Pyx_GOTREF(__pyx_t_20);
-  __pyx_t_2 = __Pyx_PyObject_GetAttrStr(__pyx_t_20, __pyx_n_s_uint8); if (unlikely(!__pyx_t_2)) __PYX_ERR(0, 117, __pyx_L1_error)
+  __pyx_t_2 = __Pyx_PyObject_GetAttrStr(__pyx_t_20, __pyx_n_s_uint8); if (unlikely(!__pyx_t_2)) __PYX_ERR(0, 118, __pyx_L1_error)
   __Pyx_GOTREF(__pyx_t_2);
   __Pyx_DECREF(__pyx_t_20); __pyx_t_20 = 0;
-  if (PyDict_SetItem(__pyx_t_18, __pyx_n_s_dtype, __pyx_t_2) < 0) __PYX_ERR(0, 117, __pyx_L1_error)
+  if (PyDict_SetItem(__pyx_t_18, __pyx_n_s_dtype, __pyx_t_2) < 0) __PYX_ERR(0, 118, __pyx_L1_error)
   __Pyx_DECREF(__pyx_t_2); __pyx_t_2 = 0;
-  __pyx_t_2 = __Pyx_PyObject_Call(__pyx_t_21, __pyx_t_8, __pyx_t_18); if (unlikely(!__pyx_t_2)) __PYX_ERR(0, 117, __pyx_L1_error)
+  __pyx_t_2 = __Pyx_PyObject_Call(__pyx_t_21, __pyx_t_8, __pyx_t_18); if (unlikely(!__pyx_t_2)) __PYX_ERR(0, 118, __pyx_L1_error)
   __Pyx_GOTREF(__pyx_t_2);
   __Pyx_DECREF(__pyx_t_21); __pyx_t_21 = 0;
   __Pyx_DECREF(__pyx_t_8); __pyx_t_8 = 0;
@@ -4411,19 +4417,19 @@ static PyObject *__pyx_pf_8pyrender_2render_new(CYTHON_UNUSED PyObject *__pyx_se
   __pyx_v_mask = __pyx_t_2;
   __pyx_t_2 = 0;
 
-  /* "pyrender.pyx":118
+  /* "pyrender.pyx":119
  *   depth = np.empty((T, img_size[0], img_size[1]), dtype=np.float32)
  *   mask  = np.empty((T, img_size[0], img_size[1]), dtype=np.uint8)
  *   img   = np.empty((T, img_size[0], img_size[1], 4), dtype=np.uint8)             # <<<<<<<<<<<<<<
  *   normal = np.empty((T, img_size[0], img_size[1], 4), dtype=np.float32)
  *   vertex = np.empty((T, img_size[0], img_size[1], 4), dtype=np.float32)
  */
-  __Pyx_GetModuleGlobalName(__pyx_t_2, __pyx_n_s_np); if (unlikely(!__pyx_t_2)) __PYX_ERR(0, 118, __pyx_L1_error)
+  __Pyx_GetModuleGlobalName(__pyx_t_2, __pyx_n_s_np); if (unlikely(!__pyx_t_2)) __PYX_ERR(0, 119, __pyx_L1_error)
   __Pyx_GOTREF(__pyx_t_2);
-  __pyx_t_18 = __Pyx_PyObject_GetAttrStr(__pyx_t_2, __pyx_n_s_empty); if (unlikely(!__pyx_t_18)) __PYX_ERR(0, 118, __pyx_L1_error)
+  __pyx_t_18 = __Pyx_PyObject_GetAttrStr(__pyx_t_2, __pyx_n_s_empty); if (unlikely(!__pyx_t_18)) __PYX_ERR(0, 119, __pyx_L1_error)
   __Pyx_GOTREF(__pyx_t_18);
   __Pyx_DECREF(__pyx_t_2); __pyx_t_2 = 0;
-  __pyx_t_2 = __Pyx_PyInt_From_int(__pyx_v_T); if (unlikely(!__pyx_t_2)) __PYX_ERR(0, 118, __pyx_L1_error)
+  __pyx_t_2 = __Pyx_PyInt_From_int(__pyx_v_T); if (unlikely(!__pyx_t_2)) __PYX_ERR(0, 119, __pyx_L1_error)
   __Pyx_GOTREF(__pyx_t_2);
   __pyx_t_24 = 0;
   __pyx_t_5 = -1;
@@ -4433,9 +4439,9 @@ static PyObject *__pyx_pf_8pyrender_2render_new(CYTHON_UNUSED PyObject *__pyx_se
   } else if (unlikely(__pyx_t_24 >= __pyx_v_img_size.shape[0])) __pyx_t_5 = 0;
   if (unlikely(__pyx_t_5 != -1)) {
     __Pyx_RaiseBufferIndexError(__pyx_t_5);
-    __PYX_ERR(0, 118, __pyx_L1_error)
+    __PYX_ERR(0, 119, __pyx_L1_error)
   }
-  __pyx_t_8 = __Pyx_PyInt_From_int((*((int *) ( /* dim=0 */ ((char *) (((int *) __pyx_v_img_size.data) + __pyx_t_24)) )))); if (unlikely(!__pyx_t_8)) __PYX_ERR(0, 118, __pyx_L1_error)
+  __pyx_t_8 = __Pyx_PyInt_From_int((*((int *) ( /* dim=0 */ ((char *) (((int *) __pyx_v_img_size.data) + __pyx_t_24)) )))); if (unlikely(!__pyx_t_8)) __PYX_ERR(0, 119, __pyx_L1_error)
   __Pyx_GOTREF(__pyx_t_8);
   __pyx_t_25 = 1;
   __pyx_t_5 = -1;
@@ -4445,11 +4451,11 @@ static PyObject *__pyx_pf_8pyrender_2render_new(CYTHON_UNUSED PyObject *__pyx_se
   } else if (unlikely(__pyx_t_25 >= __pyx_v_img_size.shape[0])) __pyx_t_5 = 0;
   if (unlikely(__pyx_t_5 != -1)) {
     __Pyx_RaiseBufferIndexError(__pyx_t_5);
-    __PYX_ERR(0, 118, __pyx_L1_error)
+    __PYX_ERR(0, 119, __pyx_L1_error)
   }
-  __pyx_t_21 = __Pyx_PyInt_From_int((*((int *) ( /* dim=0 */ ((char *) (((int *) __pyx_v_img_size.data) + __pyx_t_25)) )))); if (unlikely(!__pyx_t_21)) __PYX_ERR(0, 118, __pyx_L1_error)
+  __pyx_t_21 = __Pyx_PyInt_From_int((*((int *) ( /* dim=0 */ ((char *) (((int *) __pyx_v_img_size.data) + __pyx_t_25)) )))); if (unlikely(!__pyx_t_21)) __PYX_ERR(0, 119, __pyx_L1_error)
   __Pyx_GOTREF(__pyx_t_21);
-  __pyx_t_20 = PyTuple_New(4); if (unlikely(!__pyx_t_20)) __PYX_ERR(0, 118, __pyx_L1_error)
+  __pyx_t_20 = PyTuple_New(4); if (unlikely(!__pyx_t_20)) __PYX_ERR(0, 119, __pyx_L1_error)
   __Pyx_GOTREF(__pyx_t_20);
   __Pyx_GIVEREF(__pyx_t_2);
   PyTuple_SET_ITEM(__pyx_t_20, 0, __pyx_t_2);
@@ -4463,21 +4469,21 @@ static PyObject *__pyx_pf_8pyrender_2render_new(CYTHON_UNUSED PyObject *__pyx_se
   __pyx_t_2 = 0;
   __pyx_t_8 = 0;
   __pyx_t_21 = 0;
-  __pyx_t_21 = PyTuple_New(1); if (unlikely(!__pyx_t_21)) __PYX_ERR(0, 118, __pyx_L1_error)
+  __pyx_t_21 = PyTuple_New(1); if (unlikely(!__pyx_t_21)) __PYX_ERR(0, 119, __pyx_L1_error)
   __Pyx_GOTREF(__pyx_t_21);
   __Pyx_GIVEREF(__pyx_t_20);
   PyTuple_SET_ITEM(__pyx_t_21, 0, __pyx_t_20);
   __pyx_t_20 = 0;
-  __pyx_t_20 = __Pyx_PyDict_NewPresized(1); if (unlikely(!__pyx_t_20)) __PYX_ERR(0, 118, __pyx_L1_error)
+  __pyx_t_20 = __Pyx_PyDict_NewPresized(1); if (unlikely(!__pyx_t_20)) __PYX_ERR(0, 119, __pyx_L1_error)
   __Pyx_GOTREF(__pyx_t_20);
-  __Pyx_GetModuleGlobalName(__pyx_t_8, __pyx_n_s_np); if (unlikely(!__pyx_t_8)) __PYX_ERR(0, 118, __pyx_L1_error)
+  __Pyx_GetModuleGlobalName(__pyx_t_8, __pyx_n_s_np); if (unlikely(!__pyx_t_8)) __PYX_ERR(0, 119, __pyx_L1_error)
   __Pyx_GOTREF(__pyx_t_8);
-  __pyx_t_2 = __Pyx_PyObject_GetAttrStr(__pyx_t_8, __pyx_n_s_uint8); if (unlikely(!__pyx_t_2)) __PYX_ERR(0, 118, __pyx_L1_error)
+  __pyx_t_2 = __Pyx_PyObject_GetAttrStr(__pyx_t_8, __pyx_n_s_uint8); if (unlikely(!__pyx_t_2)) __PYX_ERR(0, 119, __pyx_L1_error)
   __Pyx_GOTREF(__pyx_t_2);
   __Pyx_DECREF(__pyx_t_8); __pyx_t_8 = 0;
-  if (PyDict_SetItem(__pyx_t_20, __pyx_n_s_dtype, __pyx_t_2) < 0) __PYX_ERR(0, 118, __pyx_L1_error)
+  if (PyDict_SetItem(__pyx_t_20, __pyx_n_s_dtype, __pyx_t_2) < 0) __PYX_ERR(0, 119, __pyx_L1_error)
   __Pyx_DECREF(__pyx_t_2); __pyx_t_2 = 0;
-  __pyx_t_2 = __Pyx_PyObject_Call(__pyx_t_18, __pyx_t_21, __pyx_t_20); if (unlikely(!__pyx_t_2)) __PYX_ERR(0, 118, __pyx_L1_error)
+  __pyx_t_2 = __Pyx_PyObject_Call(__pyx_t_18, __pyx_t_21, __pyx_t_20); if (unlikely(!__pyx_t_2)) __PYX_ERR(0, 119, __pyx_L1_error)
   __Pyx_GOTREF(__pyx_t_2);
   __Pyx_DECREF(__pyx_t_18); __pyx_t_18 = 0;
   __Pyx_DECREF(__pyx_t_21); __pyx_t_21 = 0;
@@ -4485,19 +4491,19 @@ static PyObject *__pyx_pf_8pyrender_2render_new(CYTHON_UNUSED PyObject *__pyx_se
   __pyx_v_img = __pyx_t_2;
   __pyx_t_2 = 0;
 
-  /* "pyrender.pyx":119
+  /* "pyrender.pyx":120
  *   mask  = np.empty((T, img_size[0], img_size[1]), dtype=np.uint8)
  *   img   = np.empty((T, img_size[0], img_size[1], 4), dtype=np.uint8)
  *   normal = np.empty((T, img_size[0], img_size[1], 4), dtype=np.float32)             # <<<<<<<<<<<<<<
  *   vertex = np.empty((T, img_size[0], img_size[1], 4), dtype=np.float32)
  *   view_mat = np.empty((T, 4, 4), dtype=np.float32)
  */
-  __Pyx_GetModuleGlobalName(__pyx_t_2, __pyx_n_s_np); if (unlikely(!__pyx_t_2)) __PYX_ERR(0, 119, __pyx_L1_error)
+  __Pyx_GetModuleGlobalName(__pyx_t_2, __pyx_n_s_np); if (unlikely(!__pyx_t_2)) __PYX_ERR(0, 120, __pyx_L1_error)
   __Pyx_GOTREF(__pyx_t_2);
-  __pyx_t_20 = __Pyx_PyObject_GetAttrStr(__pyx_t_2, __pyx_n_s_empty); if (unlikely(!__pyx_t_20)) __PYX_ERR(0, 119, __pyx_L1_error)
+  __pyx_t_20 = __Pyx_PyObject_GetAttrStr(__pyx_t_2, __pyx_n_s_empty); if (unlikely(!__pyx_t_20)) __PYX_ERR(0, 120, __pyx_L1_error)
   __Pyx_GOTREF(__pyx_t_20);
   __Pyx_DECREF(__pyx_t_2); __pyx_t_2 = 0;
-  __pyx_t_2 = __Pyx_PyInt_From_int(__pyx_v_T); if (unlikely(!__pyx_t_2)) __PYX_ERR(0, 119, __pyx_L1_error)
+  __pyx_t_2 = __Pyx_PyInt_From_int(__pyx_v_T); if (unlikely(!__pyx_t_2)) __PYX_ERR(0, 120, __pyx_L1_error)
   __Pyx_GOTREF(__pyx_t_2);
   __pyx_t_26 = 0;
   __pyx_t_5 = -1;
@@ -4507,9 +4513,9 @@ static PyObject *__pyx_pf_8pyrender_2render_new(CYTHON_UNUSED PyObject *__pyx_se
   } else if (unlikely(__pyx_t_26 >= __pyx_v_img_size.shape[0])) __pyx_t_5 = 0;
   if (unlikely(__pyx_t_5 != -1)) {
     __Pyx_RaiseBufferIndexError(__pyx_t_5);
-    __PYX_ERR(0, 119, __pyx_L1_error)
+    __PYX_ERR(0, 120, __pyx_L1_error)
   }
-  __pyx_t_21 = __Pyx_PyInt_From_int((*((int *) ( /* dim=0 */ ((char *) (((int *) __pyx_v_img_size.data) + __pyx_t_26)) )))); if (unlikely(!__pyx_t_21)) __PYX_ERR(0, 119, __pyx_L1_error)
+  __pyx_t_21 = __Pyx_PyInt_From_int((*((int *) ( /* dim=0 */ ((char *) (((int *) __pyx_v_img_size.data) + __pyx_t_26)) )))); if (unlikely(!__pyx_t_21)) __PYX_ERR(0, 120, __pyx_L1_error)
   __Pyx_GOTREF(__pyx_t_21);
   __pyx_t_27 = 1;
   __pyx_t_5 = -1;
@@ -4519,11 +4525,11 @@ static PyObject *__pyx_pf_8pyrender_2render_new(CYTHON_UNUSED PyObject *__pyx_se
   } else if (unlikely(__pyx_t_27 >= __pyx_v_img_size.shape[0])) __pyx_t_5 = 0;
   if (unlikely(__pyx_t_5 != -1)) {
     __Pyx_RaiseBufferIndexError(__pyx_t_5);
-    __PYX_ERR(0, 119, __pyx_L1_error)
+    __PYX_ERR(0, 120, __pyx_L1_error)
   }
-  __pyx_t_18 = __Pyx_PyInt_From_int((*((int *) ( /* dim=0 */ ((char *) (((int *) __pyx_v_img_size.data) + __pyx_t_27)) )))); if (unlikely(!__pyx_t_18)) __PYX_ERR(0, 119, __pyx_L1_error)
+  __pyx_t_18 = __Pyx_PyInt_From_int((*((int *) ( /* dim=0 */ ((char *) (((int *) __pyx_v_img_size.data) + __pyx_t_27)) )))); if (unlikely(!__pyx_t_18)) __PYX_ERR(0, 120, __pyx_L1_error)
   __Pyx_GOTREF(__pyx_t_18);
-  __pyx_t_8 = PyTuple_New(4); if (unlikely(!__pyx_t_8)) __PYX_ERR(0, 119, __pyx_L1_error)
+  __pyx_t_8 = PyTuple_New(4); if (unlikely(!__pyx_t_8)) __PYX_ERR(0, 120, __pyx_L1_error)
   __Pyx_GOTREF(__pyx_t_8);
   __Pyx_GIVEREF(__pyx_t_2);
   PyTuple_SET_ITEM(__pyx_t_8, 0, __pyx_t_2);
@@ -4537,21 +4543,21 @@ static PyObject *__pyx_pf_8pyrender_2render_new(CYTHON_UNUSED PyObject *__pyx_se
   __pyx_t_2 = 0;
   __pyx_t_21 = 0;
   __pyx_t_18 = 0;
-  __pyx_t_18 = PyTuple_New(1); if (unlikely(!__pyx_t_18)) __PYX_ERR(0, 119, __pyx_L1_error)
+  __pyx_t_18 = PyTuple_New(1); if (unlikely(!__pyx_t_18)) __PYX_ERR(0, 120, __pyx_L1_error)
   __Pyx_GOTREF(__pyx_t_18);
   __Pyx_GIVEREF(__pyx_t_8);
   PyTuple_SET_ITEM(__pyx_t_18, 0, __pyx_t_8);
   __pyx_t_8 = 0;
-  __pyx_t_8 = __Pyx_PyDict_NewPresized(1); if (unlikely(!__pyx_t_8)) __PYX_ERR(0, 119, __pyx_L1_error)
+  __pyx_t_8 = __Pyx_PyDict_NewPresized(1); if (unlikely(!__pyx_t_8)) __PYX_ERR(0, 120, __pyx_L1_error)
   __Pyx_GOTREF(__pyx_t_8);
-  __Pyx_GetModuleGlobalName(__pyx_t_21, __pyx_n_s_np); if (unlikely(!__pyx_t_21)) __PYX_ERR(0, 119, __pyx_L1_error)
+  __Pyx_GetModuleGlobalName(__pyx_t_21, __pyx_n_s_np); if (unlikely(!__pyx_t_21)) __PYX_ERR(0, 120, __pyx_L1_error)
   __Pyx_GOTREF(__pyx_t_21);
-  __pyx_t_2 = __Pyx_PyObject_GetAttrStr(__pyx_t_21, __pyx_n_s_float32); if (unlikely(!__pyx_t_2)) __PYX_ERR(0, 119, __pyx_L1_error)
+  __pyx_t_2 = __Pyx_PyObject_GetAttrStr(__pyx_t_21, __pyx_n_s_float32); if (unlikely(!__pyx_t_2)) __PYX_ERR(0, 120, __pyx_L1_error)
   __Pyx_GOTREF(__pyx_t_2);
   __Pyx_DECREF(__pyx_t_21); __pyx_t_21 = 0;
-  if (PyDict_SetItem(__pyx_t_8, __pyx_n_s_dtype, __pyx_t_2) < 0) __PYX_ERR(0, 119, __pyx_L1_error)
+  if (PyDict_SetItem(__pyx_t_8, __pyx_n_s_dtype, __pyx_t_2) < 0) __PYX_ERR(0, 120, __pyx_L1_error)
   __Pyx_DECREF(__pyx_t_2); __pyx_t_2 = 0;
-  __pyx_t_2 = __Pyx_PyObject_Call(__pyx_t_20, __pyx_t_18, __pyx_t_8); if (unlikely(!__pyx_t_2)) __PYX_ERR(0, 119, __pyx_L1_error)
+  __pyx_t_2 = __Pyx_PyObject_Call(__pyx_t_20, __pyx_t_18, __pyx_t_8); if (unlikely(!__pyx_t_2)) __PYX_ERR(0, 120, __pyx_L1_error)
   __Pyx_GOTREF(__pyx_t_2);
   __Pyx_DECREF(__pyx_t_20); __pyx_t_20 = 0;
   __Pyx_DECREF(__pyx_t_18); __pyx_t_18 = 0;
@@ -4559,19 +4565,19 @@ static PyObject *__pyx_pf_8pyrender_2render_new(CYTHON_UNUSED PyObject *__pyx_se
   __pyx_v_normal = __pyx_t_2;
   __pyx_t_2 = 0;
 
-  /* "pyrender.pyx":120
+  /* "pyrender.pyx":121
  *   img   = np.empty((T, img_size[0], img_size[1], 4), dtype=np.uint8)
  *   normal = np.empty((T, img_size[0], img_size[1], 4), dtype=np.float32)
  *   vertex = np.empty((T, img_size[0], img_size[1], 4), dtype=np.float32)             # <<<<<<<<<<<<<<
  *   view_mat = np.empty((T, 4, 4), dtype=np.float32)
  *   cdef float[:,:,::1] depth_view = depth
  */
-  __Pyx_GetModuleGlobalName(__pyx_t_2, __pyx_n_s_np); if (unlikely(!__pyx_t_2)) __PYX_ERR(0, 120, __pyx_L1_error)
+  __Pyx_GetModuleGlobalName(__pyx_t_2, __pyx_n_s_np); if (unlikely(!__pyx_t_2)) __PYX_ERR(0, 121, __pyx_L1_error)
   __Pyx_GOTREF(__pyx_t_2);
-  __pyx_t_8 = __Pyx_PyObject_GetAttrStr(__pyx_t_2, __pyx_n_s_empty); if (unlikely(!__pyx_t_8)) __PYX_ERR(0, 120, __pyx_L1_error)
+  __pyx_t_8 = __Pyx_PyObject_GetAttrStr(__pyx_t_2, __pyx_n_s_empty); if (unlikely(!__pyx_t_8)) __PYX_ERR(0, 121, __pyx_L1_error)
   __Pyx_GOTREF(__pyx_t_8);
   __Pyx_DECREF(__pyx_t_2); __pyx_t_2 = 0;
-  __pyx_t_2 = __Pyx_PyInt_From_int(__pyx_v_T); if (unlikely(!__pyx_t_2)) __PYX_ERR(0, 120, __pyx_L1_error)
+  __pyx_t_2 = __Pyx_PyInt_From_int(__pyx_v_T); if (unlikely(!__pyx_t_2)) __PYX_ERR(0, 121, __pyx_L1_error)
   __Pyx_GOTREF(__pyx_t_2);
   __pyx_t_28 = 0;
   __pyx_t_5 = -1;
@@ -4581,9 +4587,9 @@ static PyObject *__pyx_pf_8pyrender_2render_new(CYTHON_UNUSED PyObject *__pyx_se
   } else if (unlikely(__pyx_t_28 >= __pyx_v_img_size.shape[0])) __pyx_t_5 = 0;
   if (unlikely(__pyx_t_5 != -1)) {
     __Pyx_RaiseBufferIndexError(__pyx_t_5);
-    __PYX_ERR(0, 120, __pyx_L1_error)
+    __PYX_ERR(0, 121, __pyx_L1_error)
   }
-  __pyx_t_18 = __Pyx_PyInt_From_int((*((int *) ( /* dim=0 */ ((char *) (((int *) __pyx_v_img_size.data) + __pyx_t_28)) )))); if (unlikely(!__pyx_t_18)) __PYX_ERR(0, 120, __pyx_L1_error)
+  __pyx_t_18 = __Pyx_PyInt_From_int((*((int *) ( /* dim=0 */ ((char *) (((int *) __pyx_v_img_size.data) + __pyx_t_28)) )))); if (unlikely(!__pyx_t_18)) __PYX_ERR(0, 121, __pyx_L1_error)
   __Pyx_GOTREF(__pyx_t_18);
   __pyx_t_29 = 1;
   __pyx_t_5 = -1;
@@ -4593,11 +4599,11 @@ static PyObject *__pyx_pf_8pyrender_2render_new(CYTHON_UNUSED PyObject *__pyx_se
   } else if (unlikely(__pyx_t_29 >= __pyx_v_img_size.shape[0])) __pyx_t_5 = 0;
   if (unlikely(__pyx_t_5 != -1)) {
     __Pyx_RaiseBufferIndexError(__pyx_t_5);
-    __PYX_ERR(0, 120, __pyx_L1_error)
+    __PYX_ERR(0, 121, __pyx_L1_error)
   }
-  __pyx_t_20 = __Pyx_PyInt_From_int((*((int *) ( /* dim=0 */ ((char *) (((int *) __pyx_v_img_size.data) + __pyx_t_29)) )))); if (unlikely(!__pyx_t_20)) __PYX_ERR(0, 120, __pyx_L1_error)
+  __pyx_t_20 = __Pyx_PyInt_From_int((*((int *) ( /* dim=0 */ ((char *) (((int *) __pyx_v_img_size.data) + __pyx_t_29)) )))); if (unlikely(!__pyx_t_20)) __PYX_ERR(0, 121, __pyx_L1_error)
   __Pyx_GOTREF(__pyx_t_20);
-  __pyx_t_21 = PyTuple_New(4); if (unlikely(!__pyx_t_21)) __PYX_ERR(0, 120, __pyx_L1_error)
+  __pyx_t_21 = PyTuple_New(4); if (unlikely(!__pyx_t_21)) __PYX_ERR(0, 121, __pyx_L1_error)
   __Pyx_GOTREF(__pyx_t_21);
   __Pyx_GIVEREF(__pyx_t_2);
   PyTuple_SET_ITEM(__pyx_t_21, 0, __pyx_t_2);
@@ -4611,21 +4617,21 @@ static PyObject *__pyx_pf_8pyrender_2render_new(CYTHON_UNUSED PyObject *__pyx_se
   __pyx_t_2 = 0;
   __pyx_t_18 = 0;
   __pyx_t_20 = 0;
-  __pyx_t_20 = PyTuple_New(1); if (unlikely(!__pyx_t_20)) __PYX_ERR(0, 120, __pyx_L1_error)
+  __pyx_t_20 = PyTuple_New(1); if (unlikely(!__pyx_t_20)) __PYX_ERR(0, 121, __pyx_L1_error)
   __Pyx_GOTREF(__pyx_t_20);
   __Pyx_GIVEREF(__pyx_t_21);
   PyTuple_SET_ITEM(__pyx_t_20, 0, __pyx_t_21);
   __pyx_t_21 = 0;
-  __pyx_t_21 = __Pyx_PyDict_NewPresized(1); if (unlikely(!__pyx_t_21)) __PYX_ERR(0, 120, __pyx_L1_error)
+  __pyx_t_21 = __Pyx_PyDict_NewPresized(1); if (unlikely(!__pyx_t_21)) __PYX_ERR(0, 121, __pyx_L1_error)
   __Pyx_GOTREF(__pyx_t_21);
-  __Pyx_GetModuleGlobalName(__pyx_t_18, __pyx_n_s_np); if (unlikely(!__pyx_t_18)) __PYX_ERR(0, 120, __pyx_L1_error)
+  __Pyx_GetModuleGlobalName(__pyx_t_18, __pyx_n_s_np); if (unlikely(!__pyx_t_18)) __PYX_ERR(0, 121, __pyx_L1_error)
   __Pyx_GOTREF(__pyx_t_18);
-  __pyx_t_2 = __Pyx_PyObject_GetAttrStr(__pyx_t_18, __pyx_n_s_float32); if (unlikely(!__pyx_t_2)) __PYX_ERR(0, 120, __pyx_L1_error)
+  __pyx_t_2 = __Pyx_PyObject_GetAttrStr(__pyx_t_18, __pyx_n_s_float32); if (unlikely(!__pyx_t_2)) __PYX_ERR(0, 121, __pyx_L1_error)
   __Pyx_GOTREF(__pyx_t_2);
   __Pyx_DECREF(__pyx_t_18); __pyx_t_18 = 0;
-  if (PyDict_SetItem(__pyx_t_21, __pyx_n_s_dtype, __pyx_t_2) < 0) __PYX_ERR(0, 120, __pyx_L1_error)
+  if (PyDict_SetItem(__pyx_t_21, __pyx_n_s_dtype, __pyx_t_2) < 0) __PYX_ERR(0, 121, __pyx_L1_error)
   __Pyx_DECREF(__pyx_t_2); __pyx_t_2 = 0;
-  __pyx_t_2 = __Pyx_PyObject_Call(__pyx_t_8, __pyx_t_20, __pyx_t_21); if (unlikely(!__pyx_t_2)) __PYX_ERR(0, 120, __pyx_L1_error)
+  __pyx_t_2 = __Pyx_PyObject_Call(__pyx_t_8, __pyx_t_20, __pyx_t_21); if (unlikely(!__pyx_t_2)) __PYX_ERR(0, 121, __pyx_L1_error)
   __Pyx_GOTREF(__pyx_t_2);
   __Pyx_DECREF(__pyx_t_8); __pyx_t_8 = 0;
   __Pyx_DECREF(__pyx_t_20); __pyx_t_20 = 0;
@@ -4633,21 +4639,21 @@ static PyObject *__pyx_pf_8pyrender_2render_new(CYTHON_UNUSED PyObject *__pyx_se
   __pyx_v_vertex = __pyx_t_2;
   __pyx_t_2 = 0;
 
-  /* "pyrender.pyx":121
+  /* "pyrender.pyx":122
  *   normal = np.empty((T, img_size[0], img_size[1], 4), dtype=np.float32)
  *   vertex = np.empty((T, img_size[0], img_size[1], 4), dtype=np.float32)
  *   view_mat = np.empty((T, 4, 4), dtype=np.float32)             # <<<<<<<<<<<<<<
  *   cdef float[:,:,::1] depth_view = depth
  *   cdef unsigned char[:,:,::1] mask_view = mask
  */
-  __Pyx_GetModuleGlobalName(__pyx_t_2, __pyx_n_s_np); if (unlikely(!__pyx_t_2)) __PYX_ERR(0, 121, __pyx_L1_error)
+  __Pyx_GetModuleGlobalName(__pyx_t_2, __pyx_n_s_np); if (unlikely(!__pyx_t_2)) __PYX_ERR(0, 122, __pyx_L1_error)
   __Pyx_GOTREF(__pyx_t_2);
-  __pyx_t_21 = __Pyx_PyObject_GetAttrStr(__pyx_t_2, __pyx_n_s_empty); if (unlikely(!__pyx_t_21)) __PYX_ERR(0, 121, __pyx_L1_error)
+  __pyx_t_21 = __Pyx_PyObject_GetAttrStr(__pyx_t_2, __pyx_n_s_empty); if (unlikely(!__pyx_t_21)) __PYX_ERR(0, 122, __pyx_L1_error)
   __Pyx_GOTREF(__pyx_t_21);
   __Pyx_DECREF(__pyx_t_2); __pyx_t_2 = 0;
-  __pyx_t_2 = __Pyx_PyInt_From_int(__pyx_v_T); if (unlikely(!__pyx_t_2)) __PYX_ERR(0, 121, __pyx_L1_error)
+  __pyx_t_2 = __Pyx_PyInt_From_int(__pyx_v_T); if (unlikely(!__pyx_t_2)) __PYX_ERR(0, 122, __pyx_L1_error)
   __Pyx_GOTREF(__pyx_t_2);
-  __pyx_t_20 = PyTuple_New(3); if (unlikely(!__pyx_t_20)) __PYX_ERR(0, 121, __pyx_L1_error)
+  __pyx_t_20 = PyTuple_New(3); if (unlikely(!__pyx_t_20)) __PYX_ERR(0, 122, __pyx_L1_error)
   __Pyx_GOTREF(__pyx_t_20);
   __Pyx_GIVEREF(__pyx_t_2);
   PyTuple_SET_ITEM(__pyx_t_20, 0, __pyx_t_2);
@@ -4658,21 +4664,21 @@ static PyObject *__pyx_pf_8pyrender_2render_new(CYTHON_UNUSED PyObject *__pyx_se
   __Pyx_GIVEREF(__pyx_int_4);
   PyTuple_SET_ITEM(__pyx_t_20, 2, __pyx_int_4);
   __pyx_t_2 = 0;
-  __pyx_t_2 = PyTuple_New(1); if (unlikely(!__pyx_t_2)) __PYX_ERR(0, 121, __pyx_L1_error)
+  __pyx_t_2 = PyTuple_New(1); if (unlikely(!__pyx_t_2)) __PYX_ERR(0, 122, __pyx_L1_error)
   __Pyx_GOTREF(__pyx_t_2);
   __Pyx_GIVEREF(__pyx_t_20);
   PyTuple_SET_ITEM(__pyx_t_2, 0, __pyx_t_20);
   __pyx_t_20 = 0;
-  __pyx_t_20 = __Pyx_PyDict_NewPresized(1); if (unlikely(!__pyx_t_20)) __PYX_ERR(0, 121, __pyx_L1_error)
+  __pyx_t_20 = __Pyx_PyDict_NewPresized(1); if (unlikely(!__pyx_t_20)) __PYX_ERR(0, 122, __pyx_L1_error)
   __Pyx_GOTREF(__pyx_t_20);
-  __Pyx_GetModuleGlobalName(__pyx_t_8, __pyx_n_s_np); if (unlikely(!__pyx_t_8)) __PYX_ERR(0, 121, __pyx_L1_error)
+  __Pyx_GetModuleGlobalName(__pyx_t_8, __pyx_n_s_np); if (unlikely(!__pyx_t_8)) __PYX_ERR(0, 122, __pyx_L1_error)
   __Pyx_GOTREF(__pyx_t_8);
-  __pyx_t_18 = __Pyx_PyObject_GetAttrStr(__pyx_t_8, __pyx_n_s_float32); if (unlikely(!__pyx_t_18)) __PYX_ERR(0, 121, __pyx_L1_error)
+  __pyx_t_18 = __Pyx_PyObject_GetAttrStr(__pyx_t_8, __pyx_n_s_float32); if (unlikely(!__pyx_t_18)) __PYX_ERR(0, 122, __pyx_L1_error)
   __Pyx_GOTREF(__pyx_t_18);
   __Pyx_DECREF(__pyx_t_8); __pyx_t_8 = 0;
-  if (PyDict_SetItem(__pyx_t_20, __pyx_n_s_dtype, __pyx_t_18) < 0) __PYX_ERR(0, 121, __pyx_L1_error)
+  if (PyDict_SetItem(__pyx_t_20, __pyx_n_s_dtype, __pyx_t_18) < 0) __PYX_ERR(0, 122, __pyx_L1_error)
   __Pyx_DECREF(__pyx_t_18); __pyx_t_18 = 0;
-  __pyx_t_18 = __Pyx_PyObject_Call(__pyx_t_21, __pyx_t_2, __pyx_t_20); if (unlikely(!__pyx_t_18)) __PYX_ERR(0, 121, __pyx_L1_error)
+  __pyx_t_18 = __Pyx_PyObject_Call(__pyx_t_21, __pyx_t_2, __pyx_t_20); if (unlikely(!__pyx_t_18)) __PYX_ERR(0, 122, __pyx_L1_error)
   __Pyx_GOTREF(__pyx_t_18);
   __Pyx_DECREF(__pyx_t_21); __pyx_t_21 = 0;
   __Pyx_DECREF(__pyx_t_2); __pyx_t_2 = 0;
@@ -4680,79 +4686,79 @@ static PyObject *__pyx_pf_8pyrender_2render_new(CYTHON_UNUSED PyObject *__pyx_se
   __pyx_v_view_mat = __pyx_t_18;
   __pyx_t_18 = 0;
 
-  /* "pyrender.pyx":122
+  /* "pyrender.pyx":123
  *   vertex = np.empty((T, img_size[0], img_size[1], 4), dtype=np.float32)
  *   view_mat = np.empty((T, 4, 4), dtype=np.float32)
  *   cdef float[:,:,::1] depth_view = depth             # <<<<<<<<<<<<<<
  *   cdef unsigned char[:,:,::1] mask_view = mask
  *   cdef unsigned char[:,:,:,::1] img_view = img
  */
-  __pyx_t_30 = __Pyx_PyObject_to_MemoryviewSlice_d_d_dc_float(__pyx_v_depth, PyBUF_WRITABLE); if (unlikely(!__pyx_t_30.memview)) __PYX_ERR(0, 122, __pyx_L1_error)
+  __pyx_t_30 = __Pyx_PyObject_to_MemoryviewSlice_d_d_dc_float(__pyx_v_depth, PyBUF_WRITABLE); if (unlikely(!__pyx_t_30.memview)) __PYX_ERR(0, 123, __pyx_L1_error)
   __pyx_v_depth_view = __pyx_t_30;
   __pyx_t_30.memview = NULL;
   __pyx_t_30.data = NULL;
 
-  /* "pyrender.pyx":123
+  /* "pyrender.pyx":124
  *   view_mat = np.empty((T, 4, 4), dtype=np.float32)
  *   cdef float[:,:,::1] depth_view = depth
  *   cdef unsigned char[:,:,::1] mask_view = mask             # <<<<<<<<<<<<<<
  *   cdef unsigned char[:,:,:,::1] img_view = img
  *   cdef float[:,:,:,::1] normal_view = normal
  */
-  __pyx_t_31 = __Pyx_PyObject_to_MemoryviewSlice_d_d_dc_unsigned_char(__pyx_v_mask, PyBUF_WRITABLE); if (unlikely(!__pyx_t_31.memview)) __PYX_ERR(0, 123, __pyx_L1_error)
+  __pyx_t_31 = __Pyx_PyObject_to_MemoryviewSlice_d_d_dc_unsigned_char(__pyx_v_mask, PyBUF_WRITABLE); if (unlikely(!__pyx_t_31.memview)) __PYX_ERR(0, 124, __pyx_L1_error)
   __pyx_v_mask_view = __pyx_t_31;
   __pyx_t_31.memview = NULL;
   __pyx_t_31.data = NULL;
 
-  /* "pyrender.pyx":124
+  /* "pyrender.pyx":125
  *   cdef float[:,:,::1] depth_view = depth
  *   cdef unsigned char[:,:,::1] mask_view = mask
  *   cdef unsigned char[:,:,:,::1] img_view = img             # <<<<<<<<<<<<<<
  *   cdef float[:,:,:,::1] normal_view = normal
  *   cdef float[:,:,:,::1] vertex_view = vertex
  */
-  __pyx_t_32 = __Pyx_PyObject_to_MemoryviewSlice_d_d_d_dc_unsigned_char(__pyx_v_img, PyBUF_WRITABLE); if (unlikely(!__pyx_t_32.memview)) __PYX_ERR(0, 124, __pyx_L1_error)
+  __pyx_t_32 = __Pyx_PyObject_to_MemoryviewSlice_d_d_d_dc_unsigned_char(__pyx_v_img, PyBUF_WRITABLE); if (unlikely(!__pyx_t_32.memview)) __PYX_ERR(0, 125, __pyx_L1_error)
   __pyx_v_img_view = __pyx_t_32;
   __pyx_t_32.memview = NULL;
   __pyx_t_32.data = NULL;
 
-  /* "pyrender.pyx":125
+  /* "pyrender.pyx":126
  *   cdef unsigned char[:,:,::1] mask_view = mask
  *   cdef unsigned char[:,:,:,::1] img_view = img
  *   cdef float[:,:,:,::1] normal_view = normal             # <<<<<<<<<<<<<<
  *   cdef float[:,:,:,::1] vertex_view = vertex
  *   cdef float[:,:,::1] view_mat_view = view_mat
  */
-  __pyx_t_33 = __Pyx_PyObject_to_MemoryviewSlice_d_d_d_dc_float(__pyx_v_normal, PyBUF_WRITABLE); if (unlikely(!__pyx_t_33.memview)) __PYX_ERR(0, 125, __pyx_L1_error)
+  __pyx_t_33 = __Pyx_PyObject_to_MemoryviewSlice_d_d_d_dc_float(__pyx_v_normal, PyBUF_WRITABLE); if (unlikely(!__pyx_t_33.memview)) __PYX_ERR(0, 126, __pyx_L1_error)
   __pyx_v_normal_view = __pyx_t_33;
   __pyx_t_33.memview = NULL;
   __pyx_t_33.data = NULL;
 
-  /* "pyrender.pyx":126
+  /* "pyrender.pyx":127
  *   cdef unsigned char[:,:,:,::1] img_view = img
  *   cdef float[:,:,:,::1] normal_view = normal
  *   cdef float[:,:,:,::1] vertex_view = vertex             # <<<<<<<<<<<<<<
  *   cdef float[:,:,::1] view_mat_view = view_mat
  * 
  */
-  __pyx_t_33 = __Pyx_PyObject_to_MemoryviewSlice_d_d_d_dc_float(__pyx_v_vertex, PyBUF_WRITABLE); if (unlikely(!__pyx_t_33.memview)) __PYX_ERR(0, 126, __pyx_L1_error)
+  __pyx_t_33 = __Pyx_PyObject_to_MemoryviewSlice_d_d_d_dc_float(__pyx_v_vertex, PyBUF_WRITABLE); if (unlikely(!__pyx_t_33.memview)) __PYX_ERR(0, 127, __pyx_L1_error)
   __pyx_v_vertex_view = __pyx_t_33;
   __pyx_t_33.memview = NULL;
   __pyx_t_33.data = NULL;
 
-  /* "pyrender.pyx":127
+  /* "pyrender.pyx":128
  *   cdef float[:,:,:,::1] normal_view = normal
  *   cdef float[:,:,:,::1] vertex_view = vertex
  *   cdef float[:,:,::1] view_mat_view = view_mat             # <<<<<<<<<<<<<<
  * 
  *   cdef float* depthBuffer = &(depth_view[0,0,0])
  */
-  __pyx_t_30 = __Pyx_PyObject_to_MemoryviewSlice_d_d_dc_float(__pyx_v_view_mat, PyBUF_WRITABLE); if (unlikely(!__pyx_t_30.memview)) __PYX_ERR(0, 127, __pyx_L1_error)
+  __pyx_t_30 = __Pyx_PyObject_to_MemoryviewSlice_d_d_dc_float(__pyx_v_view_mat, PyBUF_WRITABLE); if (unlikely(!__pyx_t_30.memview)) __PYX_ERR(0, 128, __pyx_L1_error)
   __pyx_v_view_mat_view = __pyx_t_30;
   __pyx_t_30.memview = NULL;
   __pyx_t_30.data = NULL;
 
-  /* "pyrender.pyx":129
+  /* "pyrender.pyx":130
  *   cdef float[:,:,::1] view_mat_view = view_mat
  * 
  *   cdef float* depthBuffer = &(depth_view[0,0,0])             # <<<<<<<<<<<<<<
@@ -4777,11 +4783,11 @@ static PyObject *__pyx_pf_8pyrender_2render_new(CYTHON_UNUSED PyObject *__pyx_se
   } else if (unlikely(__pyx_t_36 >= __pyx_v_depth_view.shape[2])) __pyx_t_5 = 2;
   if (unlikely(__pyx_t_5 != -1)) {
     __Pyx_RaiseBufferIndexError(__pyx_t_5);
-    __PYX_ERR(0, 129, __pyx_L1_error)
+    __PYX_ERR(0, 130, __pyx_L1_error)
   }
   __pyx_v_depthBuffer = (&(*((float *) ( /* dim=2 */ ((char *) (((float *) ( /* dim=1 */ (( /* dim=0 */ (__pyx_v_depth_view.data + __pyx_t_34 * __pyx_v_depth_view.strides[0]) ) + __pyx_t_35 * __pyx_v_depth_view.strides[1]) )) + __pyx_t_36)) ))));
 
-  /* "pyrender.pyx":130
+  /* "pyrender.pyx":131
  * 
  *   cdef float* depthBuffer = &(depth_view[0,0,0])
  *   cdef bool* maskBuffer = <bool*> &(mask_view[0,0,0])             # <<<<<<<<<<<<<<
@@ -4806,11 +4812,11 @@ static PyObject *__pyx_pf_8pyrender_2render_new(CYTHON_UNUSED PyObject *__pyx_se
   } else if (unlikely(__pyx_t_39 >= __pyx_v_mask_view.shape[2])) __pyx_t_5 = 2;
   if (unlikely(__pyx_t_5 != -1)) {
     __Pyx_RaiseBufferIndexError(__pyx_t_5);
-    __PYX_ERR(0, 130, __pyx_L1_error)
+    __PYX_ERR(0, 131, __pyx_L1_error)
   }
   __pyx_v_maskBuffer = ((bool *)(&(*((unsigned char *) ( /* dim=2 */ ((char *) (((unsigned char *) ( /* dim=1 */ (( /* dim=0 */ (__pyx_v_mask_view.data + __pyx_t_37 * __pyx_v_mask_view.strides[0]) ) + __pyx_t_38 * __pyx_v_mask_view.strides[1]) )) + __pyx_t_39)) )))));
 
-  /* "pyrender.pyx":131
+  /* "pyrender.pyx":132
  *   cdef float* depthBuffer = &(depth_view[0,0,0])
  *   cdef bool* maskBuffer = <bool*> &(mask_view[0,0,0])
  *   cdef unsigned char* imageBuffer = &(img_view[0,0,0,0])             # <<<<<<<<<<<<<<
@@ -4840,11 +4846,11 @@ static PyObject *__pyx_pf_8pyrender_2render_new(CYTHON_UNUSED PyObject *__pyx_se
   } else if (unlikely(__pyx_t_43 >= __pyx_v_img_view.shape[3])) __pyx_t_5 = 3;
   if (unlikely(__pyx_t_5 != -1)) {
     __Pyx_RaiseBufferIndexError(__pyx_t_5);
-    __PYX_ERR(0, 131, __pyx_L1_error)
+    __PYX_ERR(0, 132, __pyx_L1_error)
   }
   __pyx_v_imageBuffer = (&(*((unsigned char *) ( /* dim=3 */ ((char *) (((unsigned char *) ( /* dim=2 */ (( /* dim=1 */ (( /* dim=0 */ (__pyx_v_img_view.data + __pyx_t_40 * __pyx_v_img_view.strides[0]) ) + __pyx_t_41 * __pyx_v_img_view.strides[1]) ) + __pyx_t_42 * __pyx_v_img_view.strides[2]) )) + __pyx_t_43)) ))));
 
-  /* "pyrender.pyx":132
+  /* "pyrender.pyx":133
  *   cdef bool* maskBuffer = <bool*> &(mask_view[0,0,0])
  *   cdef unsigned char* imageBuffer = &(img_view[0,0,0,0])
  *   cdef float * normalBuffer = &(normal_view[0,0,0,0])             # <<<<<<<<<<<<<<
@@ -4874,11 +4880,11 @@ static PyObject *__pyx_pf_8pyrender_2render_new(CYTHON_UNUSED PyObject *__pyx_se
   } else if (unlikely(__pyx_t_47 >= __pyx_v_normal_view.shape[3])) __pyx_t_5 = 3;
   if (unlikely(__pyx_t_5 != -1)) {
     __Pyx_RaiseBufferIndexError(__pyx_t_5);
-    __PYX_ERR(0, 132, __pyx_L1_error)
+    __PYX_ERR(0, 133, __pyx_L1_error)
   }
   __pyx_v_normalBuffer = (&(*((float *) ( /* dim=3 */ ((char *) (((float *) ( /* dim=2 */ (( /* dim=1 */ (( /* dim=0 */ (__pyx_v_normal_view.data + __pyx_t_44 * __pyx_v_normal_view.strides[0]) ) + __pyx_t_45 * __pyx_v_normal_view.strides[1]) ) + __pyx_t_46 * __pyx_v_normal_view.strides[2]) )) + __pyx_t_47)) ))));
 
-  /* "pyrender.pyx":133
+  /* "pyrender.pyx":134
  *   cdef unsigned char* imageBuffer = &(img_view[0,0,0,0])
  *   cdef float * normalBuffer = &(normal_view[0,0,0,0])
  *   cdef float * vertexBuffer = &(vertex_view[0,0,0,0])             # <<<<<<<<<<<<<<
@@ -4908,11 +4914,11 @@ static PyObject *__pyx_pf_8pyrender_2render_new(CYTHON_UNUSED PyObject *__pyx_se
   } else if (unlikely(__pyx_t_51 >= __pyx_v_vertex_view.shape[3])) __pyx_t_5 = 3;
   if (unlikely(__pyx_t_5 != -1)) {
     __Pyx_RaiseBufferIndexError(__pyx_t_5);
-    __PYX_ERR(0, 133, __pyx_L1_error)
+    __PYX_ERR(0, 134, __pyx_L1_error)
   }
   __pyx_v_vertexBuffer = (&(*((float *) ( /* dim=3 */ ((char *) (((float *) ( /* dim=2 */ (( /* dim=1 */ (( /* dim=0 */ (__pyx_v_vertex_view.data + __pyx_t_48 * __pyx_v_vertex_view.strides[0]) ) + __pyx_t_49 * __pyx_v_vertex_view.strides[1]) ) + __pyx_t_50 * __pyx_v_vertex_view.strides[2]) )) + __pyx_t_51)) ))));
 
-  /* "pyrender.pyx":134
+  /* "pyrender.pyx":135
  *   cdef float * normalBuffer = &(normal_view[0,0,0,0])
  *   cdef float * vertexBuffer = &(vertex_view[0,0,0,0])
  *   cdef float * viewMatBuffer = &(view_mat_view[0,0,0])             # <<<<<<<<<<<<<<
@@ -4937,11 +4943,11 @@ static PyObject *__pyx_pf_8pyrender_2render_new(CYTHON_UNUSED PyObject *__pyx_se
   } else if (unlikely(__pyx_t_54 >= __pyx_v_view_mat_view.shape[2])) __pyx_t_5 = 2;
   if (unlikely(__pyx_t_5 != -1)) {
     __Pyx_RaiseBufferIndexError(__pyx_t_5);
-    __PYX_ERR(0, 134, __pyx_L1_error)
+    __PYX_ERR(0, 135, __pyx_L1_error)
   }
   __pyx_v_viewMatBuffer = (&(*((float *) ( /* dim=2 */ ((char *) (((float *) ( /* dim=1 */ (( /* dim=0 */ (__pyx_v_view_mat_view.data + __pyx_t_52 * __pyx_v_view_mat_view.strides[0]) ) + __pyx_t_53 * __pyx_v_view_mat_view.strides[1]) )) + __pyx_t_54)) ))));
 
-  /* "pyrender.pyx":136
+  /* "pyrender.pyx":137
  *   cdef float * viewMatBuffer = &(view_mat_view[0,0,0])
  * 
  *   render_mesh( \             # <<<<<<<<<<<<<<
@@ -4950,7 +4956,7 @@ static PyObject *__pyx_pf_8pyrender_2render_new(CYTHON_UNUSED PyObject *__pyx_se
  */
   render_mesh(__pyx_v_vertex_arr, __pyx_v_color_arr, __pyx_v_normal_arr, __pyx_v_fM, __pyx_v_use_color, __pyx_v_cam_pos, __pyx_v_T, __pyx_v_intrinsics, __pyx_v_imgSizeV, __pyx_v_zNearFarV, __pyx_v_imageBuffer, __pyx_v_depthBuffer, __pyx_v_maskBuffer, __pyx_v_normalBuffer, __pyx_v_vertexBuffer, __pyx_v_viewMatBuffer);
 
-  /* "pyrender.pyx":147
+  /* "pyrender.pyx":148
  *   #print('Depth:', depth.shape, depth)
  *   #print('Normal:', normal.shape, normal)
  *   return depth, mask, img, normal, vertex, view_mat             # <<<<<<<<<<<<<<
@@ -4958,7 +4964,7 @@ static PyObject *__pyx_pf_8pyrender_2render_new(CYTHON_UNUSED PyObject *__pyx_se
  * def select_vertex_from_buffer(float[:,:,:,::1] normal, float[:,:,:,::1] vertex, int fM, int[::1] img_size, int max_pointcloud_size = 500000):
  */
   __Pyx_XDECREF(__pyx_r);
-  __pyx_t_18 = PyTuple_New(6); if (unlikely(!__pyx_t_18)) __PYX_ERR(0, 147, __pyx_L1_error)
+  __pyx_t_18 = PyTuple_New(6); if (unlikely(!__pyx_t_18)) __PYX_ERR(0, 148, __pyx_L1_error)
   __Pyx_GOTREF(__pyx_t_18);
   __Pyx_INCREF(__pyx_v_depth);
   __Pyx_GIVEREF(__pyx_v_depth);
@@ -4982,7 +4988,7 @@ static PyObject *__pyx_pf_8pyrender_2render_new(CYTHON_UNUSED PyObject *__pyx_se
   __pyx_t_18 = 0;
   goto __pyx_L0;
 
-  /* "pyrender.pyx":73
+  /* "pyrender.pyx":74
  *   );
  * 
  * def render_new(float[:,::1] vertex_array, float[:,::1] color_array, float[:,::1] normal_array, \             # <<<<<<<<<<<<<<
@@ -5028,17 +5034,18 @@ static PyObject *__pyx_pf_8pyrender_2render_new(CYTHON_UNUSED PyObject *__pyx_se
   return __pyx_r;
 }
 
-/* "pyrender.pyx":149
+/* "pyrender.pyx":150
  *   return depth, mask, img, normal, vertex, view_mat
  * 
  * def select_vertex_from_buffer(float[:,:,:,::1] normal, float[:,:,:,::1] vertex, int fM, int[::1] img_size, int max_pointcloud_size = 500000):             # <<<<<<<<<<<<<<
- *   cdef int pointcloud_size = max_pointcloud_size
- *   cdef int * pointcloud_size_pt = &pointcloud_size
+ *   '''
+ *     stats[0] = double_sided_face_count;
  */
 
 /* Python wrapper */
 static PyObject *__pyx_pw_8pyrender_5select_vertex_from_buffer(PyObject *__pyx_self, PyObject *__pyx_args, PyObject *__pyx_kwds); /*proto*/
-static PyMethodDef __pyx_mdef_8pyrender_5select_vertex_from_buffer = {"select_vertex_from_buffer", (PyCFunction)(void*)(PyCFunctionWithKeywords)__pyx_pw_8pyrender_5select_vertex_from_buffer, METH_VARARGS|METH_KEYWORDS, 0};
+static char __pyx_doc_8pyrender_4select_vertex_from_buffer[] = "\n    stats[0] = double_sided_face_count;\n    stats[1] = bad_face_count;\n    stats[2] = total_visible_face_count;\n  ";
+static PyMethodDef __pyx_mdef_8pyrender_5select_vertex_from_buffer = {"select_vertex_from_buffer", (PyCFunction)(void*)(PyCFunctionWithKeywords)__pyx_pw_8pyrender_5select_vertex_from_buffer, METH_VARARGS|METH_KEYWORDS, __pyx_doc_8pyrender_4select_vertex_from_buffer};
 static PyObject *__pyx_pw_8pyrender_5select_vertex_from_buffer(PyObject *__pyx_self, PyObject *__pyx_args, PyObject *__pyx_kwds) {
   __Pyx_memviewslice __pyx_v_normal = { 0, 0, { 0 }, { 0 }, { 0 } };
   __Pyx_memviewslice __pyx_v_vertex = { 0, 0, { 0 }, { 0 }, { 0 } };
@@ -5077,19 +5084,19 @@ static PyObject *__pyx_pw_8pyrender_5select_vertex_from_buffer(PyObject *__pyx_s
         case  1:
         if (likely((values[1] = __Pyx_PyDict_GetItemStr(__pyx_kwds, __pyx_n_s_vertex)) != 0)) kw_args--;
         else {
-          __Pyx_RaiseArgtupleInvalid("select_vertex_from_buffer", 0, 4, 5, 1); __PYX_ERR(0, 149, __pyx_L3_error)
+          __Pyx_RaiseArgtupleInvalid("select_vertex_from_buffer", 0, 4, 5, 1); __PYX_ERR(0, 150, __pyx_L3_error)
         }
         CYTHON_FALLTHROUGH;
         case  2:
         if (likely((values[2] = __Pyx_PyDict_GetItemStr(__pyx_kwds, __pyx_n_s_fM)) != 0)) kw_args--;
         else {
-          __Pyx_RaiseArgtupleInvalid("select_vertex_from_buffer", 0, 4, 5, 2); __PYX_ERR(0, 149, __pyx_L3_error)
+          __Pyx_RaiseArgtupleInvalid("select_vertex_from_buffer", 0, 4, 5, 2); __PYX_ERR(0, 150, __pyx_L3_error)
         }
         CYTHON_FALLTHROUGH;
         case  3:
         if (likely((values[3] = __Pyx_PyDict_GetItemStr(__pyx_kwds, __pyx_n_s_img_size)) != 0)) kw_args--;
         else {
-          __Pyx_RaiseArgtupleInvalid("select_vertex_from_buffer", 0, 4, 5, 3); __PYX_ERR(0, 149, __pyx_L3_error)
+          __Pyx_RaiseArgtupleInvalid("select_vertex_from_buffer", 0, 4, 5, 3); __PYX_ERR(0, 150, __pyx_L3_error)
         }
         CYTHON_FALLTHROUGH;
         case  4:
@@ -5099,7 +5106,7 @@ static PyObject *__pyx_pw_8pyrender_5select_vertex_from_buffer(PyObject *__pyx_s
         }
       }
       if (unlikely(kw_args > 0)) {
-        if (unlikely(__Pyx_ParseOptionalKeywords(__pyx_kwds, __pyx_pyargnames, 0, values, pos_args, "select_vertex_from_buffer") < 0)) __PYX_ERR(0, 149, __pyx_L3_error)
+        if (unlikely(__Pyx_ParseOptionalKeywords(__pyx_kwds, __pyx_pyargnames, 0, values, pos_args, "select_vertex_from_buffer") < 0)) __PYX_ERR(0, 150, __pyx_L3_error)
       }
     } else {
       switch (PyTuple_GET_SIZE(__pyx_args)) {
@@ -5113,19 +5120,19 @@ static PyObject *__pyx_pw_8pyrender_5select_vertex_from_buffer(PyObject *__pyx_s
         default: goto __pyx_L5_argtuple_error;
       }
     }
-    __pyx_v_normal = __Pyx_PyObject_to_MemoryviewSlice_d_d_d_dc_float(values[0], PyBUF_WRITABLE); if (unlikely(!__pyx_v_normal.memview)) __PYX_ERR(0, 149, __pyx_L3_error)
-    __pyx_v_vertex = __Pyx_PyObject_to_MemoryviewSlice_d_d_d_dc_float(values[1], PyBUF_WRITABLE); if (unlikely(!__pyx_v_vertex.memview)) __PYX_ERR(0, 149, __pyx_L3_error)
-    __pyx_v_fM = __Pyx_PyInt_As_int(values[2]); if (unlikely((__pyx_v_fM == (int)-1) && PyErr_Occurred())) __PYX_ERR(0, 149, __pyx_L3_error)
-    __pyx_v_img_size = __Pyx_PyObject_to_MemoryviewSlice_dc_int(values[3], PyBUF_WRITABLE); if (unlikely(!__pyx_v_img_size.memview)) __PYX_ERR(0, 149, __pyx_L3_error)
+    __pyx_v_normal = __Pyx_PyObject_to_MemoryviewSlice_d_d_d_dc_float(values[0], PyBUF_WRITABLE); if (unlikely(!__pyx_v_normal.memview)) __PYX_ERR(0, 150, __pyx_L3_error)
+    __pyx_v_vertex = __Pyx_PyObject_to_MemoryviewSlice_d_d_d_dc_float(values[1], PyBUF_WRITABLE); if (unlikely(!__pyx_v_vertex.memview)) __PYX_ERR(0, 150, __pyx_L3_error)
+    __pyx_v_fM = __Pyx_PyInt_As_int(values[2]); if (unlikely((__pyx_v_fM == (int)-1) && PyErr_Occurred())) __PYX_ERR(0, 150, __pyx_L3_error)
+    __pyx_v_img_size = __Pyx_PyObject_to_MemoryviewSlice_dc_int(values[3], PyBUF_WRITABLE); if (unlikely(!__pyx_v_img_size.memview)) __PYX_ERR(0, 150, __pyx_L3_error)
     if (values[4]) {
-      __pyx_v_max_pointcloud_size = __Pyx_PyInt_As_int(values[4]); if (unlikely((__pyx_v_max_pointcloud_size == (int)-1) && PyErr_Occurred())) __PYX_ERR(0, 149, __pyx_L3_error)
+      __pyx_v_max_pointcloud_size = __Pyx_PyInt_As_int(values[4]); if (unlikely((__pyx_v_max_pointcloud_size == (int)-1) && PyErr_Occurred())) __PYX_ERR(0, 150, __pyx_L3_error)
     } else {
       __pyx_v_max_pointcloud_size = ((int)0x7A120);
     }
   }
   goto __pyx_L4_argument_unpacking_done;
   __pyx_L5_argtuple_error:;
-  __Pyx_RaiseArgtupleInvalid("select_vertex_from_buffer", 0, 4, 5, PyTuple_GET_SIZE(__pyx_args)); __PYX_ERR(0, 149, __pyx_L3_error)
+  __Pyx_RaiseArgtupleInvalid("select_vertex_from_buffer", 0, 4, 5, PyTuple_GET_SIZE(__pyx_args)); __PYX_ERR(0, 150, __pyx_L3_error)
   __pyx_L3_error:;
   __Pyx_AddTraceback("pyrender.select_vertex_from_buffer", __pyx_clineno, __pyx_lineno, __pyx_filename);
   __Pyx_RefNannyFinishContext();
@@ -5151,6 +5158,9 @@ static PyObject *__pyx_pf_8pyrender_4select_vertex_from_buffer(CYTHON_UNUSED PyO
   PyObject *__pyx_v_stats = NULL;
   __Pyx_memviewslice __pyx_v_stats_view = { 0, 0, { 0 }, { 0 }, { 0 } };
   int *__pyx_v_stats_buffer;
+  PyObject *__pyx_v_face_normal = NULL;
+  __Pyx_memviewslice __pyx_v_face_normal_view = { 0, 0, { 0 }, { 0 }, { 0 } };
+  float *__pyx_v_face_normal_buffer;
   PyObject *__pyx_r = NULL;
   __Pyx_RefNannyDeclarations
   Py_ssize_t __pyx_t_1;
@@ -5173,19 +5183,21 @@ static PyObject *__pyx_pf_8pyrender_4select_vertex_from_buffer(CYTHON_UNUSED PyO
   Py_ssize_t __pyx_t_18;
   __Pyx_memviewslice __pyx_t_19 = { 0, 0, { 0 }, { 0 }, { 0 } };
   Py_ssize_t __pyx_t_20;
+  Py_ssize_t __pyx_t_21;
+  Py_ssize_t __pyx_t_22;
   __Pyx_RefNannySetupContext("select_vertex_from_buffer", 0);
 
-  /* "pyrender.pyx":150
- * 
- * def select_vertex_from_buffer(float[:,:,:,::1] normal, float[:,:,:,::1] vertex, int fM, int[::1] img_size, int max_pointcloud_size = 500000):
+  /* "pyrender.pyx":156
+ *     stats[2] = total_visible_face_count;
+ *   '''
  *   cdef int pointcloud_size = max_pointcloud_size             # <<<<<<<<<<<<<<
  *   cdef int * pointcloud_size_pt = &pointcloud_size
  * 
  */
   __pyx_v_pointcloud_size = __pyx_v_max_pointcloud_size;
 
-  /* "pyrender.pyx":151
- * def select_vertex_from_buffer(float[:,:,:,::1] normal, float[:,:,:,::1] vertex, int fM, int[::1] img_size, int max_pointcloud_size = 500000):
+  /* "pyrender.pyx":157
+ *   '''
  *   cdef int pointcloud_size = max_pointcloud_size
  *   cdef int * pointcloud_size_pt = &pointcloud_size             # <<<<<<<<<<<<<<
  * 
@@ -5193,7 +5205,7 @@ static PyObject *__pyx_pf_8pyrender_4select_vertex_from_buffer(CYTHON_UNUSED PyO
  */
   __pyx_v_pointcloud_size_pt = (&__pyx_v_pointcloud_size);
 
-  /* "pyrender.pyx":153
+  /* "pyrender.pyx":159
  *   cdef int * pointcloud_size_pt = &pointcloud_size
  * 
  *   cdef int T = normal.shape[0]             # <<<<<<<<<<<<<<
@@ -5202,7 +5214,7 @@ static PyObject *__pyx_pf_8pyrender_4select_vertex_from_buffer(CYTHON_UNUSED PyO
  */
   __pyx_v_T = (__pyx_v_normal.shape[0]);
 
-  /* "pyrender.pyx":154
+  /* "pyrender.pyx":160
  * 
  *   cdef int T = normal.shape[0]
  *   cdef int* imgSizeV = &(img_size[0])             # <<<<<<<<<<<<<<
@@ -5217,11 +5229,11 @@ static PyObject *__pyx_pf_8pyrender_4select_vertex_from_buffer(CYTHON_UNUSED PyO
   } else if (unlikely(__pyx_t_1 >= __pyx_v_img_size.shape[0])) __pyx_t_2 = 0;
   if (unlikely(__pyx_t_2 != -1)) {
     __Pyx_RaiseBufferIndexError(__pyx_t_2);
-    __PYX_ERR(0, 154, __pyx_L1_error)
+    __PYX_ERR(0, 160, __pyx_L1_error)
   }
   __pyx_v_imgSizeV = (&(*((int *) ( /* dim=0 */ ((char *) (((int *) __pyx_v_img_size.data) + __pyx_t_1)) ))));
 
-  /* "pyrender.pyx":155
+  /* "pyrender.pyx":161
  *   cdef int T = normal.shape[0]
  *   cdef int* imgSizeV = &(img_size[0])
  *   cdef float * vertexBuffer = &(vertex[0,0,0,0])             # <<<<<<<<<<<<<<
@@ -5251,11 +5263,11 @@ static PyObject *__pyx_pf_8pyrender_4select_vertex_from_buffer(CYTHON_UNUSED PyO
   } else if (unlikely(__pyx_t_6 >= __pyx_v_vertex.shape[3])) __pyx_t_2 = 3;
   if (unlikely(__pyx_t_2 != -1)) {
     __Pyx_RaiseBufferIndexError(__pyx_t_2);
-    __PYX_ERR(0, 155, __pyx_L1_error)
+    __PYX_ERR(0, 161, __pyx_L1_error)
   }
   __pyx_v_vertexBuffer = (&(*((float *) ( /* dim=3 */ ((char *) (((float *) ( /* dim=2 */ (( /* dim=1 */ (( /* dim=0 */ (__pyx_v_vertex.data + __pyx_t_3 * __pyx_v_vertex.strides[0]) ) + __pyx_t_4 * __pyx_v_vertex.strides[1]) ) + __pyx_t_5 * __pyx_v_vertex.strides[2]) )) + __pyx_t_6)) ))));
 
-  /* "pyrender.pyx":156
+  /* "pyrender.pyx":162
  *   cdef int* imgSizeV = &(img_size[0])
  *   cdef float * vertexBuffer = &(vertex[0,0,0,0])
  *   cdef float * normalBuffer = &(normal[0,0,0,0])             # <<<<<<<<<<<<<<
@@ -5285,25 +5297,25 @@ static PyObject *__pyx_pf_8pyrender_4select_vertex_from_buffer(CYTHON_UNUSED PyO
   } else if (unlikely(__pyx_t_10 >= __pyx_v_normal.shape[3])) __pyx_t_2 = 3;
   if (unlikely(__pyx_t_2 != -1)) {
     __Pyx_RaiseBufferIndexError(__pyx_t_2);
-    __PYX_ERR(0, 156, __pyx_L1_error)
+    __PYX_ERR(0, 162, __pyx_L1_error)
   }
   __pyx_v_normalBuffer = (&(*((float *) ( /* dim=3 */ ((char *) (((float *) ( /* dim=2 */ (( /* dim=1 */ (( /* dim=0 */ (__pyx_v_normal.data + __pyx_t_7 * __pyx_v_normal.strides[0]) ) + __pyx_t_8 * __pyx_v_normal.strides[1]) ) + __pyx_t_9 * __pyx_v_normal.strides[2]) )) + __pyx_t_10)) ))));
 
-  /* "pyrender.pyx":158
+  /* "pyrender.pyx":164
  *   cdef float * normalBuffer = &(normal[0,0,0,0])
  * 
  *   pointcloud = np.empty((pointcloud_size, 6), dtype=np.float32)             # <<<<<<<<<<<<<<
  *   cdef float[:,::1] pointcloud_view = pointcloud
  *   cdef float * point_cloud_buffer = &(pointcloud_view[0,0])
  */
-  __Pyx_GetModuleGlobalName(__pyx_t_11, __pyx_n_s_np); if (unlikely(!__pyx_t_11)) __PYX_ERR(0, 158, __pyx_L1_error)
+  __Pyx_GetModuleGlobalName(__pyx_t_11, __pyx_n_s_np); if (unlikely(!__pyx_t_11)) __PYX_ERR(0, 164, __pyx_L1_error)
   __Pyx_GOTREF(__pyx_t_11);
-  __pyx_t_12 = __Pyx_PyObject_GetAttrStr(__pyx_t_11, __pyx_n_s_empty); if (unlikely(!__pyx_t_12)) __PYX_ERR(0, 158, __pyx_L1_error)
+  __pyx_t_12 = __Pyx_PyObject_GetAttrStr(__pyx_t_11, __pyx_n_s_empty); if (unlikely(!__pyx_t_12)) __PYX_ERR(0, 164, __pyx_L1_error)
   __Pyx_GOTREF(__pyx_t_12);
   __Pyx_DECREF(__pyx_t_11); __pyx_t_11 = 0;
-  __pyx_t_11 = __Pyx_PyInt_From_int(__pyx_v_pointcloud_size); if (unlikely(!__pyx_t_11)) __PYX_ERR(0, 158, __pyx_L1_error)
+  __pyx_t_11 = __Pyx_PyInt_From_int(__pyx_v_pointcloud_size); if (unlikely(!__pyx_t_11)) __PYX_ERR(0, 164, __pyx_L1_error)
   __Pyx_GOTREF(__pyx_t_11);
-  __pyx_t_13 = PyTuple_New(2); if (unlikely(!__pyx_t_13)) __PYX_ERR(0, 158, __pyx_L1_error)
+  __pyx_t_13 = PyTuple_New(2); if (unlikely(!__pyx_t_13)) __PYX_ERR(0, 164, __pyx_L1_error)
   __Pyx_GOTREF(__pyx_t_13);
   __Pyx_GIVEREF(__pyx_t_11);
   PyTuple_SET_ITEM(__pyx_t_13, 0, __pyx_t_11);
@@ -5311,21 +5323,21 @@ static PyObject *__pyx_pf_8pyrender_4select_vertex_from_buffer(CYTHON_UNUSED PyO
   __Pyx_GIVEREF(__pyx_int_6);
   PyTuple_SET_ITEM(__pyx_t_13, 1, __pyx_int_6);
   __pyx_t_11 = 0;
-  __pyx_t_11 = PyTuple_New(1); if (unlikely(!__pyx_t_11)) __PYX_ERR(0, 158, __pyx_L1_error)
+  __pyx_t_11 = PyTuple_New(1); if (unlikely(!__pyx_t_11)) __PYX_ERR(0, 164, __pyx_L1_error)
   __Pyx_GOTREF(__pyx_t_11);
   __Pyx_GIVEREF(__pyx_t_13);
   PyTuple_SET_ITEM(__pyx_t_11, 0, __pyx_t_13);
   __pyx_t_13 = 0;
-  __pyx_t_13 = __Pyx_PyDict_NewPresized(1); if (unlikely(!__pyx_t_13)) __PYX_ERR(0, 158, __pyx_L1_error)
+  __pyx_t_13 = __Pyx_PyDict_NewPresized(1); if (unlikely(!__pyx_t_13)) __PYX_ERR(0, 164, __pyx_L1_error)
   __Pyx_GOTREF(__pyx_t_13);
-  __Pyx_GetModuleGlobalName(__pyx_t_14, __pyx_n_s_np); if (unlikely(!__pyx_t_14)) __PYX_ERR(0, 158, __pyx_L1_error)
+  __Pyx_GetModuleGlobalName(__pyx_t_14, __pyx_n_s_np); if (unlikely(!__pyx_t_14)) __PYX_ERR(0, 164, __pyx_L1_error)
   __Pyx_GOTREF(__pyx_t_14);
-  __pyx_t_15 = __Pyx_PyObject_GetAttrStr(__pyx_t_14, __pyx_n_s_float32); if (unlikely(!__pyx_t_15)) __PYX_ERR(0, 158, __pyx_L1_error)
+  __pyx_t_15 = __Pyx_PyObject_GetAttrStr(__pyx_t_14, __pyx_n_s_float32); if (unlikely(!__pyx_t_15)) __PYX_ERR(0, 164, __pyx_L1_error)
   __Pyx_GOTREF(__pyx_t_15);
   __Pyx_DECREF(__pyx_t_14); __pyx_t_14 = 0;
-  if (PyDict_SetItem(__pyx_t_13, __pyx_n_s_dtype, __pyx_t_15) < 0) __PYX_ERR(0, 158, __pyx_L1_error)
+  if (PyDict_SetItem(__pyx_t_13, __pyx_n_s_dtype, __pyx_t_15) < 0) __PYX_ERR(0, 164, __pyx_L1_error)
   __Pyx_DECREF(__pyx_t_15); __pyx_t_15 = 0;
-  __pyx_t_15 = __Pyx_PyObject_Call(__pyx_t_12, __pyx_t_11, __pyx_t_13); if (unlikely(!__pyx_t_15)) __PYX_ERR(0, 158, __pyx_L1_error)
+  __pyx_t_15 = __Pyx_PyObject_Call(__pyx_t_12, __pyx_t_11, __pyx_t_13); if (unlikely(!__pyx_t_15)) __PYX_ERR(0, 164, __pyx_L1_error)
   __Pyx_GOTREF(__pyx_t_15);
   __Pyx_DECREF(__pyx_t_12); __pyx_t_12 = 0;
   __Pyx_DECREF(__pyx_t_11); __pyx_t_11 = 0;
@@ -5333,19 +5345,19 @@ static PyObject *__pyx_pf_8pyrender_4select_vertex_from_buffer(CYTHON_UNUSED PyO
   __pyx_v_pointcloud = __pyx_t_15;
   __pyx_t_15 = 0;
 
-  /* "pyrender.pyx":159
+  /* "pyrender.pyx":165
  * 
  *   pointcloud = np.empty((pointcloud_size, 6), dtype=np.float32)
  *   cdef float[:,::1] pointcloud_view = pointcloud             # <<<<<<<<<<<<<<
  *   cdef float * point_cloud_buffer = &(pointcloud_view[0,0])
  * 
  */
-  __pyx_t_16 = __Pyx_PyObject_to_MemoryviewSlice_d_dc_float(__pyx_v_pointcloud, PyBUF_WRITABLE); if (unlikely(!__pyx_t_16.memview)) __PYX_ERR(0, 159, __pyx_L1_error)
+  __pyx_t_16 = __Pyx_PyObject_to_MemoryviewSlice_d_dc_float(__pyx_v_pointcloud, PyBUF_WRITABLE); if (unlikely(!__pyx_t_16.memview)) __PYX_ERR(0, 165, __pyx_L1_error)
   __pyx_v_pointcloud_view = __pyx_t_16;
   __pyx_t_16.memview = NULL;
   __pyx_t_16.data = NULL;
 
-  /* "pyrender.pyx":160
+  /* "pyrender.pyx":166
  *   pointcloud = np.empty((pointcloud_size, 6), dtype=np.float32)
  *   cdef float[:,::1] pointcloud_view = pointcloud
  *   cdef float * point_cloud_buffer = &(pointcloud_view[0,0])             # <<<<<<<<<<<<<<
@@ -5365,56 +5377,56 @@ static PyObject *__pyx_pf_8pyrender_4select_vertex_from_buffer(CYTHON_UNUSED PyO
   } else if (unlikely(__pyx_t_18 >= __pyx_v_pointcloud_view.shape[1])) __pyx_t_2 = 1;
   if (unlikely(__pyx_t_2 != -1)) {
     __Pyx_RaiseBufferIndexError(__pyx_t_2);
-    __PYX_ERR(0, 160, __pyx_L1_error)
+    __PYX_ERR(0, 166, __pyx_L1_error)
   }
   __pyx_v_point_cloud_buffer = (&(*((float *) ( /* dim=1 */ ((char *) (((float *) ( /* dim=0 */ (__pyx_v_pointcloud_view.data + __pyx_t_17 * __pyx_v_pointcloud_view.strides[0]) )) + __pyx_t_18)) ))));
 
-  /* "pyrender.pyx":162
+  /* "pyrender.pyx":168
  *   cdef float * point_cloud_buffer = &(pointcloud_view[0,0])
  * 
  *   stats = np.empty((3), dtype=np.int32)             # <<<<<<<<<<<<<<
  *   cdef int[::1] stats_view = stats
  *   cdef int * stats_buffer = &(stats_view[0])
  */
-  __Pyx_GetModuleGlobalName(__pyx_t_15, __pyx_n_s_np); if (unlikely(!__pyx_t_15)) __PYX_ERR(0, 162, __pyx_L1_error)
+  __Pyx_GetModuleGlobalName(__pyx_t_15, __pyx_n_s_np); if (unlikely(!__pyx_t_15)) __PYX_ERR(0, 168, __pyx_L1_error)
   __Pyx_GOTREF(__pyx_t_15);
-  __pyx_t_13 = __Pyx_PyObject_GetAttrStr(__pyx_t_15, __pyx_n_s_empty); if (unlikely(!__pyx_t_13)) __PYX_ERR(0, 162, __pyx_L1_error)
+  __pyx_t_13 = __Pyx_PyObject_GetAttrStr(__pyx_t_15, __pyx_n_s_empty); if (unlikely(!__pyx_t_13)) __PYX_ERR(0, 168, __pyx_L1_error)
   __Pyx_GOTREF(__pyx_t_13);
   __Pyx_DECREF(__pyx_t_15); __pyx_t_15 = 0;
-  __pyx_t_15 = __Pyx_PyDict_NewPresized(1); if (unlikely(!__pyx_t_15)) __PYX_ERR(0, 162, __pyx_L1_error)
+  __pyx_t_15 = __Pyx_PyDict_NewPresized(1); if (unlikely(!__pyx_t_15)) __PYX_ERR(0, 168, __pyx_L1_error)
   __Pyx_GOTREF(__pyx_t_15);
-  __Pyx_GetModuleGlobalName(__pyx_t_11, __pyx_n_s_np); if (unlikely(!__pyx_t_11)) __PYX_ERR(0, 162, __pyx_L1_error)
+  __Pyx_GetModuleGlobalName(__pyx_t_11, __pyx_n_s_np); if (unlikely(!__pyx_t_11)) __PYX_ERR(0, 168, __pyx_L1_error)
   __Pyx_GOTREF(__pyx_t_11);
-  __pyx_t_12 = __Pyx_PyObject_GetAttrStr(__pyx_t_11, __pyx_n_s_int32); if (unlikely(!__pyx_t_12)) __PYX_ERR(0, 162, __pyx_L1_error)
+  __pyx_t_12 = __Pyx_PyObject_GetAttrStr(__pyx_t_11, __pyx_n_s_int32); if (unlikely(!__pyx_t_12)) __PYX_ERR(0, 168, __pyx_L1_error)
   __Pyx_GOTREF(__pyx_t_12);
   __Pyx_DECREF(__pyx_t_11); __pyx_t_11 = 0;
-  if (PyDict_SetItem(__pyx_t_15, __pyx_n_s_dtype, __pyx_t_12) < 0) __PYX_ERR(0, 162, __pyx_L1_error)
+  if (PyDict_SetItem(__pyx_t_15, __pyx_n_s_dtype, __pyx_t_12) < 0) __PYX_ERR(0, 168, __pyx_L1_error)
   __Pyx_DECREF(__pyx_t_12); __pyx_t_12 = 0;
-  __pyx_t_12 = __Pyx_PyObject_Call(__pyx_t_13, __pyx_tuple__12, __pyx_t_15); if (unlikely(!__pyx_t_12)) __PYX_ERR(0, 162, __pyx_L1_error)
+  __pyx_t_12 = __Pyx_PyObject_Call(__pyx_t_13, __pyx_tuple__12, __pyx_t_15); if (unlikely(!__pyx_t_12)) __PYX_ERR(0, 168, __pyx_L1_error)
   __Pyx_GOTREF(__pyx_t_12);
   __Pyx_DECREF(__pyx_t_13); __pyx_t_13 = 0;
   __Pyx_DECREF(__pyx_t_15); __pyx_t_15 = 0;
   __pyx_v_stats = __pyx_t_12;
   __pyx_t_12 = 0;
 
-  /* "pyrender.pyx":163
+  /* "pyrender.pyx":169
  * 
  *   stats = np.empty((3), dtype=np.int32)
  *   cdef int[::1] stats_view = stats             # <<<<<<<<<<<<<<
  *   cdef int * stats_buffer = &(stats_view[0])
  * 
  */
-  __pyx_t_19 = __Pyx_PyObject_to_MemoryviewSlice_dc_int(__pyx_v_stats, PyBUF_WRITABLE); if (unlikely(!__pyx_t_19.memview)) __PYX_ERR(0, 163, __pyx_L1_error)
+  __pyx_t_19 = __Pyx_PyObject_to_MemoryviewSlice_dc_int(__pyx_v_stats, PyBUF_WRITABLE); if (unlikely(!__pyx_t_19.memview)) __PYX_ERR(0, 169, __pyx_L1_error)
   __pyx_v_stats_view = __pyx_t_19;
   __pyx_t_19.memview = NULL;
   __pyx_t_19.data = NULL;
 
-  /* "pyrender.pyx":164
+  /* "pyrender.pyx":170
  *   stats = np.empty((3), dtype=np.int32)
  *   cdef int[::1] stats_view = stats
  *   cdef int * stats_buffer = &(stats_view[0])             # <<<<<<<<<<<<<<
  * 
- *   # select
+ *   face_normal = np.empty((fM, 3), dtype=np.float32)
  */
   __pyx_t_20 = 0;
   __pyx_t_2 = -1;
@@ -5424,69 +5436,152 @@ static PyObject *__pyx_pf_8pyrender_4select_vertex_from_buffer(CYTHON_UNUSED PyO
   } else if (unlikely(__pyx_t_20 >= __pyx_v_stats_view.shape[0])) __pyx_t_2 = 0;
   if (unlikely(__pyx_t_2 != -1)) {
     __Pyx_RaiseBufferIndexError(__pyx_t_2);
-    __PYX_ERR(0, 164, __pyx_L1_error)
+    __PYX_ERR(0, 170, __pyx_L1_error)
   }
   __pyx_v_stats_buffer = (&(*((int *) ( /* dim=0 */ ((char *) (((int *) __pyx_v_stats_view.data) + __pyx_t_20)) ))));
 
-  /* "pyrender.pyx":167
+  /* "pyrender.pyx":172
+ *   cdef int * stats_buffer = &(stats_view[0])
+ * 
+ *   face_normal = np.empty((fM, 3), dtype=np.float32)             # <<<<<<<<<<<<<<
+ *   cdef float[:,::1] face_normal_view = face_normal
+ *   cdef float * face_normal_buffer = &(face_normal_view[0,0])
+ */
+  __Pyx_GetModuleGlobalName(__pyx_t_12, __pyx_n_s_np); if (unlikely(!__pyx_t_12)) __PYX_ERR(0, 172, __pyx_L1_error)
+  __Pyx_GOTREF(__pyx_t_12);
+  __pyx_t_15 = __Pyx_PyObject_GetAttrStr(__pyx_t_12, __pyx_n_s_empty); if (unlikely(!__pyx_t_15)) __PYX_ERR(0, 172, __pyx_L1_error)
+  __Pyx_GOTREF(__pyx_t_15);
+  __Pyx_DECREF(__pyx_t_12); __pyx_t_12 = 0;
+  __pyx_t_12 = __Pyx_PyInt_From_int(__pyx_v_fM); if (unlikely(!__pyx_t_12)) __PYX_ERR(0, 172, __pyx_L1_error)
+  __Pyx_GOTREF(__pyx_t_12);
+  __pyx_t_13 = PyTuple_New(2); if (unlikely(!__pyx_t_13)) __PYX_ERR(0, 172, __pyx_L1_error)
+  __Pyx_GOTREF(__pyx_t_13);
+  __Pyx_GIVEREF(__pyx_t_12);
+  PyTuple_SET_ITEM(__pyx_t_13, 0, __pyx_t_12);
+  __Pyx_INCREF(__pyx_int_3);
+  __Pyx_GIVEREF(__pyx_int_3);
+  PyTuple_SET_ITEM(__pyx_t_13, 1, __pyx_int_3);
+  __pyx_t_12 = 0;
+  __pyx_t_12 = PyTuple_New(1); if (unlikely(!__pyx_t_12)) __PYX_ERR(0, 172, __pyx_L1_error)
+  __Pyx_GOTREF(__pyx_t_12);
+  __Pyx_GIVEREF(__pyx_t_13);
+  PyTuple_SET_ITEM(__pyx_t_12, 0, __pyx_t_13);
+  __pyx_t_13 = 0;
+  __pyx_t_13 = __Pyx_PyDict_NewPresized(1); if (unlikely(!__pyx_t_13)) __PYX_ERR(0, 172, __pyx_L1_error)
+  __Pyx_GOTREF(__pyx_t_13);
+  __Pyx_GetModuleGlobalName(__pyx_t_11, __pyx_n_s_np); if (unlikely(!__pyx_t_11)) __PYX_ERR(0, 172, __pyx_L1_error)
+  __Pyx_GOTREF(__pyx_t_11);
+  __pyx_t_14 = __Pyx_PyObject_GetAttrStr(__pyx_t_11, __pyx_n_s_float32); if (unlikely(!__pyx_t_14)) __PYX_ERR(0, 172, __pyx_L1_error)
+  __Pyx_GOTREF(__pyx_t_14);
+  __Pyx_DECREF(__pyx_t_11); __pyx_t_11 = 0;
+  if (PyDict_SetItem(__pyx_t_13, __pyx_n_s_dtype, __pyx_t_14) < 0) __PYX_ERR(0, 172, __pyx_L1_error)
+  __Pyx_DECREF(__pyx_t_14); __pyx_t_14 = 0;
+  __pyx_t_14 = __Pyx_PyObject_Call(__pyx_t_15, __pyx_t_12, __pyx_t_13); if (unlikely(!__pyx_t_14)) __PYX_ERR(0, 172, __pyx_L1_error)
+  __Pyx_GOTREF(__pyx_t_14);
+  __Pyx_DECREF(__pyx_t_15); __pyx_t_15 = 0;
+  __Pyx_DECREF(__pyx_t_12); __pyx_t_12 = 0;
+  __Pyx_DECREF(__pyx_t_13); __pyx_t_13 = 0;
+  __pyx_v_face_normal = __pyx_t_14;
+  __pyx_t_14 = 0;
+
+  /* "pyrender.pyx":173
+ * 
+ *   face_normal = np.empty((fM, 3), dtype=np.float32)
+ *   cdef float[:,::1] face_normal_view = face_normal             # <<<<<<<<<<<<<<
+ *   cdef float * face_normal_buffer = &(face_normal_view[0,0])
+ * 
+ */
+  __pyx_t_16 = __Pyx_PyObject_to_MemoryviewSlice_d_dc_float(__pyx_v_face_normal, PyBUF_WRITABLE); if (unlikely(!__pyx_t_16.memview)) __PYX_ERR(0, 173, __pyx_L1_error)
+  __pyx_v_face_normal_view = __pyx_t_16;
+  __pyx_t_16.memview = NULL;
+  __pyx_t_16.data = NULL;
+
+  /* "pyrender.pyx":174
+ *   face_normal = np.empty((fM, 3), dtype=np.float32)
+ *   cdef float[:,::1] face_normal_view = face_normal
+ *   cdef float * face_normal_buffer = &(face_normal_view[0,0])             # <<<<<<<<<<<<<<
+ * 
+ *   # select
+ */
+  __pyx_t_21 = 0;
+  __pyx_t_22 = 0;
+  __pyx_t_2 = -1;
+  if (__pyx_t_21 < 0) {
+    __pyx_t_21 += __pyx_v_face_normal_view.shape[0];
+    if (unlikely(__pyx_t_21 < 0)) __pyx_t_2 = 0;
+  } else if (unlikely(__pyx_t_21 >= __pyx_v_face_normal_view.shape[0])) __pyx_t_2 = 0;
+  if (__pyx_t_22 < 0) {
+    __pyx_t_22 += __pyx_v_face_normal_view.shape[1];
+    if (unlikely(__pyx_t_22 < 0)) __pyx_t_2 = 1;
+  } else if (unlikely(__pyx_t_22 >= __pyx_v_face_normal_view.shape[1])) __pyx_t_2 = 1;
+  if (unlikely(__pyx_t_2 != -1)) {
+    __Pyx_RaiseBufferIndexError(__pyx_t_2);
+    __PYX_ERR(0, 174, __pyx_L1_error)
+  }
+  __pyx_v_face_normal_buffer = (&(*((float *) ( /* dim=1 */ ((char *) (((float *) ( /* dim=0 */ (__pyx_v_face_normal_view.data + __pyx_t_21 * __pyx_v_face_normal_view.strides[0]) )) + __pyx_t_22)) ))));
+
+  /* "pyrender.pyx":177
  * 
  *   # select
  *   select_vertex( \             # <<<<<<<<<<<<<<
  *     vertexBuffer, normalBuffer, \
  *     imgSizeV, \
  */
-  select_vertex(__pyx_v_vertexBuffer, __pyx_v_normalBuffer, __pyx_v_imgSizeV, __pyx_v_fM, __pyx_v_T, __pyx_v_point_cloud_buffer, __pyx_v_pointcloud_size_pt, __pyx_v_stats_buffer);
+  select_vertex(__pyx_v_vertexBuffer, __pyx_v_normalBuffer, __pyx_v_imgSizeV, __pyx_v_fM, __pyx_v_T, __pyx_v_point_cloud_buffer, __pyx_v_pointcloud_size_pt, __pyx_v_face_normal_buffer, __pyx_v_stats_buffer);
 
-  /* "pyrender.pyx":175
+  /* "pyrender.pyx":186
  * 
  *   # slice
  *   pointcloud = pointcloud[:pointcloud_size, :]             # <<<<<<<<<<<<<<
  * 
- *   return pointcloud, stats
+ *   return pointcloud, face_normal, stats
  */
-  __pyx_t_12 = __Pyx_PyInt_From_int(__pyx_v_pointcloud_size); if (unlikely(!__pyx_t_12)) __PYX_ERR(0, 175, __pyx_L1_error)
-  __Pyx_GOTREF(__pyx_t_12);
-  __pyx_t_15 = PySlice_New(Py_None, __pyx_t_12, Py_None); if (unlikely(!__pyx_t_15)) __PYX_ERR(0, 175, __pyx_L1_error)
-  __Pyx_GOTREF(__pyx_t_15);
-  __Pyx_DECREF(__pyx_t_12); __pyx_t_12 = 0;
-  __pyx_t_12 = PyTuple_New(2); if (unlikely(!__pyx_t_12)) __PYX_ERR(0, 175, __pyx_L1_error)
-  __Pyx_GOTREF(__pyx_t_12);
-  __Pyx_GIVEREF(__pyx_t_15);
-  PyTuple_SET_ITEM(__pyx_t_12, 0, __pyx_t_15);
+  __pyx_t_14 = __Pyx_PyInt_From_int(__pyx_v_pointcloud_size); if (unlikely(!__pyx_t_14)) __PYX_ERR(0, 186, __pyx_L1_error)
+  __Pyx_GOTREF(__pyx_t_14);
+  __pyx_t_13 = PySlice_New(Py_None, __pyx_t_14, Py_None); if (unlikely(!__pyx_t_13)) __PYX_ERR(0, 186, __pyx_L1_error)
+  __Pyx_GOTREF(__pyx_t_13);
+  __Pyx_DECREF(__pyx_t_14); __pyx_t_14 = 0;
+  __pyx_t_14 = PyTuple_New(2); if (unlikely(!__pyx_t_14)) __PYX_ERR(0, 186, __pyx_L1_error)
+  __Pyx_GOTREF(__pyx_t_14);
+  __Pyx_GIVEREF(__pyx_t_13);
+  PyTuple_SET_ITEM(__pyx_t_14, 0, __pyx_t_13);
   __Pyx_INCREF(__pyx_slice__13);
   __Pyx_GIVEREF(__pyx_slice__13);
-  PyTuple_SET_ITEM(__pyx_t_12, 1, __pyx_slice__13);
-  __pyx_t_15 = 0;
-  __pyx_t_15 = __Pyx_PyObject_GetItem(__pyx_v_pointcloud, __pyx_t_12); if (unlikely(!__pyx_t_15)) __PYX_ERR(0, 175, __pyx_L1_error)
-  __Pyx_GOTREF(__pyx_t_15);
-  __Pyx_DECREF(__pyx_t_12); __pyx_t_12 = 0;
-  __Pyx_DECREF_SET(__pyx_v_pointcloud, __pyx_t_15);
-  __pyx_t_15 = 0;
+  PyTuple_SET_ITEM(__pyx_t_14, 1, __pyx_slice__13);
+  __pyx_t_13 = 0;
+  __pyx_t_13 = __Pyx_PyObject_GetItem(__pyx_v_pointcloud, __pyx_t_14); if (unlikely(!__pyx_t_13)) __PYX_ERR(0, 186, __pyx_L1_error)
+  __Pyx_GOTREF(__pyx_t_13);
+  __Pyx_DECREF(__pyx_t_14); __pyx_t_14 = 0;
+  __Pyx_DECREF_SET(__pyx_v_pointcloud, __pyx_t_13);
+  __pyx_t_13 = 0;
 
-  /* "pyrender.pyx":177
+  /* "pyrender.pyx":188
  *   pointcloud = pointcloud[:pointcloud_size, :]
  * 
- *   return pointcloud, stats             # <<<<<<<<<<<<<<
+ *   return pointcloud, face_normal, stats             # <<<<<<<<<<<<<<
  */
   __Pyx_XDECREF(__pyx_r);
-  __pyx_t_15 = PyTuple_New(2); if (unlikely(!__pyx_t_15)) __PYX_ERR(0, 177, __pyx_L1_error)
-  __Pyx_GOTREF(__pyx_t_15);
+  __pyx_t_13 = PyTuple_New(3); if (unlikely(!__pyx_t_13)) __PYX_ERR(0, 188, __pyx_L1_error)
+  __Pyx_GOTREF(__pyx_t_13);
   __Pyx_INCREF(__pyx_v_pointcloud);
   __Pyx_GIVEREF(__pyx_v_pointcloud);
-  PyTuple_SET_ITEM(__pyx_t_15, 0, __pyx_v_pointcloud);
+  PyTuple_SET_ITEM(__pyx_t_13, 0, __pyx_v_pointcloud);
+  __Pyx_INCREF(__pyx_v_face_normal);
+  __Pyx_GIVEREF(__pyx_v_face_normal);
+  PyTuple_SET_ITEM(__pyx_t_13, 1, __pyx_v_face_normal);
   __Pyx_INCREF(__pyx_v_stats);
   __Pyx_GIVEREF(__pyx_v_stats);
-  PyTuple_SET_ITEM(__pyx_t_15, 1, __pyx_v_stats);
-  __pyx_r = __pyx_t_15;
-  __pyx_t_15 = 0;
+  PyTuple_SET_ITEM(__pyx_t_13, 2, __pyx_v_stats);
+  __pyx_r = __pyx_t_13;
+  __pyx_t_13 = 0;
   goto __pyx_L0;
 
-  /* "pyrender.pyx":149
+  /* "pyrender.pyx":150
  *   return depth, mask, img, normal, vertex, view_mat
  * 
  * def select_vertex_from_buffer(float[:,:,:,::1] normal, float[:,:,:,::1] vertex, int fM, int[::1] img_size, int max_pointcloud_size = 500000):             # <<<<<<<<<<<<<<
- *   cdef int pointcloud_size = max_pointcloud_size
- *   cdef int * pointcloud_size_pt = &pointcloud_size
+ *   '''
+ *     stats[0] = double_sided_face_count;
  */
 
   /* function exit code */
@@ -5505,6 +5600,8 @@ static PyObject *__pyx_pf_8pyrender_4select_vertex_from_buffer(CYTHON_UNUSED PyO
   __PYX_XDEC_MEMVIEW(&__pyx_v_pointcloud_view, 1);
   __Pyx_XDECREF(__pyx_v_stats);
   __PYX_XDEC_MEMVIEW(&__pyx_v_stats_view, 1);
+  __Pyx_XDECREF(__pyx_v_face_normal);
+  __PYX_XDEC_MEMVIEW(&__pyx_v_face_normal_view, 1);
   __PYX_XDEC_MEMVIEW(&__pyx_v_normal, 1);
   __PYX_XDEC_MEMVIEW(&__pyx_v_vertex, 1);
   __PYX_XDEC_MEMVIEW(&__pyx_v_img_size, 1);
@@ -21484,6 +21581,9 @@ static __Pyx_StringTabEntry __pyx_string_tab[] = {
   {&__pyx_n_s_error, __pyx_k_error, sizeof(__pyx_k_error), 0, 0, 1, 1},
   {&__pyx_n_s_fM, __pyx_k_fM, sizeof(__pyx_k_fM), 0, 0, 1, 1},
   {&__pyx_n_s_fNum, __pyx_k_fNum, sizeof(__pyx_k_fNum), 0, 0, 1, 1},
+  {&__pyx_n_s_face_normal, __pyx_k_face_normal, sizeof(__pyx_k_face_normal), 0, 0, 1, 1},
+  {&__pyx_n_s_face_normal_buffer, __pyx_k_face_normal_buffer, sizeof(__pyx_k_face_normal_buffer), 0, 0, 1, 1},
+  {&__pyx_n_s_face_normal_view, __pyx_k_face_normal_view, sizeof(__pyx_k_face_normal_view), 0, 0, 1, 1},
   {&__pyx_n_s_faces, __pyx_k_faces, sizeof(__pyx_k_faces), 0, 0, 1, 1},
   {&__pyx_kp_s_faces_must_be_a_3xM_double_array, __pyx_k_faces_must_be_a_3xM_double_array, sizeof(__pyx_k_faces_must_be_a_3xM_double_array), 0, 0, 1, 0},
   {&__pyx_n_s_flags, __pyx_k_flags, sizeof(__pyx_k_flags), 0, 0, 1, 1},
@@ -21675,91 +21775,91 @@ static CYTHON_SMALL_CODE int __Pyx_InitCachedConstants(void) {
   __Pyx_GOTREF(__pyx_tuple__5);
   __Pyx_GIVEREF(__pyx_tuple__5);
 
-  /* "pyrender.pyx":77
+  /* "pyrender.pyx":78
  *   # input infos
  *   if vertex_array.shape[1] != 3:
  *     raise Exception('vertices must be a [N, 3] float array')             # <<<<<<<<<<<<<<
  *   if normal_array.shape[1] != 3:
  *     raise Exception('normals must be a [N, 3] float array')
  */
-  __pyx_tuple__6 = PyTuple_Pack(1, __pyx_kp_s_vertices_must_be_a_N_3_float_arr); if (unlikely(!__pyx_tuple__6)) __PYX_ERR(0, 77, __pyx_L1_error)
+  __pyx_tuple__6 = PyTuple_Pack(1, __pyx_kp_s_vertices_must_be_a_N_3_float_arr); if (unlikely(!__pyx_tuple__6)) __PYX_ERR(0, 78, __pyx_L1_error)
   __Pyx_GOTREF(__pyx_tuple__6);
   __Pyx_GIVEREF(__pyx_tuple__6);
 
-  /* "pyrender.pyx":79
+  /* "pyrender.pyx":80
  *     raise Exception('vertices must be a [N, 3] float array')
  *   if normal_array.shape[1] != 3:
  *     raise Exception('normals must be a [N, 3] float array')             # <<<<<<<<<<<<<<
  * 
  *   cdef int vertex_num = vertex_array.shape[0]
  */
-  __pyx_tuple__7 = PyTuple_Pack(1, __pyx_kp_s_normals_must_be_a_N_3_float_arra); if (unlikely(!__pyx_tuple__7)) __PYX_ERR(0, 79, __pyx_L1_error)
+  __pyx_tuple__7 = PyTuple_Pack(1, __pyx_kp_s_normals_must_be_a_N_3_float_arra); if (unlikely(!__pyx_tuple__7)) __PYX_ERR(0, 80, __pyx_L1_error)
   __Pyx_GOTREF(__pyx_tuple__7);
   __Pyx_GIVEREF(__pyx_tuple__7);
 
-  /* "pyrender.pyx":100
+  /* "pyrender.pyx":101
  * 
  *   if cam_position.shape[1] != 3:
  *     raise Exception('cam_postion must be a [T, 3] float vector')             # <<<<<<<<<<<<<<
  * 
  *   cdef int T = cam_position.shape[0]
  */
-  __pyx_tuple__8 = PyTuple_Pack(1, __pyx_kp_s_cam_postion_must_be_a_T_3_float); if (unlikely(!__pyx_tuple__8)) __PYX_ERR(0, 100, __pyx_L1_error)
+  __pyx_tuple__8 = PyTuple_Pack(1, __pyx_kp_s_cam_postion_must_be_a_T_3_float); if (unlikely(!__pyx_tuple__8)) __PYX_ERR(0, 101, __pyx_L1_error)
   __Pyx_GOTREF(__pyx_tuple__8);
   __Pyx_GIVEREF(__pyx_tuple__8);
 
-  /* "pyrender.pyx":106
+  /* "pyrender.pyx":107
  * 
  *   if cam_intr.shape[0] != 4:
  *     raise Exception('cam_intr must be a [4] float vector')             # <<<<<<<<<<<<<<
  *   if img_size.shape[0] != 2:
  *     raise Exception('img_size must be a [2] int vector')
  */
-  __pyx_tuple__9 = PyTuple_Pack(1, __pyx_kp_s_cam_intr_must_be_a_4_float_vecto); if (unlikely(!__pyx_tuple__9)) __PYX_ERR(0, 106, __pyx_L1_error)
+  __pyx_tuple__9 = PyTuple_Pack(1, __pyx_kp_s_cam_intr_must_be_a_4_float_vecto); if (unlikely(!__pyx_tuple__9)) __PYX_ERR(0, 107, __pyx_L1_error)
   __Pyx_GOTREF(__pyx_tuple__9);
   __Pyx_GIVEREF(__pyx_tuple__9);
 
-  /* "pyrender.pyx":108
+  /* "pyrender.pyx":109
  *     raise Exception('cam_intr must be a [4] float vector')
  *   if img_size.shape[0] != 2:
  *     raise Exception('img_size must be a [2] int vector')             # <<<<<<<<<<<<<<
  *   if znf.shape[0] != 2:
  *     raise Exception('znf must be a [2] float vector')
  */
-  __pyx_tuple__10 = PyTuple_Pack(1, __pyx_kp_s_img_size_must_be_a_2_int_vector); if (unlikely(!__pyx_tuple__10)) __PYX_ERR(0, 108, __pyx_L1_error)
+  __pyx_tuple__10 = PyTuple_Pack(1, __pyx_kp_s_img_size_must_be_a_2_int_vector); if (unlikely(!__pyx_tuple__10)) __PYX_ERR(0, 109, __pyx_L1_error)
   __Pyx_GOTREF(__pyx_tuple__10);
   __Pyx_GIVEREF(__pyx_tuple__10);
 
-  /* "pyrender.pyx":110
+  /* "pyrender.pyx":111
  *     raise Exception('img_size must be a [2] int vector')
  *   if znf.shape[0] != 2:
  *     raise Exception('znf must be a [2] float vector')             # <<<<<<<<<<<<<<
  * 
  *   cdef float* intrinsics = &(cam_intr[0])
  */
-  __pyx_tuple__11 = PyTuple_Pack(1, __pyx_kp_s_znf_must_be_a_2_float_vector); if (unlikely(!__pyx_tuple__11)) __PYX_ERR(0, 110, __pyx_L1_error)
+  __pyx_tuple__11 = PyTuple_Pack(1, __pyx_kp_s_znf_must_be_a_2_float_vector); if (unlikely(!__pyx_tuple__11)) __PYX_ERR(0, 111, __pyx_L1_error)
   __Pyx_GOTREF(__pyx_tuple__11);
   __Pyx_GIVEREF(__pyx_tuple__11);
 
-  /* "pyrender.pyx":162
+  /* "pyrender.pyx":168
  *   cdef float * point_cloud_buffer = &(pointcloud_view[0,0])
  * 
  *   stats = np.empty((3), dtype=np.int32)             # <<<<<<<<<<<<<<
  *   cdef int[::1] stats_view = stats
  *   cdef int * stats_buffer = &(stats_view[0])
  */
-  __pyx_tuple__12 = PyTuple_Pack(1, __pyx_int_3); if (unlikely(!__pyx_tuple__12)) __PYX_ERR(0, 162, __pyx_L1_error)
+  __pyx_tuple__12 = PyTuple_Pack(1, __pyx_int_3); if (unlikely(!__pyx_tuple__12)) __PYX_ERR(0, 168, __pyx_L1_error)
   __Pyx_GOTREF(__pyx_tuple__12);
   __Pyx_GIVEREF(__pyx_tuple__12);
 
-  /* "pyrender.pyx":175
+  /* "pyrender.pyx":186
  * 
  *   # slice
  *   pointcloud = pointcloud[:pointcloud_size, :]             # <<<<<<<<<<<<<<
  * 
- *   return pointcloud, stats
+ *   return pointcloud, face_normal, stats
  */
-  __pyx_slice__13 = PySlice_New(Py_None, Py_None, Py_None); if (unlikely(!__pyx_slice__13)) __PYX_ERR(0, 175, __pyx_L1_error)
+  __pyx_slice__13 = PySlice_New(Py_None, Py_None, Py_None); if (unlikely(!__pyx_slice__13)) __PYX_ERR(0, 186, __pyx_L1_error)
   __Pyx_GOTREF(__pyx_slice__13);
   __Pyx_GIVEREF(__pyx_slice__13);
 
@@ -22033,29 +22133,29 @@ static CYTHON_SMALL_CODE int __Pyx_InitCachedConstants(void) {
   __Pyx_GIVEREF(__pyx_tuple__38);
   __pyx_codeobj__39 = (PyObject*)__Pyx_PyCode_New(5, 0, 23, 0, CO_OPTIMIZED|CO_NEWLOCALS, __pyx_empty_bytes, __pyx_empty_tuple, __pyx_empty_tuple, __pyx_tuple__38, __pyx_empty_tuple, __pyx_empty_tuple, __pyx_kp_s_pyrender_pyx, __pyx_n_s_render, 18, __pyx_empty_bytes); if (unlikely(!__pyx_codeobj__39)) __PYX_ERR(0, 18, __pyx_L1_error)
 
-  /* "pyrender.pyx":73
+  /* "pyrender.pyx":74
  *   );
  * 
  * def render_new(float[:,::1] vertex_array, float[:,::1] color_array, float[:,::1] normal_array, \             # <<<<<<<<<<<<<<
  *   float[:, ::1] cam_position, float[::1] cam_intr, float[::1] znf, int[::1] img_size):
  *   # input infos
  */
-  __pyx_tuple__40 = PyTuple_Pack(36, __pyx_n_s_vertex_array, __pyx_n_s_color_array, __pyx_n_s_normal_array, __pyx_n_s_cam_position, __pyx_n_s_cam_intr, __pyx_n_s_znf, __pyx_n_s_img_size, __pyx_n_s_vertex_num, __pyx_n_s_fM, __pyx_n_s_vertex_arr, __pyx_n_s_normal_arr, __pyx_n_s_use_color, __pyx_n_s_color_arr, __pyx_n_s_T, __pyx_n_s_cam_pos, __pyx_n_s_intrinsics, __pyx_n_s_zNearFarV, __pyx_n_s_imgSizeV, __pyx_n_s_depth, __pyx_n_s_mask, __pyx_n_s_img, __pyx_n_s_normal, __pyx_n_s_vertex, __pyx_n_s_view_mat, __pyx_n_s_depth_view, __pyx_n_s_mask_view, __pyx_n_s_img_view, __pyx_n_s_normal_view, __pyx_n_s_vertex_view, __pyx_n_s_view_mat_view, __pyx_n_s_depthBuffer, __pyx_n_s_maskBuffer, __pyx_n_s_imageBuffer, __pyx_n_s_normalBuffer, __pyx_n_s_vertexBuffer, __pyx_n_s_viewMatBuffer); if (unlikely(!__pyx_tuple__40)) __PYX_ERR(0, 73, __pyx_L1_error)
+  __pyx_tuple__40 = PyTuple_Pack(36, __pyx_n_s_vertex_array, __pyx_n_s_color_array, __pyx_n_s_normal_array, __pyx_n_s_cam_position, __pyx_n_s_cam_intr, __pyx_n_s_znf, __pyx_n_s_img_size, __pyx_n_s_vertex_num, __pyx_n_s_fM, __pyx_n_s_vertex_arr, __pyx_n_s_normal_arr, __pyx_n_s_use_color, __pyx_n_s_color_arr, __pyx_n_s_T, __pyx_n_s_cam_pos, __pyx_n_s_intrinsics, __pyx_n_s_zNearFarV, __pyx_n_s_imgSizeV, __pyx_n_s_depth, __pyx_n_s_mask, __pyx_n_s_img, __pyx_n_s_normal, __pyx_n_s_vertex, __pyx_n_s_view_mat, __pyx_n_s_depth_view, __pyx_n_s_mask_view, __pyx_n_s_img_view, __pyx_n_s_normal_view, __pyx_n_s_vertex_view, __pyx_n_s_view_mat_view, __pyx_n_s_depthBuffer, __pyx_n_s_maskBuffer, __pyx_n_s_imageBuffer, __pyx_n_s_normalBuffer, __pyx_n_s_vertexBuffer, __pyx_n_s_viewMatBuffer); if (unlikely(!__pyx_tuple__40)) __PYX_ERR(0, 74, __pyx_L1_error)
   __Pyx_GOTREF(__pyx_tuple__40);
   __Pyx_GIVEREF(__pyx_tuple__40);
-  __pyx_codeobj__41 = (PyObject*)__Pyx_PyCode_New(7, 0, 36, 0, CO_OPTIMIZED|CO_NEWLOCALS, __pyx_empty_bytes, __pyx_empty_tuple, __pyx_empty_tuple, __pyx_tuple__40, __pyx_empty_tuple, __pyx_empty_tuple, __pyx_kp_s_pyrender_pyx, __pyx_n_s_render_new, 73, __pyx_empty_bytes); if (unlikely(!__pyx_codeobj__41)) __PYX_ERR(0, 73, __pyx_L1_error)
+  __pyx_codeobj__41 = (PyObject*)__Pyx_PyCode_New(7, 0, 36, 0, CO_OPTIMIZED|CO_NEWLOCALS, __pyx_empty_bytes, __pyx_empty_tuple, __pyx_empty_tuple, __pyx_tuple__40, __pyx_empty_tuple, __pyx_empty_tuple, __pyx_kp_s_pyrender_pyx, __pyx_n_s_render_new, 74, __pyx_empty_bytes); if (unlikely(!__pyx_codeobj__41)) __PYX_ERR(0, 74, __pyx_L1_error)
 
-  /* "pyrender.pyx":149
+  /* "pyrender.pyx":150
  *   return depth, mask, img, normal, vertex, view_mat
  * 
  * def select_vertex_from_buffer(float[:,:,:,::1] normal, float[:,:,:,::1] vertex, int fM, int[::1] img_size, int max_pointcloud_size = 500000):             # <<<<<<<<<<<<<<
- *   cdef int pointcloud_size = max_pointcloud_size
- *   cdef int * pointcloud_size_pt = &pointcloud_size
+ *   '''
+ *     stats[0] = double_sided_face_count;
  */
-  __pyx_tuple__42 = PyTuple_Pack(17, __pyx_n_s_normal, __pyx_n_s_vertex, __pyx_n_s_fM, __pyx_n_s_img_size, __pyx_n_s_max_pointcloud_size, __pyx_n_s_pointcloud_size, __pyx_n_s_pointcloud_size_pt, __pyx_n_s_T, __pyx_n_s_imgSizeV, __pyx_n_s_vertexBuffer, __pyx_n_s_normalBuffer, __pyx_n_s_pointcloud, __pyx_n_s_pointcloud_view, __pyx_n_s_point_cloud_buffer, __pyx_n_s_stats, __pyx_n_s_stats_view, __pyx_n_s_stats_buffer); if (unlikely(!__pyx_tuple__42)) __PYX_ERR(0, 149, __pyx_L1_error)
+  __pyx_tuple__42 = PyTuple_Pack(20, __pyx_n_s_normal, __pyx_n_s_vertex, __pyx_n_s_fM, __pyx_n_s_img_size, __pyx_n_s_max_pointcloud_size, __pyx_n_s_pointcloud_size, __pyx_n_s_pointcloud_size_pt, __pyx_n_s_T, __pyx_n_s_imgSizeV, __pyx_n_s_vertexBuffer, __pyx_n_s_normalBuffer, __pyx_n_s_pointcloud, __pyx_n_s_pointcloud_view, __pyx_n_s_point_cloud_buffer, __pyx_n_s_stats, __pyx_n_s_stats_view, __pyx_n_s_stats_buffer, __pyx_n_s_face_normal, __pyx_n_s_face_normal_view, __pyx_n_s_face_normal_buffer); if (unlikely(!__pyx_tuple__42)) __PYX_ERR(0, 150, __pyx_L1_error)
   __Pyx_GOTREF(__pyx_tuple__42);
   __Pyx_GIVEREF(__pyx_tuple__42);
-  __pyx_codeobj__43 = (PyObject*)__Pyx_PyCode_New(5, 0, 17, 0, CO_OPTIMIZED|CO_NEWLOCALS, __pyx_empty_bytes, __pyx_empty_tuple, __pyx_empty_tuple, __pyx_tuple__42, __pyx_empty_tuple, __pyx_empty_tuple, __pyx_kp_s_pyrender_pyx, __pyx_n_s_select_vertex_from_buffer, 149, __pyx_empty_bytes); if (unlikely(!__pyx_codeobj__43)) __PYX_ERR(0, 149, __pyx_L1_error)
+  __pyx_codeobj__43 = (PyObject*)__Pyx_PyCode_New(5, 0, 20, 0, CO_OPTIMIZED|CO_NEWLOCALS, __pyx_empty_bytes, __pyx_empty_tuple, __pyx_empty_tuple, __pyx_tuple__42, __pyx_empty_tuple, __pyx_empty_tuple, __pyx_kp_s_pyrender_pyx, __pyx_n_s_select_vertex_from_buffer, 150, __pyx_empty_bytes); if (unlikely(!__pyx_codeobj__43)) __PYX_ERR(0, 150, __pyx_L1_error)
 
   /* "View.MemoryView":286
  *         return self.name
@@ -22538,28 +22638,28 @@ if (!__Pyx_RefNanny) {
   if (PyDict_SetItem(__pyx_d, __pyx_n_s_render, __pyx_t_1) < 0) __PYX_ERR(0, 18, __pyx_L1_error)
   __Pyx_DECREF(__pyx_t_1); __pyx_t_1 = 0;
 
-  /* "pyrender.pyx":73
+  /* "pyrender.pyx":74
  *   );
  * 
  * def render_new(float[:,::1] vertex_array, float[:,::1] color_array, float[:,::1] normal_array, \             # <<<<<<<<<<<<<<
  *   float[:, ::1] cam_position, float[::1] cam_intr, float[::1] znf, int[::1] img_size):
  *   # input infos
  */
-  __pyx_t_1 = PyCFunction_NewEx(&__pyx_mdef_8pyrender_3render_new, NULL, __pyx_n_s_pyrender); if (unlikely(!__pyx_t_1)) __PYX_ERR(0, 73, __pyx_L1_error)
+  __pyx_t_1 = PyCFunction_NewEx(&__pyx_mdef_8pyrender_3render_new, NULL, __pyx_n_s_pyrender); if (unlikely(!__pyx_t_1)) __PYX_ERR(0, 74, __pyx_L1_error)
   __Pyx_GOTREF(__pyx_t_1);
-  if (PyDict_SetItem(__pyx_d, __pyx_n_s_render_new, __pyx_t_1) < 0) __PYX_ERR(0, 73, __pyx_L1_error)
+  if (PyDict_SetItem(__pyx_d, __pyx_n_s_render_new, __pyx_t_1) < 0) __PYX_ERR(0, 74, __pyx_L1_error)
   __Pyx_DECREF(__pyx_t_1); __pyx_t_1 = 0;
 
-  /* "pyrender.pyx":149
+  /* "pyrender.pyx":150
  *   return depth, mask, img, normal, vertex, view_mat
  * 
  * def select_vertex_from_buffer(float[:,:,:,::1] normal, float[:,:,:,::1] vertex, int fM, int[::1] img_size, int max_pointcloud_size = 500000):             # <<<<<<<<<<<<<<
- *   cdef int pointcloud_size = max_pointcloud_size
- *   cdef int * pointcloud_size_pt = &pointcloud_size
+ *   '''
+ *     stats[0] = double_sided_face_count;
  */
-  __pyx_t_1 = PyCFunction_NewEx(&__pyx_mdef_8pyrender_5select_vertex_from_buffer, NULL, __pyx_n_s_pyrender); if (unlikely(!__pyx_t_1)) __PYX_ERR(0, 149, __pyx_L1_error)
+  __pyx_t_1 = PyCFunction_NewEx(&__pyx_mdef_8pyrender_5select_vertex_from_buffer, NULL, __pyx_n_s_pyrender); if (unlikely(!__pyx_t_1)) __PYX_ERR(0, 150, __pyx_L1_error)
   __Pyx_GOTREF(__pyx_t_1);
-  if (PyDict_SetItem(__pyx_d, __pyx_n_s_select_vertex_from_buffer, __pyx_t_1) < 0) __PYX_ERR(0, 149, __pyx_L1_error)
+  if (PyDict_SetItem(__pyx_d, __pyx_n_s_select_vertex_from_buffer, __pyx_t_1) < 0) __PYX_ERR(0, 150, __pyx_L1_error)
   __Pyx_DECREF(__pyx_t_1); __pyx_t_1 = 0;
 
   /* "pyrender.pyx":1

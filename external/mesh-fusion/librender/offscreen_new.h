@@ -19,8 +19,9 @@ public:
 private:
   static int glutWin;
   static bool glutInitialized;
-  GLuint FBO;
-  GLuint rbo;
+  static bool shaderInitialized;
+  static GLuint FBO;
+  static GLuint rbo;
   GLuint normal_tex;
   GLuint vertex_tex;
   GLuint render_tex;
@@ -29,7 +30,7 @@ private:
   // shaders related
   GLuint frag_shader;
   GLuint vert_shader;
-  GLuint shader_program;
+  static GLuint shader_program;
   // VAO
   GLuint VAO;
   GLuint VBO[4];
@@ -85,7 +86,8 @@ void select_vertex(
   int * imgSizeV,
   int fM, int T,
   // output
-  float *point_cloud, int *point_cloud_size, 
+  float *point_cloud, int *point_cloud_size,
+  float *face_normal_buffer, 
   int *stats
 );
 

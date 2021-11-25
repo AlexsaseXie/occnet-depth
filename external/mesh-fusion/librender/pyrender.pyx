@@ -67,6 +67,7 @@ cdef extern from "offscreen_new.h":
     int * imgSizeV, \
     int fM, int T, \
     float *point_cloud, int *point_cloud_size, \
+    float *face_normal_buffer, \
     int * stats \
   );
 
@@ -147,6 +148,11 @@ def render_new(float[:,::1] vertex_array, float[:,::1] color_array, float[:,::1]
   return depth, mask, img, normal, vertex, view_mat
 
 def select_vertex_from_buffer(float[:,:,:,::1] normal, float[:,:,:,::1] vertex, int fM, int[::1] img_size, int max_pointcloud_size = 500000):
+  '''
+    stats[0] = double_sided_face_count;
+    stats[1] = bad_face_count;
+    stats[2] = total_visible_face_count;
+  '''
   cdef int pointcloud_size = max_pointcloud_size
   cdef int * pointcloud_size_pt = &pointcloud_size
 
@@ -163,15 +169,20 @@ def select_vertex_from_buffer(float[:,:,:,::1] normal, float[:,:,:,::1] vertex, 
   cdef int[::1] stats_view = stats
   cdef int * stats_buffer = &(stats_view[0])
 
+  face_normal = np.empty((fM, 3), dtype=np.float32)
+  cdef float[:,::1] face_normal_view = face_normal
+  cdef float * face_normal_buffer = &(face_normal_view[0,0])
+
   # select
   select_vertex( \
     vertexBuffer, normalBuffer, \
     imgSizeV, \
     fM, T, \
     point_cloud_buffer, pointcloud_size_pt, \
+    face_normal_buffer, \
     stats_buffer);
   
   # slice
   pointcloud = pointcloud[:pointcloud_size, :]
 
-  return pointcloud, stats
+  return pointcloud, face_normal, stats
