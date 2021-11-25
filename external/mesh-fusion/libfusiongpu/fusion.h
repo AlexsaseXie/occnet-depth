@@ -44,6 +44,19 @@ public:
   Volume() : channels_(0), depth_(0), height_(0), width_(0), data_(0) {}
 };
 
+template <typename T> 
+FUSION_FUNCTION 
+inline T array_get(const T * data, int offset) {
+  return data[offset];
+}
+
+template <typename T>
+FUSION_FUNCTION 
+inline void array_set(const T * data, int offset, T v) {
+  data[offset] = v;
+}
+
+
 FUSION_FUNCTION
 inline int volume_idx(const Volume* vol, int c, int d, int h, int w) {
   return ((c * vol->depth_ + d) * vol->height_ + h) * vol->width_ + w;
@@ -409,5 +422,8 @@ void fusion_hist_zach_tvl1_gpu(const Volume& hist, bool hist_on_gpu, float trunc
 void fusion_zach_tvl1_gpu(const Views& views, float vx_size, float truncation, bool unknown_is_free, float* bin_centers, int n_bins, float lambda, int iterations, Volume& vol);
 
 void fusion_inside_gpu(const Views &views, int n_pts, Points & points);
+void fusion_view_tsdf_estimation(const Views &views, Points &query, float truncated_distance);
+void fusion_view_pc_tsdf_estimation(const Points& pointcloud, const Views& views, Points &query, float truncated_distance, int aggregate_type);
+void fusion_view_pc_tsdf_estimation_var(const Points& pointcloud, const Views& views, Points &query, float truncated_distance, int aggregate_type);
 
 #endif

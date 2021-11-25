@@ -158,7 +158,8 @@ class Scale:
             np.savez(outpath_t,
                      loc=centers, scale=scale,
                      bb0_min=bb_min, bb0_max=bb_max,
-                     bb1_min=bb1_min, bb1_max=bb1_max)
+                     bb1_min=bb1_min, bb1_max=bb1_max,
+                     padding=self.options.padding)
 
 if __name__ == '__main__':
     app = Scale()

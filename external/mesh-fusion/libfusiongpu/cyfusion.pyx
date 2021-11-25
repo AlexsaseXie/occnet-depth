@@ -48,6 +48,9 @@ cdef extern from "fusion.h":
   void fusion_hist_zach_tvl1_gpu(const Volume& hist, bool hist_on_gpu, float truncation, float lambda_param, int iterations, Volume& vol);
   void fusion_zach_tvl1_gpu(const Views& views, float vx_size, float truncation, bool unknown_is_free, float* bin_centers, int n_bins, float lambda_param, int iterations, Volume& vol);
   void fusion_inside_gpu(const Views &views, int n_pts, Points & points);
+  void fusion_view_tsdf_estimation(const Views &views, Points &query, float truncated_distance);
+  void fusion_view_pc_tsdf_estimation(const Points& pointcloud, const Views& views, Points &query, float truncated_distance, int aggregate_type);
+  void fusion_view_pc_tsdf_estimation_var(const Points& pointcloud, const Views& views, Points &query, float truncated_distance, int aggregate_type);
 
 
 cdef class PyViews:
@@ -191,3 +194,83 @@ def judge_inside(PyViews views, points):
   cdef PyPoints py_points = PyPoints(return_points_view)
   fusion_inside_gpu(views.views, n_pts, py_points.points)
   return return_points
+
+def judge_inside_with_threshold(PyViews views, points, outside_min_view):
+  cdef int n_pts = points.shape[0]
+  cdef int c_dim = points.shape[1]
+  return_points = np.zeros((n_pts, c_dim + 2), dtype=np.float32)
+  return_points[:,:c_dim] = points[:,:c_dim]
+
+  cdef float[:,::1] return_points_view = return_points
+  cdef PyPoints py_points = PyPoints(return_points_view)
+  fusion_inside_gpu(views.views, n_pts, py_points.points)
+
+  points_outside_view_count = return_points[:,c_dim]
+  occ = ~(points_outside_view_count > outside_min_view - 0.5)
+  return occ
+
+def view_tsdf_estimation(PyViews views, points, float truncation):
+  cdef int n_pts = points.shape[0]
+  cdef int c_dim = points.shape[1]
+
+  return_points = np.zeros((n_pts, c_dim + 1), dtype=np.float32)
+  return_points[:,:c_dim] = points[:,:c_dim]
+  cdef float[:,::1] return_points_view = return_points
+  cdef PyPoints py_points = PyPoints(return_points_view)
+
+  fusion_view_tsdf_estimation(views.views, py_points.points, truncation)
+
+  tsdf = return_points[:,c_dim - 1]
+  return tsdf
+
+def view_pc_tsdf_estimation(PyViews views, pointcloud, points, float truncation, aggregate):
+  cdef float[:,::1] pointcloud_view = pointcloud
+  cdef PyPoints py_pointcloud = PyPoints(pointcloud_view)
+
+  cdef int n_pts = points.shape[0]
+  cdef int c_dim = points.shape[1]
+
+  return_points = np.zeros((n_pts, c_dim + 1), dtype=np.float32)
+  return_points[:,:c_dim] = points[:,:c_dim]
+  cdef float[:,::1] return_points_view = return_points
+  cdef PyPoints py_points = PyPoints(return_points_view)
+
+  cdef int aggregate_type = 0
+
+  if aggregate == 'min':
+    aggregate_type = 0
+  elif aggregate == 'mean':
+    aggregate_type = 1
+  else:
+    raise NotImplementedError
+
+  fusion_view_pc_tsdf_estimation(py_pointcloud.points, views.views, py_points.points, truncation, aggregate_type)
+  tsdf = return_points[:,c_dim]
+
+  return tsdf
+
+def view_pc_tsdf_estimation_var(PyViews views, pointcloud, points, float truncation, aggregate):
+  cdef float[:,::1] pointcloud_view = pointcloud
+  cdef PyPoints py_pointcloud = PyPoints(pointcloud_view)
+
+  cdef int n_pts = points.shape[0]
+  cdef int c_dim = points.shape[1]
+
+  return_points = np.zeros((n_pts, c_dim + 1), dtype=np.float32)
+  return_points[:,:c_dim] = points[:,:c_dim]
+  cdef float[:,::1] return_points_view = return_points
+  cdef PyPoints py_points = PyPoints(return_points_view)
+
+  cdef int aggregate_type = 0
+
+  if aggregate == 'min':
+    aggregate_type = 0
+  elif aggregate == 'mean':
+    aggregate_type = 1
+  else:
+    raise NotImplementedError
+
+  fusion_view_pc_tsdf_estimation_var(py_pointcloud.points, views.views, py_points.points, truncation, aggregate_type)
+  tsdf = return_points[:,c_dim]
+
+  return tsdf

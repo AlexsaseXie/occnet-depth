@@ -302,3 +302,9 @@ template <typename FusionFunctorT>
 __global__ void kernel_fusion(int vx_res3, const Views views, const FusionFunctorT functor, float vx_size, Volume vol);
 
 __global__ void kernel_inside_fusion(int n_pts, const Views views, Points points);
+
+__global__ void kernel_tsdf_estimate(int n_pts, const Views views, Points points, float *sdf, float truncation);
+
+__global__ void kernel_pointcloud_sdf_fusion(const Points pointcloud, Points query, 
+  int* counts, float * sdf_records,
+  int batch, int batch_count_int, float truncated_distance, int aggregate_type);

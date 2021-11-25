@@ -9,6 +9,30 @@ import h5py
 import math
 import numpy as np
 
+def write_hdf5_dict(file, tensor_dict):
+    h5f = h5py.File(file, 'w')
+
+    for name in tensor_dict:
+        tensor = tensor_dict[name]
+        assert type(tensor) == np.ndarray, 'expects numpy.ndarray'
+
+        h5f.create_dataset(name, data=tensor, compression='gzip')
+
+    h5f.close()
+
+def read_hdf5_dict(file):
+    assert os.path.exists(file), 'file %s not found' % file
+
+    h5f = h5py.File(file, 'r')
+
+    tensor_dict = {}
+    for key in h5f.keys():
+        tensor_dict[key] = h5f[key][()]
+
+    h5f.close()
+
+    return tensor_dict
+
 def write_hdf5(file, tensor, key = 'tensor'):
     """
     Write a simple tensor, i.e. numpy array ,to HDF5.
