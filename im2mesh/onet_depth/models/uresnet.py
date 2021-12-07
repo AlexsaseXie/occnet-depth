@@ -3,7 +3,7 @@ This is an implementation of a U-Net using ResNet-18 blocks
 """
 import torch
 from torch import nn
-from torchvision.models import resnet18
+from torchvision.models import resnet18, resnet34, resnet50
 
 
 def deconv3x3(in_planes, out_planes, stride=1, output_padding=0):
@@ -77,7 +77,7 @@ class RevBottleneck(nn.Module):
             kernel_size=1,
             bias=False,
             stride=stride,
-            output_padding=1 if stride > 0 else 0
+            output_padding=1 if stride > 1 else 0
         )
         self.bn3 = nn.BatchNorm2d(planes)
         self.relu = nn.ReLU(inplace=True)
@@ -195,6 +195,54 @@ def revuresnet18(**kwargs):
         [2, 2, 2, 2],
         [256, 128, 64, 64],
         inplanes=[512, 512, 256, 128, 128],
+        **kwargs
+    )
+    return model
+
+
+def revresnet34(**kwargs):
+    model = RevResNet(
+        RevBasicBlock,
+        [3, 6, 4, 3],
+        [512, 256, 128, 64],
+        **kwargs
+    )
+    return model
+
+
+def revuresnet34(**kwargs):
+    """
+    Reverse ResNet-18 compatible with the U-Net setting
+    """
+    model = RevResNet(
+        RevBasicBlock,
+        [3, 6, 4, 3],
+        [256, 128, 64, 64],
+        inplanes=[512, 512, 256, 128, 128],
+        **kwargs
+    )
+    return model
+
+
+def revresnet50(**kwargs):
+    model = RevResNet(
+        RevBottleneck,
+        [3, 6, 4, 3],
+        [2048, 1024, 512, 256],
+        **kwargs
+    )
+    return model
+
+
+def revuresnet50(**kwargs):
+    """
+    Reverse ResNet-18 compatible with the U-Net setting
+    """
+    model = RevResNet(
+        RevBottleneck,
+        [3, 6, 4, 3],
+        [1024, 512, 256, 256],
+        inplanes=[2048, 2048, 1024, 512, 320],
         **kwargs
     )
     return model

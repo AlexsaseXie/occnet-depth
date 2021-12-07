@@ -97,7 +97,7 @@ class DepthToPCNp:
         # the pixel covers [x, x+1] \times [y, y+1]
 
         # !!!BUG occurs: need transpose the depth first
-        if (not align_corners):
+        if align_corners:
             pc_x = (grid_x - u_0) * depth / f_u
             pc_y = (grid_y - v_0) * depth / f_v
         else:

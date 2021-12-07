@@ -17,9 +17,15 @@ def get_depth_predictor(cfg):
     if predictor == 'hourglass':
         dim = cfg['data']['dim']
         depth_predictor = depth_predict_net.DepthPredictNet(n_hourglass=1, img_dim=dim)
-    elif predictor == 'uresnet':
+    elif predictor == 'uresnet' or predictor == 'uresnet18':
         pred_min_max = cfg['model']['pred_minmax']
-        depth_predictor = depth_predict_net.UResnet_DepthPredict(pred_min_max=pred_min_max)
+        depth_predictor = depth_predict_net.UResnet_DepthPredict(pred_min_max=pred_min_max, num_layers=18)
+    elif predictor == 'uresnet34':
+        pred_min_max = cfg['model']['pred_minmax']
+        depth_predictor = depth_predict_net.UResnet_DepthPredict(pred_min_max=pred_min_max, num_layers=34)
+    elif predictor == 'uresnet50':
+        pred_min_max = cfg['model']['pred_minmax']
+        depth_predictor = depth_predict_net.UResnet_DepthPredict(pred_min_max=pred_min_max, num_layers=50)
     else:
         depth_predictor = None
         raise NotImplementedError

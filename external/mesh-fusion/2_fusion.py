@@ -1,5 +1,4 @@
 import math
-from sys import float_repr_style
 import numpy as np
 import os
 from scipy import ndimage
@@ -8,6 +7,7 @@ import common
 import argparse
 import ntpath
 import trimesh
+import shutil
 
 # Import shipped libraries.
 import librender
@@ -15,7 +15,7 @@ import libmcubes
 from multiprocessing import Pool
 
 DEPTH_VIS_OUTPUT = False
-POINTCLOUD_VIS_OUTPUT = True
+POINTCLOUD_VIS_OUTPUT = False
 use_gpu = True
 if use_gpu:
     import libfusiongpu as libfusion
@@ -196,7 +196,8 @@ class Fusion:
 
         files = []
         for filename in os.listdir(directory):
-            files.append(os.path.normpath(os.path.join(directory, filename)))
+            if filename.endswith('.npz') or filename.endswith('.off') or filename.endswith('.h5') or filename.endswith('.ply'):
+                files.append(os.path.normpath(os.path.join(directory, filename)))
 
         return files
 
@@ -535,18 +536,25 @@ class Fusion:
         total_visible_face_count = stats[2]
 
 
-
         print('Double side: %d, Bad: %d, Visible: %d' % (double_sided_face_count, bad_face_count, total_visible_face_count))
         if (double_sided_face_count >= total_visible_face_count * 0.1):
             print('%s Too much double sided faces' % modelname)
             with open(os.path.join(self.options.out_dir, 'removed_list.txt'), 'a') as f:    
                 f.write('%s\n' % modelname)
+
+            removed_copy_path = os.path.join(self.options.out_dir, 'removed')
+            common.makedir(removed_copy_path)
+            shutil.copy(filepath, removed_copy_path)
             return
         
         if (bad_face_count >= total_visible_face_count * 0.1):
             print('%s Too much bad faces' % modelname)
             with open(os.path.join(self.options.out_dir, 'removed_list.txt'), 'a') as f:    
                 f.write('%s\n' % modelname)
+
+            removed_copy_path = os.path.join(self.options.out_dir, 'removed')
+            common.makedir(removed_copy_path)
+            shutil.copy(filepath, removed_copy_path)
             return
 
         data_dict = {

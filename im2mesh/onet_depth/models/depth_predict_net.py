@@ -67,12 +67,24 @@ class ViewAsLinear(nn.Module):
         return x.view(x.shape[0], -1)
 
 class UResnet_DepthPredict(nn.Module):
-    def __init__(self, input_planes=3, out_planes=1, pred_min_max=True):
+    def __init__(self, input_planes=3, out_planes=1, pred_min_max=True, num_layers=18):
         super(UResnet_DepthPredict, self).__init__()
 
         # Encoder
         module_list = list()
-        resnet = resnet18(pretrained=True)
+        assert num_layers in (18, 34, 50)
+        if num_layers == 18:
+            resnet = resnet18(pretrained=True)
+            revresnet = revuresnet18(out_planes=out_planes)
+        elif num_layers == 34:
+            resnet = resnet34(pretrained=True)
+            revresnet = revuresnet34(out_planes=out_planes)
+        elif num_layers == 50:
+            resnet = resnet50(pretrained=True)
+            revresnet = revuresnet50(out_planes=out_planes)
+        else:
+            raise NotImplementedError
+        
         in_conv = nn.Conv2d(input_planes, 64, kernel_size=7, stride=2, padding=3,
                             bias=False)
         module_list.append(
@@ -92,7 +104,6 @@ class UResnet_DepthPredict(nn.Module):
 
         # Decoder for depth image
         module_list = list()
-        revresnet = revuresnet18(out_planes=out_planes)
         module_list.append(revresnet.layer1)
         module_list.append(revresnet.layer2)
         module_list.append(revresnet.layer3)
