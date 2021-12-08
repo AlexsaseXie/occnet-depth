@@ -104,11 +104,11 @@ for batch in train_loader:
 
         if absolute_depth:
             # for absolute
-            cur_depth_map[1. - cur_mask] = depth_max
+            cur_depth_map[1 - cur_mask] = depth_max
             cur_depth_map = (cur_depth_map - depth_min) / (depth_max - depth_min)
         else:
             # for relative
-            cur_depth_map[1. - cur_mask] = 1.
+            cur_depth_map[1 - cur_mask] = 1.
             cur_depth_map[cur_depth_map > 1] = 1.
             cur_depth_map[cur_depth_map < 0] = 0.
             
