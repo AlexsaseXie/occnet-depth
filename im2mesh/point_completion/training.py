@@ -16,8 +16,10 @@ from im2mesh.onet_depth.models import background_setting
 def compose_pointcloud(data, device, pointcloud_transfer=None, world_mat=None):
     gt_pc = data.get('pointcloud').to(device)
 
-    # default : 'world_normalized'
+    if pointcloud_transfer == 'world_random_scale':
+        pointcloud_transfer = 'world_scale_model'
 
+    # default : 'world_normalized'
     if pointcloud_transfer in ('world_scale_model', 'view', 'view_scale_model'):
         batch_size = gt_pc.size(0)
         gt_pc_loc = data.get('pointcloud.loc').to(device).view(batch_size, 1, 3)
@@ -35,7 +37,7 @@ def compose_pointcloud(data, device, pointcloud_transfer=None, world_mat=None):
         t = world_mat[:, :, 3:]
         gt_pc = gt_pc / t[:,2:,:]
 
-    return gt_pc
+    return gt_pc, gt_pc_scale, gt_pc_loc
     
 # TODO: calc view penalty loss during FCAE module forward
 # in order to fit DP/DDP
@@ -74,10 +76,10 @@ class PointCompletionTrainer(BaseTrainer):
             os.makedirs(vis_dir)
 
         self.depth_pointcloud_transfer = depth_pointcloud_transfer
-        assert depth_pointcloud_transfer in ('world', 'world_scale_model', 'view', 'view_scale_model')
+        assert depth_pointcloud_transfer in ('world', 'world_scale_model', 'view', 'view_scale_model', 'world_random_scale')
 
         self.gt_pointcloud_transfer = gt_pointcloud_transfer
-        assert gt_pointcloud_transfer in ('world_normalized', 'world_scale_model', 'view', 'view_scale_model')
+        assert gt_pointcloud_transfer in ('world_normalized', 'world_scale_model', 'view', 'view_scale_model', 'world_random_scale')
 
         if depth_pointcloud_transfer != gt_pointcloud_transfer:
             print('Warning: using different transfer for depth_pc & gt_pc.')
@@ -129,7 +131,7 @@ class PointCompletionTrainer(BaseTrainer):
                 world_mat = raw_data['world_mat']
             else:
                 world_mat = get_world_mat(data, device=device)
-        gt_pc = compose_pointcloud(data, device, self.gt_pointcloud_transfer, world_mat=world_mat)
+        gt_pc, _, _ = compose_pointcloud(data, device, self.gt_pointcloud_transfer, world_mat=world_mat)
         batch_size = gt_pc.size(0)
 
         with torch.no_grad():
@@ -226,7 +228,7 @@ class PointCompletionTrainer(BaseTrainer):
                 world_mat = raw_data['world_mat']
             else:
                 world_mat = get_world_mat(data, device=device)
-        gt_pc = compose_pointcloud(data, device, self.gt_pointcloud_transfer, world_mat=world_mat)
+        gt_pc, _, _ = compose_pointcloud(data, device, self.gt_pointcloud_transfer, world_mat=world_mat)
         batch_size = gt_pc.size(0)
 
         self.model.eval()
@@ -264,7 +266,17 @@ class PointCompletionTrainer(BaseTrainer):
                 world_mat = raw_data['world_mat']
             else:
                 world_mat = get_world_mat(data, device=device)
-        gt_pc = compose_pointcloud(data, device, self.gt_pointcloud_transfer, world_mat=world_mat)
+        gt_pc, gt_pc_scale, gt_pc_loc = compose_pointcloud(data, device, self.gt_pointcloud_transfer, world_mat=world_mat)
+
+        if self.depth_pointcloud_transfer == 'world_random_scale':
+            assert self.gt_pointcloud_transfer == 'world_random_scale'
+            batch_size = gt_pc.size(0)
+            model_random_scale = data.get('inputs.model_random_scale').to(device).view(batch_size, 1, 1)
+
+            rescale = model_random_scale / gt_pc_scale
+
+            encoder_inputs = encoder_inputs * rescale
+            gt_pc = gt_pc * rescale
 
         if self.model.encoder_world_mat is not None:
             loss, out = self.model(encoder_inputs, world_mat=world_mat, gt_pc=gt_pc, 
@@ -286,12 +298,15 @@ class PointCompletionTrainer(BaseTrainer):
             # projection use world mat & camera mat
             if self.gt_pointcloud_transfer == 'world_scale_model':
                 out_pts = transform_points(out, world_mat)
+            elif self.gt_pointcloud_transfer == 'world_random_scale':
+                out_pts = out / rescale
+                out_pts = transform_points(out_pts, world_mat)
             elif self.gt_pointcloud_transfer == 'view_scale_model':
                 t = world_mat[:,:,3:]
-                out_pts = out_pts + t
+                out_pts = out + t
             elif self.gt_pointcloud_transfer == 'view':
                 t = world_mat[:,:,3:]
-                out_pts = out_pts * t[:,2:,:]
+                out_pts = out * t[:,2:,:]
                 out_pts = out_pts + t
             else:
                 raise NotImplementedError
@@ -341,10 +356,10 @@ class MSNTrainer(BaseTrainer):
             os.makedirs(vis_dir)
 
         self.depth_pointcloud_transfer = depth_pointcloud_transfer
-        assert depth_pointcloud_transfer in ('world', 'world_scale_model', 'view', 'view_scale_model')
+        assert depth_pointcloud_transfer in ('world', 'world_scale_model', 'view', 'view_scale_model', 'world_random_scale')
 
         self.gt_pointcloud_transfer = gt_pointcloud_transfer
-        assert gt_pointcloud_transfer in ('world_normalized', 'world_scale_model', 'view', 'view_scale_model')
+        assert gt_pointcloud_transfer in ('world_normalized', 'world_scale_model', 'view', 'view_scale_model', 'world_random_scale')
 
         if depth_pointcloud_transfer != gt_pointcloud_transfer:
             print('Warning: using different transfer for depth_pc & gt_pc.')
@@ -386,7 +401,7 @@ class MSNTrainer(BaseTrainer):
                 world_mat = raw_data['world_mat']
             else:
                 world_mat = get_world_mat(data, device=device)
-        gt_pc = compose_pointcloud(data, device, self.gt_pointcloud_transfer, world_mat=world_mat)
+        gt_pc, _, _ = compose_pointcloud(data, device, self.gt_pointcloud_transfer, world_mat=world_mat)
         batch_size = gt_pc.size(0)
 
         kwargs = {}
@@ -444,7 +459,7 @@ class MSNTrainer(BaseTrainer):
                 world_mat = raw_data['world_mat']
             else:
                 world_mat = get_world_mat(data, device=device)
-        gt_pc = compose_pointcloud(data, device, self.gt_pointcloud_transfer, world_mat=world_mat)
+        gt_pc, _, _ = compose_pointcloud(data, device, self.gt_pointcloud_transfer, world_mat=world_mat)
         batch_size = gt_pc.size(0)
 
         kwargs = {}
@@ -490,7 +505,17 @@ class MSNTrainer(BaseTrainer):
                 world_mat = raw_data['world_mat']
             else:
                 world_mat = get_world_mat(data, device=device)
-        gt_pc = compose_pointcloud(data, device, self.gt_pointcloud_transfer, world_mat=world_mat)
+        gt_pc, gt_pc_scale, gt_pc_loc = compose_pointcloud(data, device, self.gt_pointcloud_transfer, world_mat=world_mat)
+
+        if self.depth_pointcloud_transfer == 'world_random_scale':
+            assert self.gt_pointcloud_transfer == 'world_random_scale'
+            batch_size = gt_pc.size(0)
+            model_random_scale = data.get('inputs.model_random_scale').to(device).view(batch_size, 1, 1)
+
+            rescale = model_random_scale / gt_pc_scale
+
+            encoder_inputs = encoder_inputs * rescale
+            gt_pc = gt_pc * rescale
 
         # data parallel
         emd1, emd2, expansion_penalty = self.model(encoder_inputs, gt_pc=gt_pc, eps=MSN_TRAINING_EMD_EPS, it=MSN_TRAINING_EMD_ITER)

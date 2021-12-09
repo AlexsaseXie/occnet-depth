@@ -311,6 +311,13 @@ class S_DepthPointCloudField(Field):
 
         return data
 
+class S_RandomModelScale(Field):
+    def __init__(self, random_range=[0.5, 1.0]):
+        self.random_range = random_range
+
+    def load(self, model_path, idx, category, view_id=None):
+        return np.random.rand() * (self.random_range[1] - self.random_range[0]) + self.random_range[0]
+
 class MixedInputField(Field):
     '''
         Mixed input field:
@@ -415,6 +422,11 @@ class MixedInputField(Field):
                 field = IndexField()
             elif fi == 'category':
                 field = CategoryField()
+            elif fi == 'model_random_scale':
+                if 'model_random_scale' in cfg['training']:
+                    random_model_scale = cfg['training']['model_random_scale']
+                    data_params['random_range'] = random_model_scale
+                field = S_RandomModelScale(**data_params)
             else:
                 raise NotImplementedError
 
@@ -451,6 +463,8 @@ class MixedInputField(Field):
             data['index'] = fi_data
         elif fi_name == 'category':
             data['category'] = fi_data
+        elif fi_name == 'model_random_scale':
+            data['model_random_scale'] = fi_data
         else:
             raise NotImplementedError
         

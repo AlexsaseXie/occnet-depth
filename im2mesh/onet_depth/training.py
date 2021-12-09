@@ -423,6 +423,9 @@ def compose_inputs(data, mode='train', device=None, input_type='depth_pred',
         encoder_inputs = data.get('inputs.depth_pointcloud').to(device)
 
         if depth_pointcloud_transfer is not None:
+            if depth_pointcloud_transfer == 'world_random_scale':
+                depth_pointcloud_transfer = 'world_scale_model'
+
             if depth_pointcloud_transfer in ('world', 'world_scale_model'):
                 encoder_inputs = encoder_inputs[:, :, [1,0,2]]
                 world_mat = get_world_mat(data, transpose=None, device=device)
