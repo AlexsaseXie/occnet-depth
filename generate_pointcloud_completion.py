@@ -25,6 +25,7 @@ parser.add_argument('--out_folder_name', type=str, default='depth_pointcloud_com
 parser.add_argument('--batch_size', type=int, default=256, help='Generation batch size.')
 parser.add_argument('--combine_pc', action='store_true', help='Combine input and predict.')
 parser.add_argument('--resample', type=int, default=0, help='random resample points count.')
+parser.add_argument('--fps', action='store_true', help='use fps to resample')
 parser.add_argument('--time_test', action='store_true', help='time test')
 args = parser.parse_args()
 
@@ -107,6 +108,8 @@ for batch in tqdm(train_loader):
         space_carver_mode = getattr(model, 'space_carver_mode', False)
     if space_carver_mode:
         target_space = getattr(cfg['model'], 'gt_pointcloud_transfer', 'world_scale_model')
+        if target_space == 'world_random_scale':
+            target_space = 'world_scale_model'
         kwargs = organize_space_carver_kwargs(
             space_carver_mode, kwargs, 
             raw_data, batch, device,
@@ -134,10 +137,16 @@ for batch in tqdm(train_loader):
             pointcloud_hat_idx = pointnet2_utils.furthest_point_sample(pointcloud_hat_flipped, 2048)
             pointcloud_hat = pointnet2_utils.gather_operation(pointcloud_hat_flipped, pointcloud_hat_idx).transpose(1, 2).contiguous()
     
+        if args.fps:
+            assert args.resample != 0
+            pointcloud_hat_flipped = pointcloud_hat.transpose(1, 2).contiguous()
+            pointcloud_hat_idx = pointnet2_utils.furthest_point_sample(pointcloud_hat_flipped, args.resample)
+            pointcloud_hat = pointnet2_utils.gather_operation(pointcloud_hat_flipped, pointcloud_hat_idx).transpose(1, 2).contiguous()
+
     for i in range(cur_batch_size):
         cur_pointcloud_hat = pointcloud_hat[i].cpu().numpy()
 
-        if args.resample != 0:
+        if not args.fps and args.resample != 0:
             cur_pointcloud_hat = np.unique(cur_pointcloud_hat, axis=0)
             if cur_pointcloud_hat.shape[0] >= args.resample:
                 idx = np.random.choice(cur_pointcloud_hat.shape[0], size=args.resample, replace=False)
