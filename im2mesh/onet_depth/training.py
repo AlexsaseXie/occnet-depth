@@ -348,7 +348,7 @@ class Phase2Trainer(BaseTrainer):
         if self.depth_map_mix:
             gt_depth_maps = data.get('inputs.depth').to(device)
             background_setting(gt_depth_maps, gt_mask)
-            alpha = torch.rand(batch_size,1,1,1).to(device)
+            alpha = (torch.rand(batch_size,1,1,1) > 0.5).float().to(device)
             pr_depth_maps = pr_depth_maps * alpha + gt_depth_maps * (1.0 - alpha)
 
         kwargs = {}
@@ -397,7 +397,7 @@ def compose_inputs(data, mode='train', device=None, input_type='depth_pred',
                 background_setting(gt_depth_maps, gt_mask)
                 raw_data['depth'] = gt_depth_maps
 
-                alpha = torch.rand(batch_size,1,1,1).to(device)
+                alpha = (torch.rand(batch_size,1,1,1) > 0.5).float().to(device)
                 pr_depth_maps = pr_depth_maps * alpha + gt_depth_maps * (1.0 - alpha)
             encoder_inputs = pr_depth_maps
 
@@ -511,7 +511,10 @@ def organize_space_carver_kwargs(space_carver_mode, kwargs, raw_data, data, devi
     if occ is not None:
         kwargs['cor_occ'] = occ
     
-    assert target_space in ('world_normalized', 'world_scale_model', 'view_scale_model')
+    assert target_space in ('world_random_scale', 'world_normalized', 'world_scale_model', 'view_scale_model')
+
+    if target_space == 'world_random_scale':
+        target_space = 'world_scale_model'
 
     if target_space == 'world_normalized':
         if 'world_mat_fixed' in raw_data and 'camera_mat' in raw_data:
