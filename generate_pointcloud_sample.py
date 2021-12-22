@@ -91,7 +91,7 @@ def process_dataset(dataset, dataloader):
 
         for N in Ns:
             with torch.no_grad():
-                pointcloud_idx = pointnet2_utils.furthest_point_sample(pointcloud_flipped, N)
+                pointcloud_idx = pointnet2_utils.furthest_point_sample(pointcloud, N)
                 
                 pointcloud_processed = pointnet2_utils.gather_operation(pointcloud_flipped, pointcloud_idx).transpose(1, 2).contiguous()
                 normal_processed = pointnet2_utils.gather_operation(normal_flipped, pointcloud_idx).transpose(1, 2).contiguous()

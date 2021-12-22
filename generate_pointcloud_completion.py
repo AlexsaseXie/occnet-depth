@@ -134,13 +134,13 @@ for batch in tqdm(train_loader):
         if args.combine_pc:
             pointcloud_hat = torch.cat([pointcloud_hat, encoder_inputs], dim=1)
             pointcloud_hat_flipped = pointcloud_hat.transpose(1, 2).contiguous()
-            pointcloud_hat_idx = pointnet2_utils.furthest_point_sample(pointcloud_hat_flipped, 2048)
+            pointcloud_hat_idx = pointnet2_utils.furthest_point_sample(pointcloud_hat, 2048)
             pointcloud_hat = pointnet2_utils.gather_operation(pointcloud_hat_flipped, pointcloud_hat_idx).transpose(1, 2).contiguous()
     
         if args.fps:
             assert args.resample != 0
             pointcloud_hat_flipped = pointcloud_hat.transpose(1, 2).contiguous()
-            pointcloud_hat_idx = pointnet2_utils.furthest_point_sample(pointcloud_hat_flipped, args.resample)
+            pointcloud_hat_idx = pointnet2_utils.furthest_point_sample(pointcloud_hat, args.resample)
             pointcloud_hat = pointnet2_utils.gather_operation(pointcloud_hat_flipped, pointcloud_hat_idx).transpose(1, 2).contiguous()
 
     for i in range(cur_batch_size):
