@@ -426,7 +426,7 @@ def compose_inputs(data, mode='train', device=None, input_type='depth_pred',
             if depth_pointcloud_transfer == 'world_random_scale':
                 depth_pointcloud_transfer = 'world_scale_model'
 
-            if depth_pointcloud_transfer in ('world', 'world_scale_model'):
+            if depth_pointcloud_transfer in ('world', 'world_scale_model', 'world_normalized'):
                 encoder_inputs = encoder_inputs[:, :, [1,0,2]]
                 world_mat = get_world_mat(data, transpose=None, device=device)
                 raw_data['world_mat'] = world_mat
@@ -439,6 +439,16 @@ def compose_inputs(data, mode='train', device=None, input_type='depth_pred',
                 if depth_pointcloud_transfer == 'world_scale_model':
                     t = world_mat[:, :, 3:]
                     encoder_inputs = encoder_inputs * t[:,2:,:]
+                elif depth_pointcloud_transfer == 'world_normalized':
+                    t = world_mat[:, :, 3:]
+                    encoder_inputs = encoder_inputs * t[:,2:,:]
+                    batch_size = encoder_inputs.size(0)
+                    loc = data.get('inputs.loc').to(device).view(batch_size,1,3)
+                    scale = data.get('inputs.scale').to(device)
+                    scale = 1.0 / scale.view(batch_size, 1, 1)
+                    encoder_inputs = (encoder_inputs - loc) * scale
+                    #raw_data['loc'] = loc
+                    #raw_data['scale'] = scale
             elif depth_pointcloud_transfer in ('view', 'view_scale_model'):
                 encoder_inputs = encoder_inputs[:, :, [1,0,2]]
 
@@ -464,8 +474,10 @@ def compose_inputs(data, mode='train', device=None, input_type='depth_pred',
 
         if depth_pointcloud_transfer == 'world_normalized':
             # world_scale_model -> world_normalized
-            loc = data.get('points.loc').to(device)
-            scale = data.get('points.scale').to(device)
+            #loc = data.get('points.loc').to(device)
+            #scale = data.get('points.scale').to(device)
+            loc = data.get('inputs.loc').to(device)
+            scale = data.get('inputs.scale').to(device)
             B = loc.size(0)
             loc = loc.view(B, 1, 3)
             scale = 1.0 / scale.view(B, 1, 1)

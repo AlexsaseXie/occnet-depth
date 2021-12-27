@@ -339,7 +339,7 @@ class PointsField(Field):
             category (int): index of category
         '''
         if getattr(self, 'preloaded', False):
-            return load_preloaed(idx)
+            return self.load_preloaed(idx)
 
         file_path = os.path.join(model_path, self.file_name)
 

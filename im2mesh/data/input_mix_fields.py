@@ -75,6 +75,9 @@ class S_CameraField(Field):
         K = camera_dict['camera_mat_%d' % idx_img].astype(np.float32)
         data['world_mat'] = Rt
         data['camera_mat'] = K
+        if 'loc' in camera_dict:
+            data['loc'] = camera_dict['loc']
+            data['scale'] = camera_dict['scale']
 
         return data
 
@@ -441,6 +444,9 @@ class MixedInputField(Field):
         elif fi_name == 'camera':
             data['world_mat'] = fi_data['world_mat']
             data['camera_mat'] = fi_data['camera_mat']
+            if 'loc' in fi_data:
+                data['loc'] = fi_data['loc']
+                data['scale'] = fi_data['scale']
         elif fi_name == 'depth':
             data['depth'] = fi_data[None]
             if 'depth_min' in fi_data:
