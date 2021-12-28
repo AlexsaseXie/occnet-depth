@@ -319,7 +319,7 @@ class S_RandomModelScale(Field):
         self.random_range = random_range
 
     def load(self, model_path, idx, category, view_id=None):
-        return np.random.rand().astype(np.float32) * (self.random_range[1] - self.random_range[0]) + self.random_range[0]
+        return np.random.rand(1).astype(np.float32) * (self.random_range[1] - self.random_range[0]) + self.random_range[0]
 
 class MixedInputField(Field):
     '''
