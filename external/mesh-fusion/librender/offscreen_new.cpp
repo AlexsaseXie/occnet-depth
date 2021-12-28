@@ -634,3 +634,106 @@ void select_vertex(  // input
   }
   delete [] face_normal_pixel_count;
 }
+
+
+void select_faces(
+  // input
+  float * vertexBuffer, float * normalBuffer,
+  int * imgSizeV,
+  int fM, int T,
+  // output
+  bool *face_visible_buffer,
+  float *face_normal_buffer, 
+  int *stats
+) {
+  int H = imgSizeV[0];
+  int W = imgSizeV[1];
+
+  glm::vec3 * face_normal = new glm::vec3[fM];
+  for (int i=0;i<fM;i++) {
+    face_normal[i] = glm::vec3(0,0,0);
+  }
+
+  int ** face_normal_pixel_count = new int * [fM]; // [0] positive, [1] negative
+  for (int i=0;i<fM;i++) {
+    face_normal_pixel_count[i] = new int[2];
+    for (int j=0;j<2;j++) {
+      face_normal_pixel_count[i][j] = 0;
+    }
+  }
+
+  int total_visible_face_count = 0;
+  int double_sided_face_count = 0;
+  int bad_face_count = 0;
+
+  int offset = 4;
+  float * normalBufferPointer = normalBuffer;
+  int total_pixel_count = T * H * W;
+  // decide the normal
+  for (int i=0;i<total_pixel_count;i++) {
+    int face_id = static_cast<int>(*(normalBufferPointer + 3) + 0.1) - 1;
+    if (face_id >= 0) {
+      glm::vec3 cur_normal = glm::vec3(*(normalBufferPointer), *(normalBufferPointer + 1), *(normalBufferPointer + 2));
+      if (face_normal_pixel_count[face_id][0] == 0) {
+        face_normal[face_id] = cur_normal;
+        face_normal_pixel_count[face_id][0] = 1;
+
+        total_visible_face_count ++;
+      }
+      else {
+        bool cur_positive = glm::dot(face_normal[face_id], cur_normal) >= 0; // face_normal[face_id] == cur_normal;
+        face_normal_pixel_count[face_id][cur_positive ? 0 : 1] ++;
+      }
+    }
+    normalBufferPointer += offset;
+  }
+
+  //flip if needed
+  for (int i=0;i<fM;i++) {
+    if (face_normal_pixel_count[i][0] > 0) {
+      if (face_normal_pixel_count[i][0] < face_normal_pixel_count[i][1]) {
+        face_normal[i] = -face_normal[i];
+        int tmp = face_normal_pixel_count[i][0];
+        face_normal_pixel_count[i][0] = face_normal_pixel_count[i][1];
+        face_normal_pixel_count[i][1] = tmp;
+      }
+
+      if (static_cast<float>(face_normal_pixel_count[i][1]) >= static_cast<float>(face_normal_pixel_count[i][0]) * 0.1f) {
+      //if (face_normal_pixel_count[i][1] > 0) {
+        double_sided_face_count ++;
+        //cout << "Face " << i << "-" <<face_normal_pixel_count[i][0] << ":" << face_normal_pixel_count[i][1] << endl;
+        //cout << "vec:" << face_normal[i][0] << "," << face_normal[i][1] << "," << face_normal[i][2] << endl;
+      }
+
+      if (static_cast<float>(face_normal_pixel_count[i][1]) >= static_cast<float>(face_normal_pixel_count[i][0]) * 0.2f) {
+        bad_face_count ++;
+      }
+
+      face_visible_buffer[i] = true;
+    }
+    else {
+      face_visible_buffer[i] = false;
+    }
+  }
+
+  //printf("double-sided faces: %d, bad faces: %d, total faces:%d\n", double_sided_face_count, bad_face_count, total_visible_face_count);
+
+  stats[0] = double_sided_face_count;
+  stats[1] = bad_face_count;
+  stats[2] = total_visible_face_count;
+
+  // copy buffer
+  for (int i=0;i<fM;i++) {
+    for (int j=0;j<3;j++) {
+      face_normal_buffer[j] = face_normal[i][j];
+    }
+    face_normal_buffer += 3;
+  }
+
+  // free space
+  delete [] face_normal;
+  for (int i=0;i<fM;i++) {
+    delete [] face_normal_pixel_count[i];
+  }
+  delete [] face_normal_pixel_count;
+}

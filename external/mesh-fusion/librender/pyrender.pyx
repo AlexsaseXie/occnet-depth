@@ -71,6 +71,17 @@ cdef extern from "offscreen_new.h":
     int * stats \
   );
 
+  void select_faces( \
+    float * vertexBuffer, float * normalBuffer, \
+    int * imgSizeV, \
+    int fM, int T, \
+    bool *face_visible_buffer, \
+    float *face_normal_buffer,  \
+    int *stats \
+  );
+
+
+
 def render_new(float[:,::1] vertex_array, float[:,::1] color_array, float[:,::1] normal_array, \
   float[:, ::1] cam_position, float[::1] cam_intr, float[::1] znf, int[::1] img_size):
   # input infos
@@ -186,3 +197,37 @@ def select_vertex_from_buffer(float[:,:,:,::1] normal, float[:,:,:,::1] vertex, 
   pointcloud = pointcloud[:pointcloud_size, :]
 
   return pointcloud, face_normal, stats
+
+def select_faces_from_buffer(float[:,:,:,::1] normal, float[:,:,:,::1] vertex, int fM, int[::1] img_size):
+  '''
+    stats[0] = double_sided_face_count;
+    stats[1] = bad_face_count;
+    stats[2] = total_visible_face_count;
+  '''
+  cdef int T = normal.shape[0]
+  cdef int* imgSizeV = &(img_size[0])
+  cdef float * vertexBuffer = &(vertex[0,0,0,0])
+  cdef float * normalBuffer = &(normal[0,0,0,0]) 
+
+  face_visible = np.empty((fM), dtype=np.bool)
+  cdef bool[::1] face_visible_view = face_visible
+  cdef bool * face_visible_buffer = &(face_visible_buffer[0])
+
+  stats = np.empty((3), dtype=np.int32)
+  cdef int[::1] stats_view = stats
+  cdef int * stats_buffer = &(stats_view[0])
+
+  face_normal = np.empty((fM, 3), dtype=np.float32)
+  cdef float[:,::1] face_normal_view = face_normal
+  cdef float * face_normal_buffer = &(face_normal_view[0,0])
+
+  # select
+  select_faces( \
+    vertexBuffer, normalBuffer, \
+    imgSizeV, \
+    fM, T, \
+    face_visible_buffer, \
+    face_normal_buffer, \
+    stats_buffer);
+
+  return face_visible, face_normal, stats

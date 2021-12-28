@@ -184,6 +184,10 @@ class Fusion:
         parser.add_argument('--packbits', action='store_true', help='Whether to save truth values as bit array.')
         parser.add_argument('--pointcloud_folder', type=str, default='./4_pointcloud/')
         parser.add_argument('--pointcloud_size', type=int, default=100000, help='Size of point cloud.')
+        parser.add_argument('--points_according_to_pc_uniform_size', type=int, default=20000)
+        parser.add_argument('--points_according_to_pc_size', type=int, default=100000)
+        parser.add_argument('--points_pc_box', type=float, default=0.1)
+        parser.add_argument('--tsdf_offset', type=float, default=0.008, help='offset for tsdf to decide the surface')
         return parser
 
     def read_directory(self, directory):
@@ -224,7 +228,7 @@ class Fusion:
         elif self.options.mode == 'fuse':
             modelname = os.path.splitext(os.path.splitext(filename)[0])[0]
             outpath = os.path.join(self.options.out_dir, modelname + '.off')
-        elif self.options.mode in ('judge_inside_simple', 'judge_tsdf_view_pc'):
+        elif self.options.mode in ('judge_inside_simple', 'judge_tsdf_view_pc', 'judge_tsdf_view_pc_according_to_pc'):
             modelname = os.path.splitext(os.path.splitext(filename)[0])[0]
             outpath = os.path.join(self.options.out_dir, modelname + '.npz')
         elif self.options.mode == 'sample':
@@ -490,6 +494,8 @@ class Fusion:
             method = self.run_render_new
         elif self.options.mode == 'judge_tsdf_view_pc':
             method = self.run_tsdf_view_pc
+        elif self.options.mode == 'judge_tsdf_view_pc_according_to_pc':
+            method = self.run_tsdf_view_pc_according_to_pc
         else:
             print('Invalid model, choose render or fuse.')
             exit()
@@ -706,7 +712,7 @@ class Fusion:
         #tsdf = self.judge_tsdf_view_pc(depths, Rts, pointcloud, points_buffer, truncation=self.truncation, aggregate='mean')
         tsdf = self.judge_tsdf_view_pc(depths, Rts, pointcloud, points_buffer, truncation=self.truncation, aggregate='min')
 
-        occupancies = tsdf < 0
+        occupancies = tsdf < self.options.tsdf_offset
         print('Volume: %d/%d' % (occupancies.sum(), occupancies.shape[0]))
 
         off_file = self.get_outpath(filepath)
@@ -724,7 +730,91 @@ class Fusion:
         if self.options.packbits:
             occupancies = np.packbits(occupancies)
 
-        np.savez(off_file, points=points, occupancies=occupancies,
+        np.savez(off_file, points=points, occupancies=occupancies, tsdf=tsdf,
+             loc=loc, scale=scale)
+        print('[Data] wrote %s (%f seconds)' % (off_file, timer.elapsed()))
+
+    def run_tsdf_view_pc_according_to_pc(self, filepath):
+        timer = common.Timer()
+
+        # As rendering might be slower, we wait for rendering to finish.
+        # This allows to run rendering and fusing in parallel (more or less).
+        data_dict = common.read_hdf5_dict(filepath)
+        depths = data_dict['depth']
+        # Rs = self.get_views()
+        Rts = data_dict['view_mat']
+        
+        #stats = data_dict['stats']
+        timer.reset()
+
+        modelname = os.path.splitext(os.path.splitext(os.path.basename(filepath))[0])[0]
+        loc, scale, padding = self.get_transform(modelname)
+
+        scale = scale * (1 - padding) / (1 - self.options.bbox_padding)
+
+        filename = os.path.join(self.options.pointcloud_folder, '%s.npz' % modelname)
+        pointcloud_npz = np.load(filename)
+        pointcloud_normalized = pointcloud_npz['points']
+
+        pointcloud_scale = (1 - padding) / (1 - self.options.bbox_padding)
+        pointcloud_points = pointcloud_normalized * pointcloud_scale
+        pointcloud_normal = pointcloud_npz['normals']
+        pointcloud = np.concatenate((pointcloud_points, pointcloud_normal), axis=1)
+
+        n_points_uniform = self.options.points_according_to_pc_uniform_size
+        n_points_according_to_pc = self.options.points_according_to_pc_size
+
+        # sample code
+        # uniform
+        boxsize = 1 + self.options.points_padding
+        points_uniform = np.random.rand(n_points_uniform, 3) # dtype == np.float64
+        points_uniform = (boxsize * (points_uniform - 0.5)).astype(np.float32)
+
+        # according to pc
+        pointcloud_size = pointcloud_normalized.shape[0]
+        idx = np.random.randint(pointcloud_size, size=n_points_according_to_pc)
+        points_pc = pointcloud_normalized[idx,:].astype(np.float32)
+        displacement = np.random.rand(n_points_according_to_pc, 3)
+        displacement = (self.options.points_pc_box * (displacement - 0.5)).astype(np.float32)
+        points_pc = points_pc + displacement
+        
+        points = np.concatenate((points_uniform, points_pc), axis=0)
+        # normalize
+        points_buffer = points * (1 - padding) / (1 - self.options.bbox_padding)
+        #tsdf = self.judge_tsdf_view_pc(depths, Rts, pointcloud, points_buffer, truncation=self.truncation, aggregate='mean')
+        tsdf = self.judge_tsdf_view_pc(depths, Rts, pointcloud, points_buffer, truncation=self.truncation, aggregate='min')
+        occupancies = tsdf < self.options.tsdf_offset
+
+        off_file = self.get_outpath(filepath)
+        if POINTCLOUD_VIS_OUTPUT:
+            a_occupancies = occupancies[:n_points_uniform]
+            a_points_buffer = points_buffer[:n_points_uniform]
+
+            a_color = np.ones((n_points_uniform, 3), dtype=np.float32)
+            a_color[a_occupancies == 1, :] = np.array([255,255,255], dtype=np.float32)
+
+            a_xyzrgb = np.concatenate((a_points_buffer, a_color), axis=1)
+            print(a_xyzrgb.shape)
+            ply_path = off_file + "uniform.ply"
+            pcwrite(ply_path, a_xyzrgb, color=True)
+
+            a_occupancies = occupancies[n_points_uniform:]
+            a_points_buffer = points_buffer[n_points_uniform:]
+
+            inside_points = a_points_buffer[a_occupancies == 1]
+            ply_path = off_file + ".ply"
+            pcwrite(ply_path, inside_points, color=False)
+
+            outside_points = a_points_buffer[a_occupancies == 0]
+            ply_path = off_file + "_out.ply"
+            pcwrite(ply_path, outside_points, color=False)
+
+        if self.options.float16:
+            points = points.astype(np.float16)
+        if self.options.packbits:
+            occupancies = np.packbits(occupancies)
+
+        np.savez(off_file, points=points, occupancies=occupancies, tsdf=tsdf,
              loc=loc, scale=scale)
         print('[Data] wrote %s (%f seconds)' % (off_file, timer.elapsed()))
 

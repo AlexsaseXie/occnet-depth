@@ -91,4 +91,15 @@ void select_vertex(
   int *stats
 );
 
+void select_faces(
+  // input
+  float * vertexBuffer, float * normalBuffer,
+  int * imgSizeV,
+  int fM, int T,
+  // output
+  bool *face_visible_buffer,
+  float *face_normal_buffer, 
+  int *stats
+);
+
 #endif

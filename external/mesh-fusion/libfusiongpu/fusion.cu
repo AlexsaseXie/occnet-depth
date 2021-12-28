@@ -161,6 +161,54 @@ __global__ void kernel_tsdf_estimate(int n_pts, const Views views, Points points
   }
 }
 
+__global__ void kernel_tsdf_inside_estimate(int n_pts, const Views views, Points points, int * counts, float *sdf, float truncation) {
+  CUDA_KERNEL_LOOP(idx, n_pts) {
+    float x,y,z;
+    int start = idx * points.c_dim_;
+    x = points.data_[start + 0];
+    y = points.data_[start + 1];
+    z = points.data_[start + 2];
+
+    int sdf_start = idx * 1;
+    int count_start = idx * 1;
+
+    int valid_views = 0;
+    counts[count_start] = 0;
+    for(int vidx = 0; vidx < views.n_views_; ++vidx) {
+      float ur, vr, vx_d;
+      fusion_project(&views, vidx, x, y, z, ur,vr,vx_d);
+      //NOTE: ur,vr,vx_d might differ to CPP (subtle differences in precision)
+
+      int u = int(ur);
+      int v = int(vr);
+
+      if(u >= 0 && v >= 0 && u < views.cols_ && v < views.rows_) {
+        int dm_idx = (vidx * views.rows_ + v) * views.cols_ + u;
+        float dm_d = views.depthmaps_[dm_idx];
+
+        // new sample
+        float dist = dm_d - vx_d; 
+        float truncated_dist = fminf(truncation, fmaxf(-truncation, dist));
+
+        if (dm_d <= 0 || dist >= 0) {
+          counts[count_start] += 1;
+        }
+
+        if(dm_d > 0 && dist >= -truncation) {
+          sdf[sdf_start] += truncated_dist;
+          valid_views ++;
+        }
+      }
+    }
+    if (valid_views > 0) {
+      sdf[sdf_start] /= valid_views;
+    }
+    else {
+      sdf[sdf_start] = -truncation;
+    }
+  }
+}
+
 __global__ void kernel_pointcloud_sdf_fusion(const Points pointcloud, Points query, 
   int* counts, float * sdf_records,
   int batch, int batch_count_int, float truncated_distance_square, int aggregate_type) {
@@ -255,6 +303,15 @@ __global__ void kernel_pointcloud_sdf_fusion_var(const Points pointcloud, Points
 
 	const int batch = 512; // 512
 	__shared__ float buf[batch*6];
+  
+  int sdf_record_n = 3;
+  if (aggregate_type == 0) {
+    sdf_record_n = 5;
+  }
+  else if (aggregate_type == 1) {
+    sdf_record_n = 3;
+  }
+
   for (int k2=0;k2<m;k2+=batch){
     int end_k=min(m,k2+batch)-k2;
     for (int j=threadIdx.x;j<end_k*6;j+=blockDim.x){
@@ -275,6 +332,9 @@ __global__ void kernel_pointcloud_sdf_fusion_var(const Points pointcloud, Points
         float vec_z = z - pc_z;
         float sq_dis = vec_x * vec_x + vec_y * vec_y + vec_z * vec_z;
 
+        if (sdf_records[j*sdf_record_n + sdf_record_n - 1] == 0. || sq_dis < sdf_records[j*sdf_record_n + sdf_record_n - 1])
+          sdf_records[j*sdf_record_n + sdf_record_n - 1] = sq_dis;
+
         if (sq_dis <= truncated_distance_square) {
           float normal_x = buf[k*6 + 3];
           float normal_y = buf[k*6 + 4];
@@ -284,16 +344,16 @@ __global__ void kernel_pointcloud_sdf_fusion_var(const Points pointcloud, Points
           if (aggregate_type == 0) {
             // separately consider positive sdf & negative sdf by min
             if (sdf >= 0) {
-              if (counts[j*2 + 0] == 0 || sdf_records[j*4 + 0] > sq_dis) {
-                sdf_records[j*4 + 0] = sq_dis;
-                sdf_records[j*4 + 1] = sdf;
+              if (counts[j*2 + 0] == 0 || sdf_records[j*sdf_record_n + 0] > sq_dis) {
+                sdf_records[j*sdf_record_n + 0] = sq_dis;
+                sdf_records[j*sdf_record_n + 1] = sdf;
               }
               counts[j*2 + 0] += 1;
             }
             else {
-              if (counts[j*2 + 1] == 0 || sdf_records[j*4 + 2] > sq_dis) {
-                sdf_records[j*4 + 2] = sq_dis;
-                sdf_records[j*4 + 3] = sdf;
+              if (counts[j*2 + 1] == 0 || sdf_records[j*sdf_record_n + 2] > sq_dis) {
+                sdf_records[j*sdf_record_n + 2] = sq_dis;
+                sdf_records[j*sdf_record_n + 3] = sdf;
               }
               counts[j*2 + 1] += 1;
             }
@@ -301,11 +361,11 @@ __global__ void kernel_pointcloud_sdf_fusion_var(const Points pointcloud, Points
           else if (aggregate_type == 1) {
             // separately consider positive sdf & negative sdf by average
             if (sdf >= 0) {
-              sdf_records[j*2 + 0] += sdf;
+              sdf_records[j*sdf_record_n + 0] += sdf;
               counts[j*2 + 0] += 1;
             }
             else {
-              sdf_records[j*2 + 1] += sdf;
+              sdf_records[j*sdf_record_n + 1] += sdf;
               counts[j*2 + 1] += 1;
             }
           }
@@ -408,6 +468,7 @@ void fusion_inside_gpu(const Views &views, int n_pts, Points & points) {
   delete [] counts_cpu;
 }
 
+/* !!!BUG: need to copy buffer on cpu array */
 void fusion_view_tsdf_estimation(const Views &views, Points &query, float truncated_distance) {
   Views views_gpu;
   views_to_gpu(views, views_gpu, true);
@@ -588,15 +649,19 @@ void fusion_view_pc_tsdf_estimation_var(const Points& pointcloud, const Views& v
   int N = query.n_pts_ * 1;
   float * view_sdf_gpu = device_malloc<float>(N);
   thrust::fill_n(thrust::device, view_sdf_gpu, N, 0.0f);
+  int * view_count_gpu = device_malloc<int>(N);
+  thrust::fill_n(thrust::device, view_count_gpu, N, 0);
 
-  kernel_tsdf_estimate <<< GET_BLOCKS(query.n_pts_), CUDA_NUM_THREADS >>> (
-    query_gpu.n_pts_, views_gpu, query_gpu, view_sdf_gpu, truncated_distance
+  kernel_tsdf_inside_estimate <<< GET_BLOCKS(query.n_pts_), CUDA_NUM_THREADS >>> (
+    query_gpu.n_pts_, views_gpu, query_gpu, view_count_gpu, view_sdf_gpu, truncated_distance
   );
   CUDA_POST_KERNEL_CHECK;
   
   // download
   float * view_sdf_cpu = device_to_host_malloc<float>(view_sdf_gpu, N);
   device_free<float>(view_sdf_gpu);
+  int * view_count_cpu = device_to_host_malloc<int>(view_count_gpu, N);
+  device_free<int>(view_count_gpu);
 
   // summarize
   int new_query_count = 0;
@@ -635,9 +700,17 @@ void fusion_view_pc_tsdf_estimation_var(const Points& pointcloud, const Views& v
   int * counts_gpu = device_malloc<int>(N);
   thrust::fill_n(thrust::device, counts_gpu, N, 0);
 
-  int sdf_gpu_n = 2; 
-  if (aggregate_type == 0) sdf_gpu_n = 4;
-  else if (aggregate_type == 1) sdf_gpu_n = 2;
+  int sdf_gpu_n = 3;
+  float sq_thres = 4e-4; 
+  if (aggregate_type == 0) {
+    sdf_gpu_n = 5;
+    //sq_thres = truncated_distance * truncated_distance ;
+    sq_thres = 4e-4;
+  }
+  else if (aggregate_type == 1) { 
+    sdf_gpu_n = 3;
+    sq_thres = 4e-4;
+  }
 
   N = new_query_gpu.n_pts_ * sdf_gpu_n;
   float * sdf_records_gpu = device_malloc<float>(N);
@@ -646,7 +719,7 @@ void fusion_view_pc_tsdf_estimation_var(const Points& pointcloud, const Views& v
   // aggregate_type in (0, 1);
   kernel_pointcloud_sdf_fusion_var <<< 32, 512 >>> (
     pointcloud_gpu, new_query_gpu, counts_gpu, sdf_records_gpu, 
-    1e-4,
+    sq_thres,
     aggregate_type
   );
   CUDA_POST_KERNEL_CHECK;
@@ -660,13 +733,31 @@ void fusion_view_pc_tsdf_estimation_var(const Points& pointcloud, const Views& v
 
 
   int start = 0;
+  int view_count_start = 0;
   int count_start = 0;
   int sdf_record_start = 0;
   int c_dim = query.c_dim_;
   for (int i=0;i<query.n_pts_;i++) {
     if (view_sdf_cpu[i] > -truncated_distance && view_sdf_cpu[i] < truncated_distance) {
-      if (counts_cpu[count_start] == 0 && counts_cpu[count_start + 1] == 0)  {
-        query.data_[start + c_dim - 1] = view_sdf_cpu[i];
+      bool side = true;
+      if (counts_cpu[count_start] + counts_cpu[count_start + 1] <= 5)  {
+        if (view_count_cpu[view_count_start] >= 10) {
+          side = true;
+        }
+        else if (view_sdf_cpu[i] >= 0) {
+          side = true;
+        }
+        else {
+          side = false;
+        }
+
+        float d = sqrt(sdf_records_cpu[sdf_record_start + sdf_gpu_n - 1]);
+        if (side == true) {
+          query.data_[start + c_dim - 1] = d;
+        }
+        else {
+          query.data_[start + c_dim - 1] = -d;
+        }
       }
       else {
         if (aggregate_type == 0) {
@@ -677,13 +768,75 @@ void fusion_view_pc_tsdf_estimation_var(const Points& pointcloud, const Views& v
           //   query.data_[start + c_dim - 1] = sdf_records_cpu[sdf_record_start + 3];
           // else
           //   query.data_[start + c_dim - 1] = (sdf_records_cpu[sdf_record_start + 1] + sdf_records_cpu[sdf_record_start + 3]) / 2.;
+          if (view_count_cpu[view_count_start] >= 10) {
+            side = true;
+          }
+          else if (counts_cpu[count_start] != 0 && counts_cpu[count_start + 1] != 0) {
+            int large_count, small_count;
+            float large_dis, small_dis;
+            float large_dis_tsdf, small_dis_tsdf;
+            if (sdf_records_cpu[sdf_record_start] < sdf_records_cpu[sdf_record_start + 2]) {
+              large_dis = sqrt(sdf_records_cpu[sdf_record_start + 2]);
+              large_dis_tsdf = sdf_records_cpu[sdf_record_start + 3];
+              small_dis = sqrt(sdf_records_cpu[sdf_record_start + 0]);
+              small_dis_tsdf = sdf_records_cpu[sdf_record_start + 1];
+              large_count = counts_cpu[count_start + 1];
+              small_count = counts_cpu[count_start];
+              side = true;
+            }
+            else {
+              large_dis = sqrt(sdf_records_cpu[sdf_record_start + 0]);
+              large_dis_tsdf = sdf_records_cpu[sdf_record_start + 1];
+              small_dis = sqrt(sdf_records_cpu[sdf_record_start + 2]);
+              small_dis_tsdf = sdf_records_cpu[sdf_record_start + 3];
+              large_count = counts_cpu[count_start];
+              small_count = counts_cpu[count_start + 1];
+              side = false;
+            }
 
-          if (counts_cpu[count_start] != 0 && (counts_cpu[count_start + 1] == 0 || sdf_records_cpu[sdf_record_start] < sdf_records_cpu[sdf_record_start + 2]) )
-            query.data_[start + c_dim - 1] = sdf_records_cpu[sdf_record_start + 1];
-          else if (counts_cpu[count_start + 1] != 0 && (counts_cpu[count_start] == 0 || sdf_records_cpu[sdf_record_start] > sdf_records_cpu[sdf_record_start + 2]) )
-            query.data_[start + c_dim - 1] = sdf_records_cpu[sdf_record_start + 3];
-          else
-            query.data_[start + c_dim - 1] = (sdf_records_cpu[sdf_record_start + 1] + sdf_records_cpu[sdf_record_start + 3]) / 2.;
+            if (small_dis * 1.05 >= large_dis) {
+              if (large_count > small_count) {
+                side = !side;
+              }
+            }
+          }
+          else if (counts_cpu[count_start] != 0) {
+            side = true;
+          }
+          else if (counts_cpu[count_start + 1] != 0) {
+            side = false;
+          }
+
+          if (side == true) {
+            if (counts_cpu[count_start] == 0) {
+              float d = sqrt(sdf_records_cpu[sdf_record_start + sdf_gpu_n - 1]);
+              query.data_[start + c_dim - 1] = d;
+            }
+            else {
+              // >= 0
+              float n_tsdf = sdf_records_cpu[sdf_record_start + 1];
+              float dis = sqrt(sdf_records_cpu[sdf_record_start]);
+              if (dis * 0.866025 >= abs(n_tsdf)) 
+                query.data_[start + c_dim - 1] = dis;
+              else
+                query.data_[start + c_dim - 1] = n_tsdf;
+            }
+          }
+          else {
+            if (counts_cpu[count_start + 1] == 0) {
+              float d = sqrt(sdf_records_cpu[sdf_record_start + sdf_gpu_n - 1]);
+              query.data_[start + c_dim - 1] = -d;
+            }
+            else {
+              // <= 0
+              float n_tsdf = sdf_records_cpu[sdf_record_start + 3];
+              float dis = sqrt(sdf_records_cpu[sdf_record_start + 2]);
+              if (dis * 0.866025 >= abs(n_tsdf)) 
+                query.data_[start + c_dim - 1] = -dis;
+              else
+                query.data_[start + c_dim - 1] = n_tsdf;
+            }
+          }
         }
         else {
           if (counts_cpu[count_start] > counts_cpu[count_start + 1] * 5)
@@ -702,6 +855,7 @@ void fusion_view_pc_tsdf_estimation_var(const Points& pointcloud, const Views& v
       query.data_[start + c_dim - 1] = view_sdf_cpu[i];
     }
     start += query.c_dim_;
+    view_count_start += 1;
   }
 
 
@@ -710,6 +864,7 @@ void fusion_view_pc_tsdf_estimation_var(const Points& pointcloud, const Views& v
 
   // free space
   delete [] view_sdf_cpu;
+  delete [] view_count_cpu;
   delete [] sdf_records_cpu;
   delete [] counts_cpu;
   points_free_gpu(pointcloud_gpu);
