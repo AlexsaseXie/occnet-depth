@@ -283,12 +283,14 @@ class PointsField(Field):
             provided
 
     '''
-    def __init__(self, file_name, transform=None, with_transforms=False, unpackbits=False, input_range=None):
+    def __init__(self, file_name, transform=None, with_transforms=False,
+         unpackbits=False, input_range=None, by_tsdf=None):
         self.file_name = file_name
         self.transform = transform
         self.with_transforms = with_transforms
         self.unpackbits = unpackbits
         self.input_range = input_range
+        self.by_tsdf = by_tsdf
         print('Points_field:', self.file_name)
 
     def preload(self, dataset_folder, models_info):
@@ -352,7 +354,10 @@ class PointsField(Field):
         else:
             points = points.astype(np.float32)
 
-        occupancies = points_dict['occupancies']
+        if self.by_tsdf is not None:
+            occupancies = points_dict['tsdf'] < self.by_tsdf
+        else:
+            occupancies = points_dict['occupancies']
 
         if self.unpackbits:
             occupancies = np.unpackbits(occupancies)[:points.shape[0]]

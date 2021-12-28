@@ -47,6 +47,8 @@ class SubsamplePointcloud(object):
         '''
         data_out = data.copy()
         points = data[None]
+        if (points.shape[0] == self.N):
+            return data_out
         
         indices = np.random.choice(points.shape[0], size=self.N, replace=False)
         data_out[None] = points[indices, :]
