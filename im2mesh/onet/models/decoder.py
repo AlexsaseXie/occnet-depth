@@ -1,4 +1,4 @@
-
+import torch
 import torch.nn as nn
 import torch.nn.functional as F
 from im2mesh.layers import (
@@ -7,6 +7,32 @@ from im2mesh.layers import (
     ResnetBlockConv1d
 )
 
+
+class PostionalEmbedder(nn.Module):
+    def __init__(self, L=10, base_scale=2, input_dim=3):
+        self.L = L
+        self.base_scale = base_scale
+        self.freq_tensor = 2. ** torch.linspace(0, L-1, L)
+        self.input_dim = input_dim
+        self.output_dim = input_dim + 2 * L * input_dim
+
+    def __call__(self, p):
+        batch_size, N, dim = p.size()
+        p_base = p * self.base_scale
+        
+        return_result = [p]
+        for freq in self.freq_tensor:
+            p_x = p_base * freq
+            sin_p_x = torch.sin(p_x)
+            cos_p_x = torch.cos(p_x)
+
+            return_result.append(sin_p_x)
+            return_result.append(cos_p_x)
+
+        p = torch.cat(return_result, dim=2)
+        # as long as the following layer is nn.Linear, the return sequence should not matter
+        return p
+        
 
 class Decoder(nn.Module):
     ''' Decoder class.
@@ -22,12 +48,17 @@ class Decoder(nn.Module):
     '''
 
     def __init__(self, dim=3, z_dim=128, c_dim=128,
-                 hidden_size=128, leaky=False):
+                 hidden_size=128, leaky=False, positional_embedder_L=None):
         super().__init__()
         self.z_dim = z_dim
         self.c_dim = c_dim
 
         # Submodules
+        if positional_embedder_L is not None:
+            self.positional_embedder = PostionalEmbedder(positional_embedder_L, 2, dim)
+            dim = self.positional_embedder.output_dim
+        else:
+            self.positional_embedder = None
         self.fc_p = nn.Linear(dim, hidden_size)
 
         if not z_dim == 0:
@@ -52,6 +83,8 @@ class Decoder(nn.Module):
     def forward(self, p, z, c=None, **kwargs):
         batch_size, T, D = p.size()
 
+        if self.positional_embedder is not None:
+            p = self.positional_embedder(p)
         net = self.fc_p(p)
 
         if self.z_dim != 0:
@@ -87,13 +120,18 @@ class DecoderCBatchNorm(nn.Module):
     '''
 
     def __init__(self, dim=3, z_dim=128, c_dim=128,
-                 hidden_size=256, leaky=False, legacy=False):
+                 hidden_size=256, leaky=False, legacy=False, positional_embedder_L=None):
         super().__init__()
         #print('using sigmoid')
         self.z_dim = z_dim
         if not z_dim == 0:
             self.fc_z = nn.Linear(z_dim, hidden_size)
 
+        if positional_embedder_L is not None:
+            self.positional_embedder = PostionalEmbedder(positional_embedder_L, 2, dim)
+            dim = self.positional_embedder.output_dim
+        else:
+            self.positional_embedder = None
         self.fc_p = nn.Conv1d(dim, hidden_size, 1)
         self.block0 = CResnetBlockConv1d(c_dim, hidden_size, legacy=legacy)
         self.block1 = CResnetBlockConv1d(c_dim, hidden_size, legacy=legacy)
@@ -114,6 +152,8 @@ class DecoderCBatchNorm(nn.Module):
             self.actvn = lambda x: F.leaky_relu(x, 0.2)
 
     def forward(self, p, z, c, **kwargs):
+        if self.positional_embedder is not None:
+            p = self.positional_embedder(p)
         p = p.transpose(1, 2)
         batch_size, D, T = p.size()
         net = self.fc_p(p)
@@ -152,12 +192,17 @@ class DecoderCBatchNorm2(nn.Module):
     '''
 
     def __init__(self, dim=3, z_dim=0, c_dim=128,
-                 hidden_size=256, n_blocks=5):
+                 hidden_size=256, n_blocks=5, positional_embedder_L=None):
         super().__init__()
         self.z_dim = z_dim
         if z_dim != 0:
             self.fc_z = nn.Linear(z_dim, c_dim)
 
+        if positional_embedder_L is not None:
+            self.positional_embedder = PostionalEmbedder(positional_embedder_L, 2, dim)
+            dim = self.positional_embedder.output_dim
+        else:
+            self.positional_embedder = None
         self.conv_p = nn.Conv1d(dim, hidden_size, 1)
         self.blocks = nn.ModuleList([
             CResnetBlockConv1d(c_dim, hidden_size) for i in range(n_blocks)
@@ -168,6 +213,8 @@ class DecoderCBatchNorm2(nn.Module):
         self.actvn = nn.ReLU()
 
     def forward(self, p, z, c, **kwargs):
+        if self.positional_embedder is not None:
+            p = self.positional_embedder(p)
         p = p.transpose(1, 2)
         batch_size, D, T = p.size()
         net = self.conv_p(p)
@@ -196,12 +243,17 @@ class DecoderCBatchNormNoResnet(nn.Module):
     '''
 
     def __init__(self, dim=3, z_dim=128, c_dim=128,
-                 hidden_size=256, leaky=False):
+                 hidden_size=256, leaky=False, positional_embedder_L=None):
         super().__init__()
         self.z_dim = z_dim
         if not z_dim == 0:
             self.fc_z = nn.Linear(z_dim, hidden_size)
 
+        if positional_embedder_L is not None:
+            self.positional_embedder = PostionalEmbedder(positional_embedder_L, 2, dim)
+            dim = self.positional_embedder.output_dim
+        else:
+            self.positional_embedder = None
         self.fc_p = nn.Conv1d(dim, hidden_size, 1)
         self.fc_0 = nn.Conv1d(hidden_size, hidden_size, 1)
         self.fc_1 = nn.Conv1d(hidden_size, hidden_size, 1)
@@ -224,6 +276,8 @@ class DecoderCBatchNormNoResnet(nn.Module):
             self.actvn = lambda x: F.leaky_relu(x, 0.2)
 
     def forward(self, p, z, c, **kwargs):
+        if self.positional_embedder is not None:
+            p = self.positional_embedder(p)
         p = p.transpose(1, 2)
         batch_size, D, T = p.size()
         net = self.fc_p(p)
@@ -261,7 +315,7 @@ class DecoderBatchNorm(nn.Module):
     '''
 
     def __init__(self, dim=3, z_dim=128, c_dim=128,
-                 hidden_size=256, leaky=False):
+                 hidden_size=256, leaky=False, positional_embedder_L=None):
         super().__init__()
         self.z_dim = z_dim
         self.c_dim = c_dim
@@ -272,6 +326,12 @@ class DecoderBatchNorm(nn.Module):
 
         if self.c_dim != 0:
             self.fc_c = nn.Linear(c_dim, hidden_size)
+
+        if positional_embedder_L is not None:
+            self.positional_embedder = PostionalEmbedder(positional_embedder_L, 2, dim)
+            dim = self.positional_embedder.output_dim
+        else:
+            self.positional_embedder = None
         self.fc_p = nn.Conv1d(dim, hidden_size, 1)
         self.block0 = ResnetBlockConv1d(hidden_size)
         self.block1 = ResnetBlockConv1d(hidden_size)
@@ -289,6 +349,8 @@ class DecoderBatchNorm(nn.Module):
             self.actvn = lambda x: F.leaky_relu(x, 0.2)
 
     def forward(self, p, z, c, **kwargs):
+        if self.positional_embedder is not None:
+            p = self.positional_embedder(p)
         p = p.transpose(1, 2)
         batch_size, D, T = p.size()
         net = self.fc_p(p)
