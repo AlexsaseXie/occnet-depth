@@ -10,13 +10,14 @@ from im2mesh.layers import (
 
 class PostionalEmbedder(nn.Module):
     def __init__(self, L=10, base_scale=2, input_dim=3):
+        super().__init__()
         self.L = L
         self.base_scale = base_scale
         self.freq_tensor = 2. ** torch.linspace(0, L-1, L)
         self.input_dim = input_dim
         self.output_dim = input_dim + 2 * L * input_dim
 
-    def __call__(self, p):
+    def forward(self, p):
         batch_size, N, dim = p.size()
         p_base = p * self.base_scale
         

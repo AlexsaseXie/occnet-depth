@@ -149,7 +149,7 @@ class PointCompletionTrainer(BaseTrainer):
             
                 eval_dict = self.mesh_evaluator.eval_pointcloud(pointcloud_hat, pointcloud_gt)
 
-            if self.gt_pointcloud_transfer in ('world_scale_model', 'view_scale_model', 'view'):
+            if self.gt_pointcloud_transfer in ('world_random_scale', 'world_scale_model', 'view_scale_model', 'view'):
                 pointcloud_scale = data.get('pointcloud.scale').to(device).view(batch_size, 1, 1)
                 loss = loss / (pointcloud_scale ** 2)
                 if self.gt_pointcloud_transfer == 'view':
@@ -428,7 +428,7 @@ class MSNTrainer(BaseTrainer):
 
             loss = emd.earth_mover_distance(out, gt_pc, transpose=False)
 
-            if self.gt_pointcloud_transfer in ('world_scale_model', 'view_scale_model', 'view'):
+            if self.gt_pointcloud_transfer in ('world_random_scale', 'world_scale_model', 'view_scale_model', 'view'):
                 pointcloud_scale = data.get('pointcloud.scale').to(device).view(batch_size, 1, 1)
                 loss = loss / (pointcloud_scale ** 2)
                 if self.gt_pointcloud_transfer == 'view':
