@@ -26,6 +26,7 @@ parser.add_argument('--batch_size', type=int, default=256, help='Generation batc
 parser.add_argument('--combine_pc', action='store_true', help='Combine input and predict.')
 parser.add_argument('--resample', type=int, default=0, help='random resample points count.')
 parser.add_argument('--fps', action='store_true', help='use fps to resample')
+parser.add_argument('--repeat_times', type=int, default=1)
 parser.add_argument('--time_test', action='store_true', help='time test')
 args = parser.parse_args()
 
@@ -120,16 +121,19 @@ for batch in tqdm(train_loader):
         single_t0 = time.time()
 
     with torch.no_grad():
-        pointcloud_hat = model(encoder_inputs, **kwargs)
-
-        if method == 'FCAE':
-            if isinstance(pointcloud_hat, tuple):
-                pointcloud_hat,_ = pointcloud_hat
-        elif method == 'MSN': 
-            if isinstance(pointcloud_hat, tuple):
-                _, pointcloud_hat, _ = pointcloud_hat
-        else:
-            raise NotImplementedError
+        pointcloud_hats = []
+        for i in range(args.repeat_times):
+            pointcloud_hat = model(encoder_inputs, **kwargs)
+            if method == 'FCAE':
+                if isinstance(pointcloud_hat, tuple):
+                    pointcloud_hat,_ = pointcloud_hat
+            elif method == 'MSN': 
+                if isinstance(pointcloud_hat, tuple):
+                    _, pointcloud_hat, _ = pointcloud_hat
+            else:
+                raise NotImplementedError
+            pointcloud_hats.append(pointcloud_hat)
+        pointcloud_hat = torch.cat(pointcloud_hats, dim=1)
 
         if args.combine_pc:
             pointcloud_hat = torch.cat([pointcloud_hat, encoder_inputs], dim=1)
