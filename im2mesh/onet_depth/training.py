@@ -474,10 +474,10 @@ def compose_inputs(data, mode='train', device=None, input_type='depth_pred',
 
         if depth_pointcloud_transfer == 'world_normalized':
             # world_scale_model -> world_normalized
-            #loc = data.get('points.loc').to(device)
-            #scale = data.get('points.scale').to(device)
-            loc = data.get('inputs.loc').to(device)
-            scale = data.get('inputs.scale').to(device)
+            loc = data.get('points.loc').to(device)
+            scale = data.get('points.scale').to(device)
+            #loc = data.get('inputs.loc').to(device)
+            #scale = data.get('inputs.scale').to(device)
             B = loc.size(0)
             loc = loc.view(B, 1, 3)
             scale = 1.0 / scale.view(B, 1, 1)
