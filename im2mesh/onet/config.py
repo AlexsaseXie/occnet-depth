@@ -223,6 +223,16 @@ def get_occ_data_fields(mode, cfg):
         else:
             input_range = None
 
+    by_tsdf = None
+    if mode == 'train':
+        if 'train_tsdf' in cfg['data']:
+            by_tsdf = cfg['data']['train_tsdf']
+            print('train by tsdf:', by_tsdf)
+    else:
+        if 'test_tsdf' in cfg['data']:
+            by_tsdf = cfg['data']['test_tsdf']
+            print('test by tsdf:', by_tsdf)
+
     fields = {}
     points_file = cfg['data']['points_file']
     if points_file.endswith('.npz'):
@@ -230,7 +240,8 @@ def get_occ_data_fields(mode, cfg):
             cfg['data']['points_file'], points_transform,
             with_transforms=with_transforms,
             unpackbits=cfg['data']['points_unpackbits'],
-            input_range=input_range
+            input_range=input_range,
+            by_tsdf=by_tsdf
         )
     elif points_file.endswith('.h5'):
         fields['points'] = data.PointsH5Field(
@@ -256,7 +267,8 @@ def get_occ_data_fields(mode, cfg):
                     points_iou_file, val_subsample_transform,
                     with_transforms=with_transforms,
                     unpackbits=cfg['data']['points_unpackbits'],
-                    input_range=input_range
+                    input_range=input_range,
+                    by_tsdf=by_tsdf
                 )
             elif points_iou_file.endswith('.h5'):
                 fields['points_iou'] = data.PointsH5Field(

@@ -358,9 +358,9 @@ class PointsField(Field):
             occupancies = points_dict['tsdf'] < self.by_tsdf
         else:
             occupancies = points_dict['occupancies']
-
-        if self.unpackbits:
-            occupancies = np.unpackbits(occupancies)[:points.shape[0]]
+            if self.unpackbits:
+                occupancies = np.unpackbits(occupancies)[:points.shape[0]]
+                
         occupancies = occupancies.astype(np.float32)
 
         if self.input_range is not None:
