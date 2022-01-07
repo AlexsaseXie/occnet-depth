@@ -741,7 +741,7 @@ class Phase2HalfwayTrainer(BaseTrainer):
         
         shape = (32, 32, 32)
         p = make_3d_grid([-0.5] * 3, [0.5] * 3, shape).to(device)
-        p = p.expand(batch_size, *p.size())
+        p = p.expand(batch_size, *p.size()).contiguous()
 
         encoder_inputs, raw_data = compose_inputs(data, mode='val', device=self.device, input_type=self.input_type,
                                                 use_gt_depth_map=self.use_gt_depth_map, depth_map_mix=self.depth_map_mix, 
