@@ -9,7 +9,7 @@ from im2mesh.data.fields import (
 )
 from im2mesh.data.transforms import (
     PointcloudNoise, SubsamplePointcloud, ShufflePointcloud,
-    SubsamplePoints
+    SubsamplePoints, PointcloudOffset
 )
 from im2mesh.data.real import (
     KittiDataset, OnlineProductDataset,
@@ -52,6 +52,7 @@ __all__ = [
     SubsamplePointcloud,
     ShufflePointcloud,
     SubsamplePoints,
+    PointcloudOffset,
     # Real Data
     KittiDataset,
     OnlineProductDataset,

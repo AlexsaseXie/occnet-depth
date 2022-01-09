@@ -27,6 +27,31 @@ class PointcloudNoise(object):
         data_out[None] = points + noise
         return data_out
 
+class PointcloudOffset(object):
+    ''' Point cloud noise transformation class.
+
+    It adds noise to point cloud data.
+
+    Args:
+        offset: offset along normal
+    '''
+
+    def __init__(self, offset):
+        self.offset = offset
+
+    def __call__(self, data):
+        ''' Calls the transformation.
+
+        Args:
+            data (dictionary): data dictionary
+        '''
+        data_out = data.copy()
+        points = data[None]
+        normals = data['normals']
+        normals[np.isnan(normals)] = 0.
+        data_out[None] = points + normals * self.offset
+        return data_out
+
 
 class SubsamplePointcloud(object):
     ''' Point cloud subsampling transformation class.
