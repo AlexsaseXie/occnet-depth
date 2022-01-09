@@ -336,12 +336,28 @@ class Fusion:
         faces = mesh.faces
         np_normals = mesh.face_normals.astype(np.float32)
 
+        # process: remove area == 0 triangles
+        np_normals_len = np.linalg.norm(np_normals, axis=1, keepdims=False)
+        good_id = np_normals_len > 0.5
+        np_normals = np_normals[good_id, :]
+        faces = faces[good_id, :]
+
         F = faces.shape[0]
         T = camera_positions.shape[0]
 
         render_np_vertices = np_vertices[faces].reshape(F * 3, 3)
         render_np_colors = np.zeros((0,3), dtype=np.float32)
         render_np_normals = np_normals.repeat(3, axis=0) # (F*3) * 3
+
+        if POINTCLOUD_VIS_OUTPUT:
+            print('Before rendering:')
+            print('Normal nan: %d' % np.isnan(render_np_normals).sum())
+            normal_lens = np.linalg.norm(render_np_normals, axis=1, keepdims=False)
+            bad_ids = normal_lens < 0.5
+            if bad_ids.sum() > 0:
+                print('Bad verts:')
+                print(render_np_vertices[bad_ids, :])
+            print('Vertex nan: %d' % np.isnan(render_np_vertices).sum())
 
         #print("vert:", render_np_vertices.shape, "colors:", render_np_colors.shape, "normals:", render_np_vertices.shape)
         #print("vert:", render_np_vertices[0:6,:])
@@ -571,6 +587,12 @@ class Fusion:
             'view_mat': view_mat,
             'stats': stats
         }
+
+        if POINTCLOUD_VIS_OUTPUT:
+            print('Normal nan: %d' % np.isnan(normal).sum())
+            print('Vertex nan: %d' % np.isnan(vertex).sum())
+            print('Face normal nan: %d' % np.isnan(face_normal).sum())
+
         depth_file = self.get_outpath(filepath)
         common.write_hdf5_dict(depth_file, data_dict)
         print('[Data] wrote %s (%f seconds)' % (depth_file, timer.elapsed()))
