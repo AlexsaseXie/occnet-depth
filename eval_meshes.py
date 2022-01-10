@@ -5,9 +5,11 @@ from tqdm import tqdm
 import pandas as pd
 import trimesh
 import torch
+from im2mesh.data.transforms import PointcloudOffset
 from im2mesh import config, data
 from im2mesh.eval import MeshEvaluator
 from im2mesh.utils.io import load_pointcloud
+from torchvision import transforms
 
 
 parser = argparse.ArgumentParser(
@@ -40,21 +42,37 @@ if 'test_range' in cfg['data']:
 else:
     input_range = None
 
+if 'test_tsdf' in cfg['data']:
+    by_tsdf = cfg['data']['test_tsdf']
+    print('Points by tsdf:', by_tsdf)
+else:
+    by_tsdf = None
+
 if cfg['data']['points_iou_file'].endswith('.npz'):
     points_field = data.PointsField(
         cfg['data']['points_iou_file'], 
         unpackbits=cfg['data']['points_unpackbits'],
-        input_range=input_range
+        input_range=input_range,
+        by_tsdf=by_tsdf
     )
 else:
     points_field = data.PointsH5Field(
         cfg['data']['points_iou_file'],
         input_range=input_range
     )
- 
+
+if by_tsdf is not None:
+    pc_transform = transforms.Compose([
+        PointcloudOffset(by_tsdf)
+    ])
+    print('Point cloud offset:', by_tsdf)
+else:
+    pc_transform = None
 pointcloud_field = data.PointCloudField(
-    cfg['data']['pointcloud_chamfer_file']
+    cfg['data']['pointcloud_chamfer_file'],
+    transform=pc_transform
 )
+
 fields = {
     'points_iou': points_field,
     'pointcloud_chamfer': pointcloud_field,
