@@ -21,13 +21,13 @@ class SALTrainer(BaseTrainer):
         
     '''
 
-    def __init__(self, model, optimizer, device=None, input_type='img', vis_dir=None, pred_minmax=False):
+    def __init__(self, model, optimizer, device=None, vis_dir=None, with_encoder=True):
         self.model = model
         self.optimizer = optimizer
+
         self.device = device
-        self.input_type = input_type
         self.vis_dir = vis_dir
-        self.pred_minmax = pred_minmax
+        self.with_encoder = with_encoder
 
         if vis_dir is not None and not os.path.exists(vis_dir):
             os.makedirs(vis_dir)
@@ -101,29 +101,8 @@ class SALTrainer(BaseTrainer):
         '''
         device = self.device
         inputs = data.get('inputs').to(device)
-        gt_depth_maps = data.get('inputs.depth').to(device)
-        gt_mask = data.get('inputs.mask').to(device)
-        pr_depth_maps = self.model(None, inputs, func='predict_depth_maps')
-        n_predicts = pr_depth_maps.size(1)
+        p = data.get('points').to(device)
+        gt_sal_val = data.get('points.sal').to(device)
 
-        mask_pix_count = gt_mask.sum()
-
-        # TODO: make compute loss functions inside model.forward to balance gpu usage during DP forward
-        loss = 0
-        for i in range(n_predicts):
-            # for object
-            if mask_pix_count != 0.:
-                loss += (F.mse_loss(pr_depth_maps[:,i], gt_depth_maps, reduce=False) * gt_mask).sum() / mask_pix_count
-            # for background
-            #loss += ( F.relu(5.0 - pr_depth_maps[:,i]) * (1. - gt_mask) ).mean()
-            #loss += 0.1 * ( F.sigmoid(pr_depth_maps[:,i]) * (-1.0) * (1. - gt_mask) ).mean()
-
-        if self.pred_minmax:
-            gt_min = data.get('inputs.depth_min').to(device)
-            gt_max = data.get('inputs.depth_max').to(device)
-            predicted_minmax = self.model(None, None, func='fetch_minmax')
-            w_minmax = (224 ** 2) / 2
-            loss += w_minmax * F.mse_loss(predicted_minmax[:,0], gt_min)
-            loss += w_minmax * F.mse_loss(predicted_minmax[:,1], gt_max)
 
         return loss
