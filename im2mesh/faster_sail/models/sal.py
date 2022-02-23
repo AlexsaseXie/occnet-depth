@@ -40,7 +40,10 @@ class SALNetwork(nn.Module):
             return self.infer_z(inputs, **kwargs)
         elif func == 'decode':
             return self.decode(p, z, **kwargs)
-        elif func == 'loss':
+        elif func == 'z_loss':
+            assert gt_sal is not None
+            return self.z_loss(p, z, gt_sal, z_loss_ratio=z_loss_ratio, **kwargs)
+        elif func == 'forward_loss':
             assert gt_sal is not None
             return self.forward_loss(p, inputs, gt_sal, z_loss_ratio=z_loss_ratio, **kwargs)
 
@@ -50,6 +53,23 @@ class SALNetwork(nn.Module):
         p_r = self.decode(p, z, **kwargs)
 
         return p_r
+
+    def z_loss(self, p, z, gt_sal, z_loss_ratio=1.0e-3, sal_loss_type='l1', **kwargs):
+        z_reg = z.abs().mean(dim=-1)
+        p_r = self.decode(p, z, **kwargs)
+
+        # sal loss
+        if sal_loss_type == 'l1':
+            loss_sal = torch.abs(p_r.abs() - gt_sal).mean()
+        elif sal_loss_type == 'l2':
+            loss_sal = torch.pow(p_r.abs() - gt_sal, 2).mean()
+        else:
+            raise NotImplementedError
+
+        # latent loss: regularization
+        loss_sal += z_loss_ratio * z_reg.mean()
+
+        return loss_sal, p_r
 
     def forward_loss(self, p, inputs, gt_sal, z_loss_ratio=1.0e-3, sal_loss_type='l1', **kwargs):
         q_z, z_reg = self.infer_z(inputs, **kwargs)
