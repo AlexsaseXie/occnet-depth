@@ -32,11 +32,12 @@ class SALGenerator(object):
     '''
 
     def __init__(self, model, points_batch_size=100000,
-                 threshold=0.5, refinement_step=0, device=None,
+                 threshold=0, refinement_step=0, device=None,
                  resolution0=16, upsampling_steps=3,
                  with_normals=False, padding=0.1, sample=False,
                  simplify_nfaces=None,
-                 preprocessor=None, with_encoder=True, optim_z_dim=128
+                 preprocessor=None, with_encoder=True, optim_z_dim=128,
+                 z_learning_rate=1e-4, z_refine_steps=20
                  ):
         self.model = model.to(device)
         if getattr(self.model, 'module', False):
@@ -55,6 +56,10 @@ class SALGenerator(object):
         self.simplify_nfaces = simplify_nfaces
         self.preprocessor = preprocessor
 
+        self.optim_z_dim = optim_z_dim
+        self.z_learning_rate = z_learning_rate
+        self.z_refine_steps = z_refine_steps
+
     def generate_mesh(self, data, return_stats=True):
         ''' Generates the output mesh.
 
@@ -69,22 +74,47 @@ class SALGenerator(object):
 
         if self.with_encoder:
             inputs = data.get('inputs', torch.empty(1, 0)).to(device)
-            z = 
+            with torch.no_grad():
+                q_z, z_reg = self.model.infer_z(inputs)
+                z = q_z.rsample()
         else:
-
+            # batch size == 1
+            z = torch.randn(1, self.optim_z_dim).to(device)
 
         kwargs = {}
 
-        # Encode inputs
-        z = self.model.get_z_from_prior((1,), sample=self.sample).to(device)
-        mesh = self.generate_from_latent(z, c, stats_dict=stats_dict, **kwargs)
+        mesh = self.generate_from_latent(z, stats_dict=stats_dict, **kwargs)
+        for key in stats_dict:
+            stats_dict['(before z refine) %s' % key] = stats_dict[key]
+
+
+        # furthur refine 
+        z = z.requires_grad_()
+        z_optimizer = optim.SGD([z], lr=self.z_learning_rate)
+
+        p = data.get('points').to(device)
+        gt_sal_val = data.get('points.sal').to(device)
+
+        t0 = time.time()
+        for i in range(self.z_refine_steps):
+            z_optimizer.zero_grad()
+            loss = self.model(p, func='z_loss',
+                gt_sal=gt_sal_val, z_loss_ratio=1.0e-3, z=z)
+
+            loss.backward()
+            z_optimizer.step()
+
+        z = z.clone().detach()
+        stats_dict['time (refine z)'] = time.time() - t0
+
+        refined_mesh = self.generate_from_latent(z, stats_dict=stats_dict, **kwargs)
 
         if return_stats:
-            return mesh, stats_dict
+            return mesh, refined_mesh, stats_dict
         else:
-            return mesh
+            return mesh, refined_mesh
 
-    def generate_from_latent(self, z, c=None, stats_dict={}, **kwargs):
+    def generate_from_latent(self, z, stats_dict={}, **kwargs):
         ''' Generates mesh from latent.
 
         Args:
@@ -92,7 +122,7 @@ class SALGenerator(object):
             c (tensor): latent conditioned code c
             stats_dict (dict): stats dictionary
         '''
-        threshold = np.log(self.threshold) - np.log(1. - self.threshold)
+        threshold = self.threshold
 
         t0 = time.time()
         # Compute bounding box size
@@ -104,7 +134,7 @@ class SALGenerator(object):
             pointsf = box_size * make_3d_grid(
                 (-0.5,)*3, (0.5,)*3, (nx,)*3
             )
-            values = self.eval_points(pointsf, z, c, **kwargs).cpu().numpy()
+            values = self.eval_points(pointsf, z, **kwargs).cpu().numpy()
             value_grid = values.reshape(nx, nx, nx)
         else:
             mesh_extractor = MISE(
@@ -120,7 +150,7 @@ class SALGenerator(object):
                 pointsf = box_size * (pointsf - 0.5)
                 # Evaluate model and update
                 values = self.eval_points(
-                    pointsf, z, c, **kwargs).cpu().numpy()
+                    pointsf, z, **kwargs).cpu().numpy()
                 values = values.astype(np.float64)
                 mesh_extractor.update(points, values)
                 points = mesh_extractor.query()
@@ -130,10 +160,10 @@ class SALGenerator(object):
         # Extract mesh
         stats_dict['time (eval points)'] = time.time() - t0
 
-        mesh = self.extract_mesh(value_grid, z, c, stats_dict=stats_dict)
+        mesh = self.extract_mesh(value_grid, z, stats_dict=stats_dict)
         return mesh
 
-    def eval_points(self, p, z, c=None, **kwargs):
+    def eval_points(self, p, z, **kwargs):
         ''' Evaluates the occupancy values for the points.
 
         Args:
@@ -142,38 +172,38 @@ class SALGenerator(object):
             c (tensor): latent conditioned code c
         '''
         p_split = torch.split(p, self.points_batch_size)
-        occ_hats = []
+        sdf_hats = []
 
         for pi in p_split:
             pi = pi.unsqueeze(0).to(self.device)
             with torch.no_grad():
-                occ_hat = self.model.decode(pi, z, c, **kwargs).logits
+                sdf_hat = self.model.decode(pi, z, **kwargs)
 
-            occ_hats.append(occ_hat.squeeze(0).detach().cpu())
+            sdf_hats.append(sdf_hat.squeeze(0).detach().cpu())
 
-        occ_hat = torch.cat(occ_hats, dim=0)
+        sdf_hat = torch.cat(sdf_hats, dim=0)
 
-        return occ_hat
+        return sdf_hat
 
-    def extract_mesh(self, occ_hat, z, c=None, stats_dict=dict()):
+    def extract_mesh(self, sdf_hat, z, stats_dict=dict()):
         ''' Extracts the mesh from the predicted occupancy grid.
 
         Args:
-            occ_hat (tensor): value grid of occupancies
+            sdf_hat (tensor): value grid of occupancies
             z (tensor): latent code z
             c (tensor): latent conditioned code c
             stats_dict (dict): stats dictionary
         '''
         # Some short hands
-        n_x, n_y, n_z = occ_hat.shape
+        n_x, n_y, n_z = sdf_hat.shape
         box_size = 1 + self.padding
-        threshold = np.log(self.threshold) - np.log(1. - self.threshold)
+        threshold = self.threshold
         # Make sure that mesh is watertight
         t0 = time.time()
-        occ_hat_padded = np.pad(
-            occ_hat, 1, 'constant', constant_values=-1e6)
+        sdf_hat_padded = np.pad(
+            sdf_hat, 1, 'constant', constant_values=-1e6)
         vertices, triangles = libmcubes.marching_cubes(
-            occ_hat_padded, threshold)
+            sdf_hat_padded, threshold)
         stats_dict['time (marching cubes)'] = time.time() - t0
         # Strange behaviour in libmcubes: vertices are shifted by 0.5
         vertices -= 0.5
@@ -189,7 +219,7 @@ class SALGenerator(object):
         # Estimate normals if needed
         if self.with_normals and not vertices.shape[0] == 0:
             t0 = time.time()
-            normals = self.estimate_normals(vertices, z, c)
+            normals = self.estimate_normals(vertices, z)
             stats_dict['time (normals)'] = time.time() - t0
 
         else:
@@ -213,12 +243,12 @@ class SALGenerator(object):
         # Refine mesh
         if self.refinement_step > 0:
             t0 = time.time()
-            self.refine_mesh(mesh, occ_hat, z, c)
+            self.refine_mesh(mesh, sdf_hat, z)
             stats_dict['time (refine)'] = time.time() - t0
 
         return mesh
 
-    def estimate_normals(self, vertices, z, c=None):
+    def estimate_normals(self, vertices, z):
         ''' Estimates the normals by computing the gradient of the objective.
 
         Args:
@@ -235,8 +265,8 @@ class SALGenerator(object):
         for vi in vertices_split:
             vi = vi.unsqueeze(0).to(device)
             vi.requires_grad_()
-            occ_hat = self.model.decode(vi, z, c).logits
-            out = occ_hat.sum()
+            sdf_hat = self.model.decode(vi, z)
+            out = sdf_hat.sum()
             out.backward()
             ni = -vi.grad
             ni = ni / torch.norm(ni, dim=-1, keepdim=True)
@@ -246,12 +276,12 @@ class SALGenerator(object):
         normals = np.concatenate(normals, axis=0)
         return normals
 
-    def refine_mesh(self, mesh, occ_hat, z, c=None):
+    def refine_mesh(self, mesh, sdf_hat, z, c=None):
         ''' Refines the predicted mesh.
 
         Args:   
             mesh (trimesh object): predicted mesh
-            occ_hat (tensor): predicted occupancy grid
+            sdf_hat (tensor): predicted occupancy grid
             z (tensor): latent code z
             c (tensor): latent conditioned code c
         '''
@@ -259,7 +289,7 @@ class SALGenerator(object):
         self.model.eval()
 
         # Some shorthands
-        n_x, n_y, n_z = occ_hat.shape
+        n_x, n_y, n_z = sdf_hat.shape
         assert(n_x == n_y == n_z)
         # threshold = np.log(self.threshold) - np.log(1. - self.threshold)
         threshold = self.threshold

@@ -1252,3 +1252,63 @@ class DepthPointCloudField(Field):
         complete = True
         return complete
 
+class PointsSALField(Field):
+    ''' Point SAL Field.
+
+    It provides the field to load point data. This is used for the points
+    randomly sampled in the bounding volume of the 3D shape.
+
+    Args:
+        file_name (str): file name
+        transform (list): list of transformations which will be applied to the
+            points tensor
+        with_transforms (bool): whether scaling and rotation data should be
+            provided
+
+    '''
+    def __init__(self, file_name, transform=None, with_transforms=False,
+          input_range=None):
+        self.file_name = file_name
+        self.transform = transform
+        self.with_transforms = with_transforms
+        self.input_range = input_range
+        print('Points_field:', self.file_name)
+
+    def load(self, model_path, idx, category, view_id=None):
+        ''' Loads the data point.
+
+        Args:
+            model_path (str): path to model
+            idx (int): ID of data point
+            category (int): index of category
+        '''
+        file_path = os.path.join(model_path, self.file_name)
+
+        points_dict = np.load(file_path)
+        points = points_dict['points']
+        # Break symmetry if given in float16:
+        if points.dtype == np.float16:
+            points = points.astype(np.float32)
+            points += 1e-4 * np.random.randn(*points.shape)
+        else:
+            points = points.astype(np.float32)
+
+        gt_sal_val = points_dict['sal']
+
+        if self.input_range is not None:
+            points = points[self.input_range[0]: self.input_range[1]]
+            gt_sal_val = gt_sal_val[self.input_range[0]: self.input_range[1]]
+
+        data = {
+            None: points,
+            'sal': gt_sal_val,
+        }
+
+        if self.with_transforms:
+            data['loc'] = points_dict['loc'].astype(np.float32)
+            data['scale'] = points_dict['scale'].astype(np.float32)
+
+        if self.transform is not None:
+            data = self.transform(data)
+
+        return data

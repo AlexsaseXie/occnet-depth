@@ -425,5 +425,5 @@ void fusion_inside_gpu(const Views &views, int n_pts, Points & points);
 void fusion_view_tsdf_estimation(const Views &views, Points &query, float truncated_distance);
 void fusion_view_pc_tsdf_estimation(const Points& pointcloud, const Views& views, Points &query, float truncated_distance, int aggregate_type);
 void fusion_view_pc_tsdf_estimation_var(const Points& pointcloud, const Views& views, Points &query, float truncated_distance, int aggregate_type);
-
+void fusion_nn_pc(const Points& pointcloud, Points &query);
 #endif

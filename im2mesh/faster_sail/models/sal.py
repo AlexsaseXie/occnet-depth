@@ -2,6 +2,22 @@ import torch
 import torch.nn as nn
 from torch import distributions as dist
 
+
+
+class Decoder(nn.Module):
+    pass
+
+class SimplePointnet_VAE(nn.Module):
+    pass
+
+encoder_latent_dict = {
+    'pointnet_vae': SimplePointnet_VAE
+}
+
+decoder_dict = {
+    'deepsdf': Decoder
+}
+
 class SALNetwork(nn.Module):
     ''' SAL Network class.
 

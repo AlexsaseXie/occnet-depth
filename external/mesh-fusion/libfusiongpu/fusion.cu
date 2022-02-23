@@ -376,6 +376,43 @@ __global__ void kernel_pointcloud_sdf_fusion_var(const Points pointcloud, Points
   }
 }
 
+__global__ void kernel_nearest_neighbor(const Points pointcloud, Points query, float * nn, int * id) {
+  int n = query.n_pts_;
+  int m = pointcloud.n_pts_;
+
+	const int batch = 512; // 512
+	__shared__ float buf[batch*6];
+
+  for (int k2=0;k2<m;k2+=batch){
+    int end_k=min(m,k2+batch)-k2;
+    for (int j=threadIdx.x;j<end_k*6;j+=blockDim.x){
+      buf[j]=pointcloud.data_[k2*6+j];
+    }
+    __syncthreads();
+    CUDA_KERNEL_LOOP(j, n){
+      float x = query.data_[j*query.c_dim_ + 0];
+      float y = query.data_[j*query.c_dim_ + 1];
+      float z = query.data_[j*query.c_dim_ + 2];
+      for (int k=0;k<end_k;k++){
+        float pc_x = buf[k*6 + 0];
+        float pc_y = buf[k*6 + 1];
+        float pc_z = buf[k*6 + 2];
+
+        float vec_x = x - pc_x;
+        float vec_y = y - pc_y;
+        float vec_z = z - pc_z;
+        float sq_dis = vec_x * vec_x + vec_y * vec_y + vec_z * vec_z;
+
+        if (id[j] < 0 || nn[j] == 0. || sq_dis < nn[j]) {
+          id[j] = k2 + k;
+          nn[j] = sq_dis;
+        }
+      }
+    }
+    __syncthreads();
+  }
+}
+
 template <typename FusionFunctorT>
 void fusion_gpu(const Views& views, const FusionFunctorT functor, float vx_size, Volume& vol) {
   Views views_gpu;
@@ -872,4 +909,40 @@ void fusion_view_pc_tsdf_estimation_var(const Points& pointcloud, const Views& v
   points_free_gpu(new_query_gpu);
   delete [] new_query_cpu.data_;
   views_free_gpu(views_gpu);
+}
+
+void fusion_nn_pc(const Points& pointcloud, Points &query) {
+  Points pointcloud_gpu;
+  points_to_gpu(pointcloud, pointcloud_gpu, true);
+  Points query_gpu;
+  points_to_gpu(query, query_gpu, true);
+
+  int N = query_gpu.n_pts_;
+  float * nn_gpu = device_malloc<float>(N);
+  thrust::fill_n(thrust::device, nn_gpu, N, 0.);
+  int * id_gpu = device_malloc<int>(N);
+  thrust::fill_n(thrust::device, id_gpu, N, -1);
+
+  kernel_nearest_neighbor <<< 32, 512 >>> (
+    pointcloud_gpu, query_gpu, nn_gpu 
+  );
+  CUDA_POST_KERNEL_CHECK;
+
+  float * nn_cpu = device_to_host_malloc<float>(nn_gpu, N);
+  device_free<float>(nn_gpu);
+  int * id_cpu = device_to_host_malloc<int>(id_gpu, N);
+  device_free<int>(id_gpu);
+
+  int c_dim = query.c_dim_; // == 5
+  int start = 0;
+  for (int i=0;i<query.n_pts_;i++) {
+    query.data_[start + c_dim - 2] = nn_cpu[i];
+    query.data_[start + c_dim - 1] = (float)id_cpu[i] + 0.1f;
+    start += c_dim;
+  }
+
+  delete [] nn_cpu;
+  delete [] id_cpu;
+  points_free_gpu(query_gpu);
+  points_free_gpu(pointcloud_gpu);
 }

@@ -100,7 +100,7 @@ class SALTrainer(BaseTrainer):
             with torch.no_grad():
                 loss = self.compute_loss(data)
         else:
-            refine_step = 50
+            refine_step = 20
             self.init_z(data)
             for i in range(refine_step):
                 self.z_optimizer.zero_grad()

@@ -183,4 +183,33 @@ class SubsamplePoints(object):
             })
         return data_out
 
+class SubsamplePointsSAL(object):
+    ''' Points SAL subsampling transformation class.
+
+    It subsamples the points data.
+
+    Args:
+        N (int): number of points to be subsampled
+    '''
+    def __init__(self, N):
+        self.N = N
+
+    def __call__(self, data):
+        ''' Calls the transformation.
+
+        Args:
+            data (dictionary): data dictionary
+        '''
+        points = data[None]
+        sal = data['sal']
+
+        data_out = data.copy()
+        assert isinstance(self.N, int)
+        idx = np.random.randint(points.shape[0], size=self.N)
+        data_out.update({
+            None: points[idx, :],
+            'sal':  sal[idx],
+        })
+        return data_out
+
 

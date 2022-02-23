@@ -51,7 +51,7 @@ cdef extern from "fusion.h":
   void fusion_view_tsdf_estimation(const Views &views, Points &query, float truncated_distance);
   void fusion_view_pc_tsdf_estimation(const Points& pointcloud, const Views& views, Points &query, float truncated_distance, int aggregate_type);
   void fusion_view_pc_tsdf_estimation_var(const Points& pointcloud, const Views& views, Points &query, float truncated_distance, int aggregate_type);
-
+  void fusion_nn_pc(const Points& pointcloud, Points &query);
 
 cdef class PyViews:
   cdef Views views
@@ -274,3 +274,21 @@ def view_pc_tsdf_estimation_var(PyViews views, pointcloud, points, float truncat
   tsdf = return_points[:,c_dim]
 
   return tsdf
+
+def pc_nn(pointcloud, points):
+  cdef float[:,::1] pointcloud_view = pointcloud
+  cdef PyPoints py_pointcloud = PyPoints(pointcloud_view)
+
+  cdef int n_pts = points.shape[0]
+  cdef int c_dim = points.shape[1]
+
+  return_points = np.zeros((n_pts, c_dim + 2), dtype=np.float32)
+  return_points[:,:c_dim] = points[:,:c_dim]
+  cdef float[:,::1] return_points_view = return_points
+  cdef PyPoints py_points = PyPoints(return_points_view)
+
+  fusion_nn_pc(py_pointcloud.points, py_points.points)
+  dis = return_points[:, c_dim]
+  idx = np.floor(return_points[:, c_dim + 1]).astype(np.int)
+
+  return dis, idx

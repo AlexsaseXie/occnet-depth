@@ -6,6 +6,7 @@ from im2mesh import onet_m
 from im2mesh import onet_multi_layers_predict
 from im2mesh import onet_depth
 from im2mesh import point_completion
+from im2mesh import faster_sail
 from im2mesh import preprocess
 
 
@@ -20,7 +21,9 @@ method_dict = {
     'onet_depth': onet_depth,
     'point_completion': point_completion,
     'FCAE': point_completion,
-    'MSN': point_completion
+    'MSN': point_completion,
+    'SAL': faster_sail,
+    'SAIL_S3': faster_sail
 }
 
 
