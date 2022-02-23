@@ -924,7 +924,7 @@ void fusion_nn_pc(const Points& pointcloud, Points &query) {
   thrust::fill_n(thrust::device, id_gpu, N, -1);
 
   kernel_nearest_neighbor <<< 32, 512 >>> (
-    pointcloud_gpu, query_gpu, nn_gpu 
+    pointcloud_gpu, query_gpu, nn_gpu, id_gpu 
   );
   CUDA_POST_KERNEL_CHECK;
 
