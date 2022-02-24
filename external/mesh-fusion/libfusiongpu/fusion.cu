@@ -936,7 +936,7 @@ void fusion_nn_pc(const Points& pointcloud, Points &query) {
   int c_dim = query.c_dim_; // == 5
   int start = 0;
   for (int i=0;i<query.n_pts_;i++) {
-    query.data_[start + c_dim - 2] = nn_cpu[i];
+    query.data_[start + c_dim - 2] = sqrt(nn_cpu[i]);
     query.data_[start + c_dim - 1] = (float)id_cpu[i] + 0.1f;
     start += c_dim;
   }

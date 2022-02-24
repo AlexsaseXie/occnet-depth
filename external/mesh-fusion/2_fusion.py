@@ -25,6 +25,7 @@ if use_gpu:
     from libfusiongpu import judge_inside as compute_judge_inside
     from libfusiongpu import view_pc_tsdf_estimation as compute_view_pc_tsdf
     from libfusiongpu import view_pc_tsdf_estimation_var as compute_view_pc_tsdf_var
+    from libfusiongpu import pc_nn as compute_nn
 else:
     import libfusioncpu as libfusion
     from libfusioncpu import tsdf_cpu as compute_tsdf
@@ -228,13 +229,13 @@ class Fusion:
         elif self.options.mode == 'fuse':
             modelname = os.path.splitext(os.path.splitext(filename)[0])[0]
             outpath = os.path.join(self.options.out_dir, modelname + '.off')
-        elif self.options.mode in ('judge_inside_simple', 'judge_tsdf_view_pc', 'judge_tsdf_view_pc_according_to_pc'):
+        elif self.options.mode in ('judge_inside_simple', 'judge_tsdf_view_pc',
+            'judge_tsdf_view_pc_according_to_pc', 'judge_sal'):
             modelname = os.path.splitext(os.path.splitext(filename)[0])[0]
             outpath = os.path.join(self.options.out_dir, modelname + '.npz')
         elif self.options.mode == 'sample':
             modelname = os.path.splitext(os.path.splitext(filename)[0])[0]
             outpath = os.path.join(self.options.out_dir, modelname + '.npz')
-
         return outpath
         
     def get_points(self):
@@ -491,6 +492,10 @@ class Fusion:
         tsdf = compute_view_pc_tsdf_var(views, pointcloud, points, truncation, aggregate)
         return tsdf
 
+    def compute_pc_nn(self, pointcloud, points):
+        dis, idx = compute_nn(pointcloud, points)
+        return dis, idx
+
     def run(self):
         """
         Run the tool.
@@ -512,6 +517,8 @@ class Fusion:
             method = self.run_tsdf_view_pc
         elif self.options.mode == 'judge_tsdf_view_pc_according_to_pc':
             method = self.run_tsdf_view_pc_according_to_pc
+        elif self.options.mode == 'judge_sal':
+            method = self.run_sal_according_to_pc
         else:
             print('Invalid model, choose render or fuse.')
             exit()
@@ -587,6 +594,10 @@ class Fusion:
             'view_mat': view_mat,
             'stats': stats
         }
+
+        #normal_bad_count = np.isnan(normal).sum()
+        #if normal_bad_count > 0:
+        #    print('Normal nan: %d' % normal_bad_count)
 
         if POINTCLOUD_VIS_OUTPUT:
             print('Normal nan: %d' % np.isnan(normal).sum())
@@ -838,6 +849,69 @@ class Fusion:
 
         np.savez(off_file, points=points, occupancies=occupancies, tsdf=tsdf,
              loc=loc, scale=scale)
+        print('[Data] wrote %s (%f seconds)' % (off_file, timer.elapsed()))
+
+    def run_sal_according_to_pc(self, filepath):
+        timer = common.Timer()
+
+        timer.reset()
+
+        modelname = os.path.splitext(os.path.splitext(os.path.basename(filepath))[0])[0]
+        loc, scale, padding = self.get_transform(modelname)
+
+        scale = scale * (1 - padding) / (1 - self.options.bbox_padding)
+
+        pointcloud_npz = np.load(filepath)
+        pointcloud_normalized = pointcloud_npz['points']
+
+        pointcloud_scale = (1 - padding) / (1 - self.options.bbox_padding)
+        pointcloud_points = pointcloud_normalized * pointcloud_scale
+        pointcloud_normal = pointcloud_npz['normals']
+        pointcloud = np.concatenate((pointcloud_points, pointcloud_normal), axis=1)
+
+        n_points_uniform = self.options.points_according_to_pc_uniform_size
+        n_points_according_to_pc = self.options.points_according_to_pc_size
+
+        # sample code
+        # uniform
+        boxsize = 1 + self.options.points_padding
+        points_uniform = np.random.rand(n_points_uniform, 3) # dtype == np.float64
+        points_uniform = (boxsize * (points_uniform - 0.5)).astype(np.float32)
+
+        # according to pc
+        pointcloud_size = pointcloud_normalized.shape[0]
+        idx = np.random.randint(pointcloud_size, size=n_points_according_to_pc)
+        points_pc = pointcloud_normalized[idx,:].astype(np.float32)
+        displacement = np.random.rand(n_points_according_to_pc, 3)
+        displacement = (self.options.points_pc_box * (displacement - 0.5)).astype(np.float32)
+        points_pc = points_pc + displacement
+        
+        points = np.concatenate((points_uniform, points_pc), axis=0)
+        # normalize
+        points_buffer = points * (1 - padding) / (1 - self.options.bbox_padding)
+        #tsdf = self.judge_tsdf_view_pc(depths, Rts, pointcloud, points_buffer, truncation=self.truncation, aggregate='mean')
+        dis, pc_nn_idx = self.compute_pc_nn(pointcloud, points_buffer)
+        dis = dis / pointcloud_scale
+
+        off_file = self.get_outpath(filepath)
+        if POINTCLOUD_VIS_OUTPUT:
+            a_color = np.ones((points.shape[0], 3), dtype=np.float32)
+            a_color[dis >= 0.06, :] = np.array([255,0,0], dtype=np.float32)
+            a_color[dis < 0.06, :] = np.array([0,255,0], dtype=np.float32)
+            a_color[dis < 0.04, :] = np.array([255,255,0], dtype=np.float32)
+            a_color[dis < 0.02, :] = np.array([255,255,255], dtype=np.float32)
+            
+            a_xyzrgb = np.concatenate((points_buffer, a_color), axis=1)
+            print(a_xyzrgb.shape)
+            ply_path = off_file + ".ply"
+            pcwrite(ply_path, a_xyzrgb, color=True)
+
+        if self.options.float16:
+            points = points.astype(np.float16)
+        if self.options.packbits:
+            occupancies = np.packbits(occupancies)
+
+        np.savez(off_file, points=points, sal=dis, loc=loc, scale=scale)
         print('[Data] wrote %s (%f seconds)' % (off_file, timer.elapsed()))
 
     def run_sample(self, filepath):
