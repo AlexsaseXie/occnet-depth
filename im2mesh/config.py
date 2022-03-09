@@ -164,6 +164,24 @@ def get_dataset(mode, cfg, return_idx=False, return_category=False):
             split=split,
             categories=categories,
         )
+    elif dataset_type == 'Shapes3D_list':
+        instance_list = cfg['data']['%s_instance_list' % mode] 
+        fields = method_dict[method].config.get_data_fields(mode, cfg)
+        # Input fields
+        inputs_field = get_inputs_field(mode, cfg)
+        if inputs_field is not None:
+            fields['inputs'] = inputs_field
+
+        if return_idx:
+            fields['idx'] = data.IndexField()
+
+        if return_category:
+            fields['category'] = data.CategoryField()
+
+        dataset = data.Shapes3dInstanceList_Dataset(
+            dataset_folder, fields,
+            train_list=instance_list,
+        )
     elif dataset_type == 'kitti':
         dataset = data.KittiDataset(
             dataset_folder, img_size=cfg['data']['img_size'],
@@ -224,6 +242,8 @@ def get_inputs_field(mode, cfg):
     if 'input_fields' in cfg['data']:
         # Mixed input field settings
         inputs_field_name = cfg['data']['input_fields']
+        if inputs_field_name is None:
+            return None
         inputs_field = data.MixedInputField(inputs_field_name, mode, cfg, n_views=24)
         return inputs_field
     with_transforms = cfg['data']['with_transforms']

@@ -32,7 +32,7 @@ def get_model(cfg, device=None, dataset=None, **kwargs):
         #assert decoder == 'deepsdf'
         #assert encoder_latent == 'pointnet_vae'
         decoder = sal_decoder_dict[decoder](
-            latent_size=z_dim, dims=0,
+            latent_size=z_dim, 
             **decoder_kwargs
         )
 
@@ -88,7 +88,7 @@ def get_trainer(model, optimizer, cfg, device, **kwargs):
     }
 
     if method == 'SAL':
-        with_encoder = (encoder_latent is None)
+        with_encoder = (encoder_latent is not None)
         if with_encoder:
             optim_z_dim = 0
         else:
@@ -134,11 +134,17 @@ def get_generator(model, cfg, device, **kwargs):
     }
 
     if method == 'SAL':
+        if 'furthur_refine' in cfg['generation']:
+            furthur_refine = cfg['generation']['furthur_refine']
+        else:
+            furthur_refine = True
         generator = generation.SALGenerator(
             model,
             optim_z_dim=optim_z_dim,
+            with_encoder=(cfg['model']['encoder_latent'] is not None),
             z_learning_rate=0.0001,
             z_refine_steps=20,
+            furthur_refine=furthur_refine,
             **generator_params
         )
     elif method == 'SAIL_S3':
@@ -151,15 +157,16 @@ def get_generator(model, cfg, device, **kwargs):
 
 def get_data_fields(mode, cfg):
     dataset_type = cfg['data']['dataset']
-
-    assert dataset_type == 'Shapes3D'
-
     # SAL dataset
     fields = {}
     N = cfg['data']['points_subsample']
     with_transforms = cfg['model']['use_camera']
 
-    points_transform = SubsamplePointsSAL(cfg['data']['points_subsample'])
+    if 'points_subsample' in cfg['data'] and cfg['data']['points_subsample'] is not None: 
+        points_transform = SubsamplePointsSAL(cfg['data']['points_subsample'])
+    else:
+        points_transform = None
+    
     fields = {}
     points_file = cfg['data']['points_file']
 

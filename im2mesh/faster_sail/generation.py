@@ -37,6 +37,7 @@ class SALGenerator(object):
                  with_normals=False, padding=0.1, sample=False,
                  simplify_nfaces=None,
                  preprocessor=None, with_encoder=True, optim_z_dim=128,
+                 furthur_refine=True,
                  z_learning_rate=1e-4, z_refine_steps=20
                  ):
         self.model = model.to(device)
@@ -59,8 +60,9 @@ class SALGenerator(object):
         self.optim_z_dim = optim_z_dim
         self.z_learning_rate = z_learning_rate
         self.z_refine_steps = z_refine_steps
+        self.furthur_refine = furthur_refine
 
-    def generate_mesh(self, data, return_stats=True):
+    def generate_mesh(self, data, return_stats=True, z_prior=None):
         ''' Generates the output mesh.
 
         Args:
@@ -70,7 +72,7 @@ class SALGenerator(object):
         self.model.eval()
         device = self.device
         stats_dict = {}
-
+        tmp_stats_dict = {}
 
         if self.with_encoder:
             inputs = data.get('inputs', torch.empty(1, 0)).to(device)
@@ -78,41 +80,53 @@ class SALGenerator(object):
                 q_z, z_reg = self.model.infer_z(inputs)
                 z = q_z.rsample()
         else:
-            # batch size == 1
-            z = torch.randn(1, self.optim_z_dim).to(device)
+            with torch.no_grad():
+                if z_prior is not None:
+                    z = z_prior.to(device).detach()
+                else:
+                    # batch size == 1
+                    z = torch.randn(1, self.optim_z_dim).to(device).detach()
 
         kwargs = {}
 
-        mesh = self.generate_from_latent(z, stats_dict=stats_dict, **kwargs)
-        for key in stats_dict:
-            stats_dict['(before z refine) %s' % key] = stats_dict[key]
-
+        mesh = self.generate_from_latent(z, stats_dict=tmp_stats_dict, **kwargs)
+        for key in tmp_stats_dict:
+            stats_dict['(before z refine) %s' % key] = tmp_stats_dict[key]
 
         # furthur refine 
-        z = z.requires_grad_()
-        z_optimizer = optim.SGD([z], lr=self.z_learning_rate)
+        if self.furthur_refine:
+            z = z.requires_grad_()
+            z_optimizer = optim.SGD([z], lr=self.z_learning_rate)
 
-        p = data.get('points').to(device)
-        gt_sal_val = data.get('points.sal').to(device)
+            scheduler = optim.lr_scheduler.StepLR(z_optimizer, step_size=self.z_refine_steps//2.5, gamma=0.1)
+            p = data.get('points').to(device)
+            gt_sal_val = data.get('points.sal').to(device)
 
-        t0 = time.time()
-        for i in range(self.z_refine_steps):
-            z_optimizer.zero_grad()
-            loss = self.model(p, func='z_loss',
-                gt_sal=gt_sal_val, z_loss_ratio=1.0e-3, z=z)
+            t0 = time.time()
+            for i in range(self.z_refine_steps):
+                z_optimizer.zero_grad()
+                loss = self.model(p, func='z_loss',
+                    gt_sal=gt_sal_val, z_loss_ratio=1.0e-3, z=z)
 
-            loss.backward()
-            z_optimizer.step()
+                loss.backward()
+                z_optimizer.step()
+                scheduler.step()
 
-        z = z.clone().detach()
-        stats_dict['time (refine z)'] = time.time() - t0
+            z = z.clone().detach()
+            stats_dict['time (refine z)'] = time.time() - t0
 
-        refined_mesh = self.generate_from_latent(z, stats_dict=stats_dict, **kwargs)
+            refined_mesh = self.generate_from_latent(z, stats_dict=stats_dict, **kwargs)
 
         if return_stats:
-            return mesh, refined_mesh, stats_dict
+            if self.furthur_refine:
+                return mesh, refined_mesh, stats_dict
+            else:
+                return mesh, stats_dict
         else:
-            return mesh, refined_mesh
+            if self.furthur_refine:
+                return mesh, refined_mesh
+            else:
+                return mesh
 
     def generate_from_latent(self, z, stats_dict={}, **kwargs):
         ''' Generates mesh from latent.
@@ -200,8 +214,9 @@ class SALGenerator(object):
         threshold = self.threshold
         # Make sure that mesh is watertight
         t0 = time.time()
-        sdf_hat_padded = np.pad(
-            sdf_hat, 1, 'constant', constant_values=-1e6)
+        sdf_hat_padded = sdf_hat
+        #sdf_hat_padded = np.pad(
+        #    sdf_hat, 1, 'constant', constant_values=1e6)
         vertices, triangles = libmcubes.marching_cubes(
             sdf_hat_padded, threshold)
         stats_dict['time (marching cubes)'] = time.time() - t0

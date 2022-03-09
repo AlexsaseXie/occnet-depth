@@ -7,6 +7,7 @@ import torch
 from torchvision import transforms
 from im2mesh.data.fields import get_depth_image, get_mask, get_image, get_mask_flow
 from im2mesh.data.fields import IndexField, ViewIdField, CategoryField
+from im2mesh.data.fields import PointCloudField
 from im2mesh.data.transforms import SubsamplePointcloud, PointcloudNoise, ShufflePointcloud, PointcloudDropout
 
 class S_ImagesField(Field):
@@ -321,6 +322,8 @@ class S_RandomModelScale(Field):
     def load(self, model_path, idx, category, view_id=None):
         return np.random.rand(1).astype(np.float32) * (self.random_range[1] - self.random_range[0]) + self.random_range[0]
 
+S_PointCloudField = PointCloudField
+
 class MixedInputField(Field):
     '''
         Mixed input field:
@@ -418,6 +421,19 @@ class MixedInputField(Field):
                     cfg['data']['depth_pointcloud_folder'],
                     transform = pc_transform,
                     mixed = mixed
+                )
+            elif fi == 'pointcloud':
+                t_lst = []
+                if 'pointcloud_n' in cfg['data'] and cfg['data']['pointcloud_n'] is not None:
+                    t_lst.append(SubsamplePointcloud(cfg['data']['depth_pointcloud_n']))
+                if 'pointcloud_noise' in cfg['data'] and cfg['data']['pointcloud_noise'] is not None:
+                    t_lst.append(PointcloudNoise(cfg['data']['depth_pointcloud_noise']))
+                pc_transform = transforms.Compose(t_lst)
+                with_transforms = cfg['data']['with_transforms']
+                
+                field = S_PointCloudField(
+                    cfg['data']['pointcloud_file'], pc_transform,
+                    with_transforms=with_transforms
                 )
             elif fi == 'view_id':
                 field = ViewIdField()
