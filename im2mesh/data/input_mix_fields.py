@@ -425,9 +425,9 @@ class MixedInputField(Field):
             elif fi == 'pointcloud':
                 t_lst = []
                 if 'pointcloud_n' in cfg['data'] and cfg['data']['pointcloud_n'] is not None:
-                    t_lst.append(SubsamplePointcloud(cfg['data']['depth_pointcloud_n']))
+                    t_lst.append(SubsamplePointcloud(cfg['data']['pointcloud_n']))
                 if 'pointcloud_noise' in cfg['data'] and cfg['data']['pointcloud_noise'] is not None:
-                    t_lst.append(PointcloudNoise(cfg['data']['depth_pointcloud_noise']))
+                    t_lst.append(PointcloudNoise(cfg['data']['pointcloud_noise']))
                 pc_transform = transforms.Compose(t_lst)
                 with_transforms = cfg['data']['with_transforms']
                 
@@ -479,6 +479,8 @@ class MixedInputField(Field):
                 data['depth_pred_max'] = fi_data['depth_pred_max']
         elif fi_name == 'depth_pointcloud':
             data['depth_pointcloud'] = fi_data[None]
+        elif fi_name == 'pointcloud':
+            data['pointcloud'] = fi_data[None]
         elif fi_name == 'view_id':
             data['view_id'] = fi_data
         elif fi_name == 'index':

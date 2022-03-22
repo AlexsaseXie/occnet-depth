@@ -112,18 +112,24 @@ for batch in train_loader:
     # TODO: load z_vec 
     if z_vec is not None:
         batch['z'] = z_vec
+        batch['center'] = load_dict.get('center')
+        batch['length'] = load_dict.get('length')
+        batch['r_tensor'] = load_dict.get('r_tensor')
+        batch['t_tensor'] = load_dict.get('t_tensor')
+    
     # init_z
     trainer.init_z(batch)
+    trainer.init_training_points_record(batch)
     scheduler = optim.lr_scheduler.MultiStepLR(optimizer, milestones=[100000, 200000], gamma=0.1)
     if trainer.z_optimizer is not None:
         z_scheduler = optim.lr_scheduler.MultiStepLR(trainer.z_optimizer, milestones=[100000, 200000], gamma=0.1)
     else:
         z_scheduler = None
 
-    model_vis_dir = os.path.join(model_output_dir, 'vis')
-    if not os.path.exists(model_vis_dir):
-        os.mkdir(model_vis_dir)
-    trainer.vis_dir = model_vis_dir
+    # model_vis_dir = os.path.join(model_output_dir, 'vis')
+    # if not os.path.exists(model_vis_dir):
+    #     os.mkdir(model_vis_dir)
+    # trainer.vis_dir = model_vis_dir
 
     while it <= exit_after:
         it += 1
@@ -143,10 +149,11 @@ for batch in train_loader:
         # # all
         # trainer.point_range = None
         # trainer.point_sample = 20000
-        if 'surface_point_weight' in cfg['training']:
-            trainer.surface_point_weight = cfg['training']['surface_point_weight']
 
-        loss = trainer.train_step(batch, initialize_z=False)
+        # if 'surface_point_weight' in cfg['training']:
+        #     trainer.surface_point_weight = cfg['training']['surface_point_weight']
+
+        loss = trainer.train_step(batch)
         logger.add_scalar('train/loss', loss, it)
 
         scheduler.step()
@@ -158,28 +165,24 @@ for batch in train_loader:
             print('[Instance %02d] it=%03d, loss=%f'
                     % (instance_id, it, loss))
 
-
-        if trainer.z_device is not None:
-            z_vec = trainer.z_device.cpu() # z tensor
-        else:
-            z_vec = None
+        # need memorize tensors
+        out_dict = trainer.cube_set_K.export()
 
         # Visualize 
-        if visualize_every > 0 and (it % visualize_every) == 0:
-            print('Visualizing')
-            trainer.visualize(batch)
+        # if visualize_every > 0 and (it % visualize_every) == 0:
+        #     print('Visualizing')
+        #     trainer.visualize(batch)
 
         # Save checkpoint
         if (checkpoint_every > 0 and (it % checkpoint_every) == 0):
             print('Saving checkpoint')
-            checkpoint_io.save('model.pt', it=it, z_vec=z_vec,
-                                loss_val_best=metric_val_best)
+            checkpoint_io.save('model.pt', it=it, loss_val_best=metric_val_best, **out_dict)
 
         # Backup if necessary
         if (backup_every > 0 and (it % backup_every) == 0):
             print('Backup checkpoint')
-            checkpoint_io.save('model_%d.pt' % it, it=it, z_vec=z_vec,
-                                loss_val_best=metric_val_best)
+            checkpoint_io.save('model_%d.pt' % it, it=it, loss_val_best=metric_val_best, **out_dict)
+
         # Run validation
         if validate_every > 0 and (it % validate_every) == 0:
             eval_dict = trainer.eval_step(batch, initialize_z=False)
@@ -193,7 +196,6 @@ for batch in train_loader:
             if model_selection_sign * (metric_val - metric_val_best) > 0:
                 metric_val_best = metric_val
                 print('New best model (loss %.4f)' % metric_val_best)
-                checkpoint_io.save('model_best.pt', it=it, z_vec=z_vec,
-                                    loss_val_best=metric_val_best)
+                checkpoint_io.save('model_best.pt', it=it, loss_val_best=metric_val_best, **out_dict)
 
     trainer.clear_z()

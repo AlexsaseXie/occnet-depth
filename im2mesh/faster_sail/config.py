@@ -6,7 +6,7 @@ import os
 from im2mesh.encoder import encoder_dict
 from im2mesh.faster_sail.models.sal import SALNetwork, decoder_dict as sal_decoder_dict, \
      encoder_latent_dict as sal_encoder_latent_dict
-from im2mesh.faster_sail.models.sail_s3 import SAIL_S3Network
+from im2mesh.faster_sail.models.sail_s3 import SAIL_S3Network, decoder_dict as sail_s3_decoder_dict
 from im2mesh.faster_sail import training, generation
 from im2mesh import data
 from im2mesh.data.fields import PointsSALField
@@ -46,7 +46,16 @@ def get_model(cfg, device=None, dataset=None, **kwargs):
             decoder, encoder_latent, device=device, z_dim=z_dim
         )        
     elif method == 'SAIL_S3':
-        # TODO
+        decoder = sail_s3_decoder_dict[decoder](
+            latent_size=z_dim, 
+            **decoder_kwargs
+        )
+
+        assert encoder_latent is None
+
+        model = SAIL_S3Network(
+            decoder, encoder_latent, device=device, z_dim=z_dim
+        ) 
         raise NotImplementedError
     else:
         raise NotImplementedError
@@ -103,7 +112,21 @@ def get_trainer(model, optimizer, cfg, device, **kwargs):
         )
         
     elif method == 'SAIL_S3':
-        raise NotImplementedError
+        if 'neighbors_K' in cfg['model']:
+            trainer_params['K'] = cfg['model']['neighbors_K']
+
+        if 'initial_length_alpha' in cfg['model']:
+            trainer_params['initial_length_alpha'] = cfg['model']['initial_length_alpha']
+
+        if 'initial_z_std' in cfg['model']:
+            trainer_params['initial_z_std'] = cfg['model']['initial_z_std']
+
+        trainer_params['optim_z_dim'] = cfg['model']['z_dim']
+        trainer_params['z_learning_rate'] = 1e-4
+
+        trainer = training.SAIL_S3_Trainer(
+            model, optimizer, **trainer_params
+        )
     else:
         raise NotImplementedError
 

@@ -1,6 +1,7 @@
 import torch
 import torch.nn as nn
 from torch import distributions as dist
+from im2mesh.faster_sail.models.sal import Decoder
 
 class CubeSet:
     def __init__(self, refine_center=False, refine_length=False, device=None):
@@ -9,18 +10,54 @@ class CubeSet:
         self.refine_z_vector = True
         self.device = device
 
+        self.center = None
+        self.length = None
+        self.circle_t_vector = None
+        self.circle_r_vector = None
+        self.z_vectors = None
+
+    def export(self):
+        assert self.z_vectors is not None
+        assert self.center is not None
+        assert self.length is not None
+        assert self.circle_r_vector is not None
+        assert self.circle_t_vector is not None
+
+        with torch.no_grad():
+            out_dict = {
+                'z': self.z_vectors.cpu(),
+                'center': self.center.cpu(),
+                'length': self.length.cpu(),
+                'r_tensor': self.circle_r_vector.cpu(),
+                't_tensor': self.circle_t_vector.cpu()
+            }
+        return out_dict
+
+    def clear(self):
+        self.center = None
+        self.length = None
+        self.z_vectors = None
+        self.circle_t_vector = None
+        self.circle_r_vector = None
+
     def set(self, center_vector, length_vector, z_vectors):
-        if self.refine_center:
-            self.center = nn.Parameter(center_vector)
-        else:
-            self.center = center_vector
+        with torch.no_grad():
+            if self.refine_center:
+                self.center = center_vector.clone().detach().requires_grad_()
+            else:
+                self.center = center_vector.clone()
 
-        if self.refine_length:
-            self.length = nn.Parameter(length_vector)
-        else:
-            self.length = length_vector
+            if self.refine_length:
+                self.length = length_vector.clone().detach().requires_grad_()
+            else:
+                self.length = length_vector.clone()
 
-        self.z_vectors = nn.parameter(z_vectors)
+            self.z_vectors = z_vectors.clone().detach().requires_grad_()
+
+    def set_initial_r_t(self, r_vector, t_vector):
+        with torch.no_grad():
+            self.circle_r_vector = r_vector.clone()
+            self.circle_t_vector = t_vector.clone()
 
     def learnable_parameters(self):
         return_list = {}
@@ -35,10 +72,14 @@ class CubeSet:
 
     def query(self, p):
         '''
+        Input:
             p: B * N * 3
             self.center: B * K * 3
             self.length: B * K
             self.z_vectors: B * K * z_dim
+
+        Output:
+            calc_index: M * 3 [...[b_index, p_index, center_index]...]
         '''
         B = p.size(0) # better B == 1
         N = p.size(1)
@@ -54,32 +95,45 @@ class CubeSet:
             del a,b,dis,cmp
         return calc_index
 
-    def get(self, p, calc_index):
+    def get(self, p, calc_index, gt_sal=None):
         # gradient pass through this function
-        
+        batch_size = calc_index.shape[0]
+
         b_index = calc_index[:, 0] # M
         p_index = calc_index[:, 1] # M
         center_index = calc_index[:, 2] # M 
 
         # gather
         self.input_p = p[b_index, p_index] # M * 3
+        if gt_sal is not None:
+            self.gt_sal = gt_sal[b_index, p_index] # M * 3
+        else:
+            self.gt_sal = None
         self.input_z = self.z_vectors[b_index, center_index] # M * 3
 
         # unified coordinates
         center_vec = self.center[b_index, center_index] # M * 3
         bounding_length = self.length[b_index, center_index] # M
+        r_vec = self.circle_r_vector[b_index, center_index]
+        t_vec = self.circle_t_vector[b_index, center_index]
 
-        self.input_unified_coordinate = (self.input_p - center_vec) / bounding_length.view(-1,1) # [-1, 1]
+        self.input_unified_coordinate = (self.input_p - center_vec) / bounding_length.view(batch_size,1) # in range of [-1, 1]
+        self.input_unified_coordinate = (self.input_unified_coordinate - t_vec) / r_vec.view(batch_size,1) # coordinates initially lied on a unit circle
+        self.unified_weight = bounding_length.view(batch_size, 1) * r_vec.view(batch_size, 1)
 
         data = {
             'input_p': self.input_p,    # M * 3
             'input_z': self.input_z,    # M * z_dim
+            'gt_sal': self.gt_sal,    # M * 1
+            'unified_weight': self.unified_weight, # M * 1
             'input_unified_coordiante': self.input_unified_coordinate, # M * 3
         }
 
         return data
             
-
+decoder_dict = {
+    'deepsdf': Decoder
+}
 
 class SAIL_S3Network(nn.Module):
     ''' SAL Network class.
@@ -103,7 +157,7 @@ class SAIL_S3Network(nn.Module):
         self.z_dim = z_dim
 
     def forward(self, p=None, inputs=None, func='forward',
-        gt_sal=None, z=None,
+        gt_sal=None, z=None, z_loss_ratio=1.0e-3,
         **kwargs):
         ''' Performs a forward pass through the network.
 
@@ -119,23 +173,32 @@ class SAIL_S3Network(nn.Module):
             return self.decode(p, z, **kwargs)
         elif func == 'loss':
             assert gt_sal is not None
-            return self.forward_loss(p, inputs, gt_sal, **kwargs)
+            return self.forward_loss(p, inputs, gt_sal, z_loss_ratio=z_loss_ratio,  **kwargs)
 
-    def forward_loss(self, p, z, gt_sal, sal_loss_type='l1', **kwargs):
+    def forward_loss(self, p, z, gt_sal, z_loss_ratio=1.0e-3, sal_loss_type='l1', sal_weight=None, **kwargs):
+        if z is not None:
+            z_reg = z.abs().mean(dim=-1)
+        else:
+            z_reg = None
         p_r = self.decode(p, z, **kwargs)
 
         # sal loss
         if sal_loss_type == 'l1':
-            loss_sal = torch.abs(p_r.abs() - gt_sal).mean()
+            loss_sal = torch.abs(p_r.abs() - gt_sal)
         elif sal_loss_type == 'l2':
-            loss_sal = torch.pow(p_r.abs() - gt_sal, 2).mean()
+            loss_sal = torch.pow(p_r.abs() - gt_sal, 2)
         else:
             raise NotImplementedError
 
-        # latent loss: regularization
-        #loss_sal += z_loss_ratio * z_reg.mean()
+        if sal_weight is not None:
+            loss_sal = loss_sal * sal_weight
+        loss_sal = loss_sal.mean()
 
-        return loss_sal
+        # latent loss: regularization
+        if z_loss_ratio != 0 and z_reg is not None:
+            loss_sal += z_loss_ratio * z_reg.mean()
+
+        return loss_sal, p_r
 
     def infer_z(self, inputs, **kwargs):
         ''' Encodes the input.

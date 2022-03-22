@@ -119,7 +119,8 @@ class Decoder(nn.Module):
                 p = 1.0
 
             if l == self.num_layers - 2:
-                torch.nn.init.normal_(lin.weight, mean=2*np.sqrt(np.pi) / np.sqrt(p * dims[l]), std=0.000001)
+                # bug! unexpect 2 in 2 * np.sqrt(np.pi), now removed
+                torch.nn.init.normal_(lin.weight, mean=np.sqrt(np.pi) / np.sqrt(p * dims[l]), std=0.000001)
                 torch.nn.init.constant_(lin.bias, -initial_radius)
             else:
                 torch.nn.init.constant_(lin.bias, 0.0)
@@ -265,7 +266,10 @@ class SALNetwork(nn.Module):
         return p_r
 
     def z_loss(self, p, z, gt_sal, z_loss_ratio=1.0e-3, sal_loss_type='l1', **kwargs):
-        z_reg = z.abs().mean(dim=-1)
+        if z is not None:
+            z_reg = z.abs().mean(dim=-1)
+        else:
+            z_reg = None
         p_r = self.decode(p, z, **kwargs)
 
         # sal loss
@@ -277,7 +281,7 @@ class SALNetwork(nn.Module):
             raise NotImplementedError
 
         # latent loss: regularization
-        if z_loss_ratio != 0:
+        if z_loss_ratio != 0 and z_reg is not None:
             loss_sal += z_loss_ratio * z_reg.mean()
 
         return loss_sal, p_r
