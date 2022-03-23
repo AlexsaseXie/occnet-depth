@@ -18,7 +18,7 @@ parser = argparse.ArgumentParser(
 )
 parser.add_argument('config', type=str, help='Path to config file.')
 parser.add_argument('--no-cuda', action='store_true', help='Do not use cuda.')
-parser.add_argument('--learning_rate',type=float,default=1e-4,
+parser.add_argument('--learning_rate',type=float,default=1e-3,
                     help='Learning Rate.')
 parser.add_argument('--start_number', type=int, default=0)
 
@@ -107,7 +107,7 @@ for batch in train_loader:
     it = load_dict.get('it', -1)
     metric_val_best = load_dict.get(
         'loss_val_best', -model_selection_sign * np.inf)
-    z_vec=load_dict.get('z_vec', None)
+    z_vec=load_dict.get('z', None)
 
     # TODO: load z_vec 
     if z_vec is not None:
@@ -119,39 +119,23 @@ for batch in train_loader:
     
     # init_z
     trainer.init_z(batch)
+    trainer.point_range = [20000, 120000]
+    if 'random_subfield' in cfg['training']:
+        trainer.random_subfield = cfg['training']['random_subfield']
+    else:
+        trainer.random_subfield = 0
+    trainer.point_sample = 25600
     trainer.init_training_points_record(batch)
-    scheduler = optim.lr_scheduler.MultiStepLR(optimizer, milestones=[100000, 200000], gamma=0.1)
+    scheduler = optim.lr_scheduler.MultiStepLR(optimizer, milestones=[40000, 60000, 80000], gamma=0.2)
     if trainer.z_optimizer is not None:
-        z_scheduler = optim.lr_scheduler.MultiStepLR(trainer.z_optimizer, milestones=[100000, 200000], gamma=0.1)
+        z_scheduler = optim.lr_scheduler.MultiStepLR(trainer.z_optimizer, milestones=[40000, 60000, 80000], gamma=0.1)
     else:
         z_scheduler = None
 
-    # model_vis_dir = os.path.join(model_output_dir, 'vis')
-    # if not os.path.exists(model_vis_dir):
-    #     os.mkdir(model_vis_dir)
-    # trainer.vis_dir = model_vis_dir
-
+    # for testing
+    #trainer.show_points(model_output_dir)
     while it <= exit_after:
         it += 1
-
-        # schedule
-        if it <= 80000:
-            trainer.point_range = [0, 20000]
-            trainer.point_sample = 10000
-        else:
-            trainer.point_range = [20000, 120000]
-            trainer.point_sample = 10000
-
-        # # only nearby
-        # trainer.point_range = [20000, 120000]
-        # trainer.point_sample = 20000
-
-        # # all
-        # trainer.point_range = None
-        # trainer.point_sample = 20000
-
-        # if 'surface_point_weight' in cfg['training']:
-        #     trainer.surface_point_weight = cfg['training']['surface_point_weight']
 
         loss = trainer.train_step(batch)
         logger.add_scalar('train/loss', loss, it)
@@ -185,7 +169,7 @@ for batch in train_loader:
 
         # Run validation
         if validate_every > 0 and (it % validate_every) == 0:
-            eval_dict = trainer.eval_step(batch, initialize_z=False)
+            eval_dict = trainer.eval_step(batch)
             metric_val = eval_dict[model_selection_metric]
             print('Validation metric (%s): %.4f'
                     % (model_selection_metric, metric_val))

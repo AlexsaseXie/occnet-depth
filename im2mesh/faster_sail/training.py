@@ -1,6 +1,6 @@
 import os
 from threading import local
-from tqdm import trange
+from tqdm import trange, tqdm
 import torch
 import torch.optim as optim
 import torch.nn as nn
@@ -14,7 +14,7 @@ from im2mesh.training import BaseTrainer
 import numpy as np
 from im2mesh.utils.pointnet2_ops_lib.pointnet2_ops import pointnet2_utils
 from im2mesh.faster_sail.models.sail_s3 import CubeSet
-from im2mesh.faster_sail.utils import find_r_t
+from im2mesh.faster_sail.utils import find_r_t, pcwrite
 
 class SALTrainer(BaseTrainer):
     ''' SALTrainer object for the SALNetwork.
@@ -66,7 +66,7 @@ class SALTrainer(BaseTrainer):
                 batch_size = p.size(0)
                 point_size = p.size(1)
 
-                data_z = torch.randn(batch_size, self.optim_z_dim)
+                data_z = torch.randn(batch_size, self.optim_z_dim) * 1e-3
             else:
                 # following code should never be used
                 assert data_z.size(1) == self.optim_z_dim
@@ -207,8 +207,8 @@ class SALTrainer(BaseTrainer):
 
 class SAIL_S3_Trainer(BaseTrainer):
     def __init__(self, model, optimizer, optim_z_dim=0, 
-            z_learning_rate=1e-4, device=None, vis_dir=None,
-            K=128, initial_length_alpha=1.5, initial_z_std=1e-3):
+            z_learning_rate=1e-3, device=None, vis_dir=None,
+            K=128, initial_length_alpha=1.5, initial_z_std=1e-3, random_subfield=0):
         self.model = model
         self.optimizer = optimizer
 
@@ -216,6 +216,7 @@ class SAIL_S3_Trainer(BaseTrainer):
         self.vis_dir = vis_dir
 
         self.optim_z_dim = optim_z_dim # int or [int]
+        assert self.optim_z_dim > 0
         self.z_learning_rate = z_learning_rate
         self.z_optimizer = None
 
@@ -226,19 +227,20 @@ class SAIL_S3_Trainer(BaseTrainer):
         self.K = K
         self.initial_length_alpha = initial_length_alpha
         self.initial_z_std = initial_z_std
+        print('K: %d, initial length alpha: %f, z_std: %f' % (self.K, self.initial_length_alpha, self.initial_z_std))
+        
+        self.random_subfield = random_subfield
+        
         # status
-        self.cube_set_K = CubeSet(refine_center=False, refine_length=False, device=device)
+        self.cube_set_K = CubeSet(device, refine_center=False, refine_length=False)
         self.training_p = None
         self.training_calc_index = None
-        
-
-        if vis_dir is not None and not os.path.exists(vis_dir):
-            os.makedirs(vis_dir)
 
     def init_z(self, data):
         device = self.device
-        z_vec = data.get('z', None).to(device)
+        z_vec = data.get('z', None)
         if z_vec is not None:
+            print('Init with existing params')
             z_vec = z_vec.to(device)
             pointcloud_K = data.get('center').to(device)
             initial_length = data.get('length').to(device)
@@ -258,26 +260,33 @@ class SAIL_S3_Trainer(BaseTrainer):
                 B = pointcloud.shape[0]
                 assert B == 1
 
+                print('Conduct fps to get initial %d centers...' % K)
                 pointcloud_idx = pointnet2_utils.furthest_point_sample(pointcloud, K) 
                 pointcloud_K = pointnet2_utils.gather_operation(pointcloud_flipped, pointcloud_idx).transpose(1, 2).contiguous()
                 # pointcloud_K: B * K * 3
 
-                A = pointcloud_K.unsqueeze(2).repeat(1,1,K,1)
-                B = pointcloud_K.unsqueeze(1).repeat(1,K,1,1)
+                X = pointcloud_K.unsqueeze(2).repeat(1,1,K,1)
+                Y = pointcloud_K.unsqueeze(1).repeat(1,K,1,1)
 
-                dis = torch.sqrt(((A - B) ** 2).sum(dim=3)) # B * K * K, Dis[i][j] = distance between i and j
-                dis, _ = dis.topk(5, dim=2, largest=False)
+                dis = torch.sqrt(((X - Y) ** 2).sum(dim=3)) # B * K * K, Dis[i][j] = distance between i and j
+                dis, _ = dis.topk(5, dim=2, largest=False) # B * K * 5
 
-                initial_length = dis[:,1:].mean(dim=1)  * (self.initial_length_alpha / 2.0) # B * K
-                z_vec = torch.randn(B, K, self.optim_z_dim) * self.initial_z_std
+                initial_length = dis[:,:,1:].mean(dim=2)  * (self.initial_length_alpha / 2.0) # B * K
+                z_vec = (torch.randn((B, K, self.optim_z_dim)) * self.initial_z_std).to(device)
+
+                # initial_length_cpu = initial_length.cpu()
+                # pointcloud_K_cpu = pointcloud_K.cpu()
+                # del initial_length, pointcloud_K, pointcloud_idx
 
                 self.cube_set_K.set(pointcloud_K, initial_length, z_vec)
                 # set r t
                 self.init_K_neighbor_r_t(data, pointcloud_K, initial_length)
-                self.init_training_points_record(data)
+                print('Set %d cube set' % K)
+                print('Length\'s avg:', self.cube_set_K.length.mean())
 
         param_list = self.cube_set_K.learnable_parameters()
-        self.z_optimizer = optim.SGD(param_list, lr=self.z_learning_rate)
+        print('Learnable params:', param_list)
+        self.z_optimizer = optim.SGD([ param_list[k] for k in param_list ], lr=self.z_learning_rate)
 
     def clear_z(self):
         self.z_optimizer = None
@@ -306,31 +315,73 @@ class SAIL_S3_Trainer(BaseTrainer):
         '''
         with torch.no_grad():
             self.training_calc_index = self.cube_set_K.query(p)
+            print('Training calc index:', self.training_calc_index.shape)
+
+            if self.random_subfield != 0:
+                self.training_calc_index_sep, total_len = self.cube_set_K.query_sep(p)
+                print('Training calc index sep: batch %d, K %d, subfield 0 shape:' % 
+                    (len(self.training_calc_index_sep), 
+                    len(self.training_calc_index_sep[0])), 
+                    self.training_calc_index_sep[0][0].shape, 
+                    ',Total len: %d' % total_len
+                )
+
+    def show_points(self, output_dir):
+        print('Show points')
+        with torch.no_grad():
+            centers = self.cube_set_K.center.cpu().numpy()[0,:,:]
+            output_file = os.path.join(output_dir, 'centers.ply')
+            pcwrite(output_file, centers, color=False)
+            output_file = os.path.join(output_dir, 'center5.ply')
+            pcwrite(output_file, centers[10:15,:], color=False)
+
+            t = 5
+            output_file = os.path.join(output_dir, 'batch_points.ply')
+            lst = []
+            neighbors = []
+            for i in range(10,10+t):
+                batch_data = self.cube_set_K.get(self.training_p, self.training_calc_index_sep[0][i])
+                cur_points = batch_data['input_p'].cpu().numpy()
+                cur_color = np.ones((cur_points.shape[0], 3), dtype=np.float32) * 256 * (i-10) / t
+                cur_xyzrgb = np.concatenate([cur_points, cur_color], axis=1)
+                lst.append(cur_xyzrgb)
+                neighbors.append(self.neighbor_points[i])
+            
+            xyzrgb = np.concatenate(lst, axis=0)
+            pcwrite(output_file, xyzrgb, color=True)
+
+            neighbors = np.concatenate(neighbors, axis=0)
+            output_file = os.path.join(output_dir, 'neighbor_pc.ply')
+            pcwrite(output_file, neighbors, color=False)         
 
     def init_K_neighbor_r_t(self, data, pointcloud_K, initial_length):
-        pointcloud_K_numpy = pointcloud_K.cpu().numpy()
-        initial_length_numpy = initial_length.cpu().numpy()
-        pc_numpy = data.get('inputs.pointcloud').numpy()
+        assert pointcloud_K.shape[0] == 1
+        pointcloud_K_numpy = pointcloud_K.cpu().numpy().squeeze(0)
+        initial_length_numpy = initial_length.cpu().numpy().squeeze(0)
+        pc_numpy = data.get('inputs.pointcloud').numpy().squeeze(0)
 
         device = self.device
 
         r_s = []
         t_s = []
+        self.neighbor_points = []
         for i in range(self.K):
             center = pointcloud_K_numpy[i,:]
             initial_length = initial_length_numpy[i]
 
             local_pc = pc_numpy - center
-            dis_to_center = (local_pc ** 2).sum(axis=0)
-            
+            dis_to_center = np.abs(local_pc).max(axis=1)
+            neighbors = pc_numpy[dis_to_center < initial_length]
+            self.neighbor_points.append(neighbors)
             local_pc = local_pc[dis_to_center < initial_length] / initial_length
 
+            assert local_pc.shape[0] > 0
             r, t = find_r_t(local_pc)
             r_s.append(r)
             t_s.append(t)
 
-        r_s = np.concatenate(r_s, axis=0) # n * 1
-        t_s = np.concatenate(t_s, axis=0) # n * 3 
+        r_s = np.array(r_s)[np.newaxis, :, np.newaxis].astype(np.float32) # 1 * n * 1
+        t_s = np.array(t_s)[np.newaxis, :].astype(np.float32) # 1 * n * 3 
 
         r_s_tensor = torch.from_numpy(r_s).to(device)
         t_s_tensor = torch.from_numpy(t_s).to(device)
@@ -413,13 +464,28 @@ class SAIL_S3_Trainer(BaseTrainer):
         assert self.point_sample is not None
         
         if self.model.training:
-            rand_idx = np.random.choice(calc_index.shape[1], size=self.point_sample, replace=False)
-            calc_index = calc_index[rand_idx,:]
-
-            batch_data = self.cube_set_K.get(p, calc_index=calc_index, gt_sal=gt_sal_val)
+            if self.random_subfield == 0:
+                rand_idx = np.random.choice(calc_index.shape[0], size=self.point_sample, replace=False)
+                cs = calc_index[rand_idx,:]
+            else:
+                K = self.K
+                B = p.shape[0]
+                calc_index_list = []
+                for b in range(B):
+                    rand_subfield_idx = np.random.choice(K, size=self.random_subfield, replace=False)
+                    for subfield_id in rand_subfield_idx:
+                        cur_subfield = self.training_calc_index_sep[b][subfield_id]
+                        total_len = cur_subfield.shape[0]
+                        rand_idx = np.random.choice(total_len, size=self.point_sample // self.random_subfield)
+                        calc_index_list.append(cur_subfield[rand_idx,:])
+                cs = torch.cat(calc_index_list, dim=0)
+            batch_data = self.cube_set_K.get(p, calc_index=cs, gt_sal_val=gt_sal_val)
 
             weight = batch_data['unified_weight']
-            
+            # print('Training input data')
+            # for key in batch_data:
+            #     print('%s:' % key, batch_data[key].shape, 'Dtype: %s' % batch_data[key].dtype,
+            #          'Device: %s' % batch_data[key].device)
             loss, _ = self.model(batch_data['input_unified_coordinate'], gt_sal=batch_data['gt_sal'] / weight, 
                 z=batch_data['input_z'], func='loss', sal_weight=weight)
         else:
@@ -427,9 +493,9 @@ class SAIL_S3_Trainer(BaseTrainer):
                 calc_index_b = torch.split(calc_index, 100000)
                 losses = 0
                 total_size = calc_index.shape[0]
-                for cs in calc_index_b:
+                for cs in tqdm(calc_index_b):
                     batch_size = cs.shape[0]
-                    batch_data = self.cube_set_K.get(p, calc_index=cs, gt_sal=gt_sal_val)
+                    batch_data = self.cube_set_K.get(p, calc_index=cs, gt_sal_val=gt_sal_val)
 
                     weight = batch_data['unified_weight']
                     loss, _ = self.model(batch_data['input_unified_coordinate'], gt_sal=batch_data['gt_sal'] / weight, 

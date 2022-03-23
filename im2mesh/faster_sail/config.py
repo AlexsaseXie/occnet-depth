@@ -56,7 +56,6 @@ def get_model(cfg, device=None, dataset=None, **kwargs):
         model = SAIL_S3Network(
             decoder, encoder_latent, device=device, z_dim=z_dim
         ) 
-        raise NotImplementedError
     else:
         raise NotImplementedError
 
@@ -122,7 +121,7 @@ def get_trainer(model, optimizer, cfg, device, **kwargs):
             trainer_params['initial_z_std'] = cfg['model']['initial_z_std']
 
         trainer_params['optim_z_dim'] = cfg['model']['z_dim']
-        trainer_params['z_learning_rate'] = 1e-4
+        trainer_params['z_learning_rate'] = 1e-3
 
         trainer = training.SAIL_S3_Trainer(
             model, optimizer, **trainer_params

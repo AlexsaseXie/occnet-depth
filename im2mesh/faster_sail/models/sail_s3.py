@@ -1,10 +1,11 @@
 import torch
 import torch.nn as nn
-from torch import distributions as dist
-from im2mesh.faster_sail.models.sal import Decoder
+from torch import device, distributions as dist
+from im2mesh.faster_sail.models.sal import Decoder_One
 
 class CubeSet:
-    def __init__(self, refine_center=False, refine_length=False, device=None):
+    def __init__(self, device, refine_center=False, refine_length=False):
+        self.device = device
         self.refine_center = refine_center
         self.refine_length = refine_length
         self.refine_z_vector = True
@@ -43,21 +44,21 @@ class CubeSet:
     def set(self, center_vector, length_vector, z_vectors):
         with torch.no_grad():
             if self.refine_center:
-                self.center = center_vector.clone().detach().requires_grad_()
+                self.center = center_vector.to(self.device).requires_grad_()
             else:
-                self.center = center_vector.clone()
+                self.center = center_vector.detach()
 
             if self.refine_length:
-                self.length = length_vector.clone().detach().requires_grad_()
+                self.length = length_vector.to(self.device).requires_grad_()
             else:
-                self.length = length_vector.clone()
+                self.length = length_vector.detach()
 
-            self.z_vectors = z_vectors.clone().detach().requires_grad_()
+            self.z_vectors = z_vectors.to(self.device).requires_grad_()
 
     def set_initial_r_t(self, r_vector, t_vector):
         with torch.no_grad():
-            self.circle_r_vector = r_vector.clone()
-            self.circle_t_vector = t_vector.clone()
+            self.circle_r_vector = r_vector.detach()
+            self.circle_t_vector = t_vector.detach()
 
     def learnable_parameters(self):
         return_list = {}
@@ -76,26 +77,71 @@ class CubeSet:
             p: B * N * 3
             self.center: B * K * 3
             self.length: B * K
-            self.z_vectors: B * K * z_dim
 
         Output:
-            calc_index: M * 3 [...[b_index, p_index, center_index]...]
+            calc_index: M * 3 [...[b_index, p_index, center_index]...] on cpu
         '''
+        p = p.to(self.device)
         B = p.size(0) # better B == 1
         N = p.size(1)
         K = self.center.size(1)
         with torch.no_grad():
             a = p.unsqueeze(2).repeat(1,1,K,1) # B * N * K * 3
-            b = self.center.view(B,1,K,3)
-            dis, _ = (a - b).max(axis=3) # B * N * K
-            cmp = self.length.view(B,1,K)
+            b = self.center.to(self.device).view(B,1,K,3)
+            dis, _ = (a - b).abs().max(axis=3) # B * N * K
+            cmp = self.length.to(self.device).view(B,1,K)
 
             calc_index = torch.nonzero(dis < cmp) # M * 3
 
             del a,b,dis,cmp
-        return calc_index
 
-    def get(self, p, calc_index, gt_sal=None):
+        calc_index_cpu = calc_index.cpu()
+        del calc_index
+        return calc_index_cpu
+
+    def query_sep(self, p):
+        p = p.to(self.device) # B * N * 3
+        B = p.size(0) # better B == 1
+        N = p.size(1)
+        K = self.center.size(1)
+        
+        return_list = []
+        total_len = 0
+        with torch.no_grad():
+            centers = self.center.to(self.device)
+            lens = self.length.to(self.device)
+            for b in range(B):
+                cur_batch_list = []
+                for i in range(K):
+                    cur_center = centers[b, i] # 3
+                    cur_length = lens[b, i] # 1
+                    cur_points = p[b,:,:] # n * 3
+                    
+                    dis, _ = (cur_points - cur_center).abs().max(axis=1) # n
+
+                    cur_calc_index = torch.nonzero(dis < cur_length) # M * 3
+                    del dis
+                    cur_calc_index_cpu = cur_calc_index.cpu()
+                    del cur_calc_index
+
+                    M = cur_calc_index_cpu.shape[0]
+                    b_id = torch.empty((M, 1), dtype=torch.int64)
+                    b_id[:,:] = b
+                    center_id = torch.empty((M, 1), dtype=torch.int64)
+                    center_id[:,:] = i
+                    
+                    info = torch.cat([b_id, cur_calc_index_cpu, center_id], dim=1)
+                    cur_batch_list.append(info)
+
+                    total_len += M
+                return_list.append(cur_batch_list)
+
+        return return_list, total_len
+
+    def get(self, p, calc_index, gt_sal_val=None):
+        '''
+            return tensors on device
+        '''
         # gradient pass through this function
         batch_size = calc_index.shape[0]
 
@@ -104,35 +150,36 @@ class CubeSet:
         center_index = calc_index[:, 2] # M 
 
         # gather
-        self.input_p = p[b_index, p_index] # M * 3
-        if gt_sal is not None:
-            self.gt_sal = gt_sal[b_index, p_index] # M * 3
+        input_p = p[b_index, p_index].to(self.device) # M * 3
+        if gt_sal_val is not None:
+            gt_sal = gt_sal_val[b_index, p_index].to(self.device) # M * 3
         else:
-            self.gt_sal = None
-        self.input_z = self.z_vectors[b_index, center_index] # M * 3
+            gt_sal = None
+        input_z = self.z_vectors[b_index, center_index].to(self.device) # M * 3
 
         # unified coordinates
-        center_vec = self.center[b_index, center_index] # M * 3
-        bounding_length = self.length[b_index, center_index] # M
-        r_vec = self.circle_r_vector[b_index, center_index]
-        t_vec = self.circle_t_vector[b_index, center_index]
+        center_vec = self.center[b_index, center_index].to(self.device) # M * 3
+        bounding_length = self.length[b_index, center_index].to(self.device) # M
+        r_vec = self.circle_r_vector[b_index, center_index].to(self.device)
+        t_vec = self.circle_t_vector[b_index, center_index].to(self.device)
 
-        self.input_unified_coordinate = (self.input_p - center_vec) / bounding_length.view(batch_size,1) # in range of [-1, 1]
-        self.input_unified_coordinate = (self.input_unified_coordinate - t_vec) / r_vec.view(batch_size,1) # coordinates initially lied on a unit circle
-        self.unified_weight = bounding_length.view(batch_size, 1) * r_vec.view(batch_size, 1)
+        input_unified_coordinate = (input_p - center_vec) / bounding_length.view(batch_size,1) # in range of [-1, 1]
+        input_unified_coordinate = (input_unified_coordinate - t_vec) / r_vec.view(batch_size,1) # coordinates initially lied on a unit circle
+        unified_weight = bounding_length.view(batch_size) * r_vec.view(batch_size)
 
         data = {
-            'input_p': self.input_p,    # M * 3
-            'input_z': self.input_z,    # M * z_dim
-            'gt_sal': self.gt_sal,    # M * 1
-            'unified_weight': self.unified_weight, # M * 1
-            'input_unified_coordiante': self.input_unified_coordinate, # M * 3
+            'input_p': input_p,    # M * 3
+            'input_z': input_z,    # M * z_dim
+            'gt_sal': gt_sal,    # M
+            'unified_weight': unified_weight, # M
+            'input_unified_coordinate': input_unified_coordinate, # M * 3
         }
+        # on device
 
         return data
             
 decoder_dict = {
-    'deepsdf': Decoder
+    'deepsdf': Decoder_One
 }
 
 class SAIL_S3Network(nn.Module):
@@ -173,7 +220,7 @@ class SAIL_S3Network(nn.Module):
             return self.decode(p, z, **kwargs)
         elif func == 'loss':
             assert gt_sal is not None
-            return self.forward_loss(p, inputs, gt_sal, z_loss_ratio=z_loss_ratio,  **kwargs)
+            return self.forward_loss(p, z, gt_sal, z_loss_ratio=z_loss_ratio,  **kwargs)
 
     def forward_loss(self, p, z, gt_sal, z_loss_ratio=1.0e-3, sal_loss_type='l1', sal_weight=None, **kwargs):
         if z is not None:

@@ -122,6 +122,13 @@ class Decoder(nn.Module):
                 # bug! unexpect 2 in 2 * np.sqrt(np.pi), now removed
                 torch.nn.init.normal_(lin.weight, mean=np.sqrt(np.pi) / np.sqrt(p * dims[l]), std=0.000001)
                 torch.nn.init.constant_(lin.bias, -initial_radius)
+            elif l == 0 and latent_size != 0:
+                assert latent_size > 3
+                torch.nn.init.constant_(lin.bias, 0.0)
+                torch.nn.init.normal_(lin.weight[:,:3], 0.0, np.sqrt(2) / np.sqrt(p*out_dim))
+                with torch.no_grad():
+                    lin.weight[:, 3:6] = lin.weight[:, :3]
+                    lin.weight[:, 6:] = 0.
             else:
                 torch.nn.init.constant_(lin.bias, 0.0)
                 torch.nn.init.normal_(lin.weight, 0.0, np.sqrt(2) / np.sqrt(p*out_dim))
@@ -139,17 +146,15 @@ class Decoder(nn.Module):
         self.dropout_prob = dropout_prob
         self.dropout = dropout
 
-    def forward(self, xyz, latent_vecs=None, func='batch'):
-        if func == 'one':
-            return self.forward_one(xyz, latent_vecs=latent_vecs)
+    def forward(self, xyz, latent_vecs=None):
         # xyz: B * n * 3
-        # latent_vecs: B * z_dim
+        # latent_vecs: B * z_dim or B * n * z_dim
         if latent_vecs is not None:
             if latent_vecs.dim() == 2:
                 latent_vecs = latent_vecs.expand(latent_vecs.size(0), xyz.size(1), latent_vecs.size(1))
             if self.latent_dropout:
                 latent_vecs = F.dropout(latent_vecs, p=0.2, training=self.training)
-            raw_input = torch.cat([latent_vecs, xyz], 2)
+            raw_input = torch.cat([xyz, latent_vecs], 2)
             x = raw_input
         else:
             raw_input = xyz
@@ -174,22 +179,99 @@ class Decoder(nn.Module):
         x = x.squeeze(2)
         return x
 
-    def forward_one(self, xyz, latent_vecs=None):
+class Decoder_One(nn.Module):
+    '''  Based on: https://github.com/facebookresearch/DeepSDF
+    '''
+    def __init__(
+        self,
+        latent_size,
+        dims,
+        dropout=None,
+        dropout_prob=0.0,
+        norm_layers=(),
+        latent_in=(),
+        weight_norm=False,
+        xyz_in_all=None,
+        activation=None,
+        latent_dropout=False,
+        initial_radius=1,
+    ):
+        super().__init__()
+
+        print('Initial Radius for decoder:', initial_radius)
+
+        dims = [latent_size + 3] + dims + [1]
+
+        self.num_layers = len(dims)
+        self.norm_layers = norm_layers
+        self.latent_in = latent_in
+        self.latent_dropout = latent_dropout
+        if self.latent_dropout:
+            self.lat_dp = nn.Dropout(0.2)
+
+        self.xyz_in_all = xyz_in_all
+        self.weight_norm = weight_norm
+
+        for l in range(0, self.num_layers - 1):
+            if l + 1 in latent_in:
+                out_dim = dims[l + 1] - dims[0]
+            else:
+                out_dim = dims[l + 1]
+                if self.xyz_in_all and l != self.num_layers - 2:
+                    out_dim -= 3
+            lin = nn.Linear(dims[l], out_dim)
+
+            if (l in dropout):
+                p = 1 - dropout_prob
+            else:
+                p = 1.0
+
+            if l == self.num_layers - 2:
+                # bug! unexpect 2 in 2 * np.sqrt(np.pi), now removed
+                torch.nn.init.normal_(lin.weight, mean=np.sqrt(np.pi) / np.sqrt(p * dims[l]), std=0.000001)
+                torch.nn.init.constant_(lin.bias, -initial_radius)
+            elif l == 0 and latent_size != 0:
+                assert latent_size > 3
+                torch.nn.init.constant_(lin.bias, 0.0)
+                torch.nn.init.normal_(lin.weight[:,:3], 0.0, np.sqrt(2) / np.sqrt(p*out_dim))
+                with torch.no_grad():
+                    lin.weight[:, 3:6] = lin.weight[:, :3]
+                    lin.weight[:, 6:] = 0.
+            else:
+                torch.nn.init.constant_(lin.bias, 0.0)
+                torch.nn.init.normal_(lin.weight, 0.0, np.sqrt(2) / np.sqrt(p*out_dim))
+
+            if weight_norm and l in self.norm_layers:
+                lin = nn.utils.weight_norm(lin)
+
+            setattr(self, "lin" + str(l), lin)
+        self.use_activation = not activation is None
+
+        if self.use_activation:
+            self.last_activation = get_class(activation)()
+        self.relu = nn.ReLU()
+
+        self.dropout_prob = dropout_prob
+        self.dropout = dropout
+
+    def forward(self, xyz, latent_vecs=None):
         # xyz: n * 3
-        # latent_vecs: z_dim
+        # latent_vecs: z_dim or n * z_dim
         if latent_vecs is not None:
             if latent_vecs.dim() == 1:
                 latent_vecs = latent_vecs.expand(xyz.size(0), latent_vecs.size(0))
             if self.latent_dropout:
                 latent_vecs = F.dropout(latent_vecs, p=0.2, training=self.training)
-            x = torch.cat([latent_vecs, xyz], 1)
+            raw_input = torch.cat([xyz, latent_vecs], 1)
+            x = raw_input
         else:
-            x = xyz
+            raw_input = xyz
+            x = raw_input
 
         for l in range(0, self.num_layers - 1):
             lin = getattr(self, "lin" + str(l))
             if l in self.latent_in:
-                x = torch.cat([x, input], 1) /np.sqrt(2)
+                x = torch.cat([x, raw_input], 1) /np.sqrt(2)
             elif l != 0 and self.xyz_in_all:
                 x = torch.cat([x, xyz], 1) /np.sqrt(2)
             x = lin(x)
@@ -332,7 +414,7 @@ class SALNetwork(nn.Module):
             z (tensor): latent code z
             c (tensor): latent conditioned code c
         '''
-        out = self.decoder(p, z, func='batch', **kwargs)
+        out = self.decoder(p, z, **kwargs)
         return out
 
     def to(self, device):
