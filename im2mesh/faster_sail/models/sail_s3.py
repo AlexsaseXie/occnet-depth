@@ -266,7 +266,7 @@ class SAIL_S3Network(nn.Module):
 
         return q_z, z_reg
 
-    def decode(self, p, z, **kwargs):
+    def decode(self, p, z, unified_weight=None, **kwargs):
         ''' Returns occupancy probabilities for the sampled points.
 
         Args:
@@ -275,6 +275,8 @@ class SAIL_S3Network(nn.Module):
             c (tensor): latent conditioned code c
         '''
         out = self.decoder(p, z, **kwargs)
+        if unified_weight is not None:
+            out = out * unified_weight
         return out
 
     def to(self, device):

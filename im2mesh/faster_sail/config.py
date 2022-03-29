@@ -104,12 +104,14 @@ def get_trainer(model, optimizer, cfg, device, **kwargs):
 
         trainer_params['with_encoder'] = with_encoder
         trainer_params['optim_z_dim'] = optim_z_dim
-        trainer_params['z_learning_rate'] = 1e-4
+        if 'z_learning_rate' in cfg['training']:
+            trainer_params['z_learning_rate'] = cfg['training']['z_learning_rate']
+        else:
+            trainer_params['z_learning_rate'] = 1e-4
 
         trainer = training.SALTrainer(
             model, optimizer, **trainer_params
         )
-        
     elif method == 'SAIL_S3':
         if 'neighbors_K' in cfg['model']:
             trainer_params['K'] = cfg['model']['neighbors_K']
@@ -121,7 +123,10 @@ def get_trainer(model, optimizer, cfg, device, **kwargs):
             trainer_params['initial_z_std'] = cfg['model']['initial_z_std']
 
         trainer_params['optim_z_dim'] = cfg['model']['z_dim']
-        trainer_params['z_learning_rate'] = 1e-3
+        if 'z_learning_rate' in cfg['training']:
+            trainer_params['z_learning_rate'] = cfg['training']['z_learning_rate']
+        else:
+            trainer_params['z_learning_rate'] = 1e-3
 
         trainer = training.SAIL_S3_Trainer(
             model, optimizer, **trainer_params
@@ -144,18 +149,17 @@ def get_generator(model, cfg, device, **kwargs):
     method = cfg['method']
 
     optim_z_dim = cfg['model']['z_dim']
-    generator_params = {
-        'threshold': 0,
-        'device': device,
-        'resolution0': cfg['generation']['resolution_0'],
-        'upsampling_steps': cfg['generation']['upsampling_steps'],
-        'sample': cfg['generation']['use_sampling'],
-        'refinement_step': cfg['generation']['refinement_step'],
-        'simplify_nfaces': cfg['generation']['simplify_nfaces'],
-        'preprocessor': preprocessor,
-    }
-
     if method == 'SAL':
+        generator_params = {
+            'threshold': 0,
+            'device': device,
+            'resolution0': cfg['generation']['resolution_0'],
+            'upsampling_steps': cfg['generation']['upsampling_steps'],
+            'sample': cfg['generation']['use_sampling'],
+            'refinement_step': cfg['generation']['refinement_step'],
+            'simplify_nfaces': cfg['generation']['simplify_nfaces'],
+            'preprocessor': preprocessor,
+        }
         if 'furthur_refine' in cfg['generation']:
             furthur_refine = cfg['generation']['furthur_refine']
         else:
@@ -170,7 +174,26 @@ def get_generator(model, cfg, device, **kwargs):
             **generator_params
         )
     elif method == 'SAIL_S3':
-        raise NotImplementedError
+        generator_params = {
+            'threshold': 0,
+            'device': device,
+            'resolution': cfg['generation']['resolution_0'],
+            'simplify_nfaces': cfg['generation']['simplify_nfaces'],
+            'preprocessor': preprocessor,
+            'optim_z_dim': optim_z_dim
+        }
+        if 'interpolation_method' in cfg['generation']:
+            generator_params['interpolation_method'] = cfg['generation']['interpolation_method']
+
+        if 'interpolation_aggregate' in cfg['generation']:
+            generator_params['interpolation_aggregate'] = cfg['generation']['interpolation_aggregate']
+
+        if 'sign_decide_function' in cfg['generation']:
+            generator_params['sign_decide_function'] = cfg['generation']['sign_decide_function']
+
+        trainer = get_trainer(model, None, cfg, device)
+
+        generator = generation.SAIL_S3Generator(trainer, **generator_params)
     else:
         raise NotImplementedError
 

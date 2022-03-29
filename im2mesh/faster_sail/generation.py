@@ -8,7 +8,10 @@ from im2mesh.utils import libmcubes
 from im2mesh.common import make_3d_grid
 from im2mesh.utils.libsimplify import simplify_mesh
 from im2mesh.utils.libmise import MISE
+from im2mesh.utils.lib_pointcloud_voxel import grid_points_query_range
 import time
+from torch.nn import functional as F
+from tqdm import tqdm
 
 
 class SALGenerator(object):
@@ -353,5 +356,332 @@ class SALGenerator(object):
             optimizer.step()
 
         mesh.vertices = v.data.cpu().numpy()
+
+        return mesh
+
+
+def get_grid_idx_float(x, N, low=-0.5, high=0.5):
+    grid_len = (high - low) / N
+    idx = (x - low) / grid_len
+    return idx
+
+def x_intersect(x_low1, x_high1, x_low2, x_high2):
+    data_list = [(x_low1, 0), (x_high1, 0), (x_low2, 1), (x_high2, 1)]
+    data_list.sort(key=lambda x: x[0])
+    if data_list[0][1] != data_list[1][1]:
+        return [data_list[1][0], data_list[2][0]]
+    else:
+        return False
+
+def xyz_intersect(xyz_low1, xyz_high1, xyz_low2, xyz_high2):
+    x_range = x_intersect(xyz_low1[0], xyz_high1[0], xyz_low2[0], xyz_high2[0])
+    y_range = x_intersect(xyz_low1[1], xyz_high1[1], xyz_low2[1], xyz_high2[1])
+    z_range = x_intersect(xyz_low1[2], xyz_high1[2], xyz_low2[2], xyz_high2[2])
+
+    if x_range != False and y_range != False and z_range != False:
+        return [x_range, y_range, z_range]
+    else:
+        return False
+
+
+N_SAMPLE = 2000
+
+class SAIL_S3Generator(object):
+    def __init__(self, trainer, points_batch_size=100000,
+                 threshold=0,  device=None,
+                 resolution=256, padding=0.1, 
+                 simplify_nfaces=None,
+                 preprocessor=None, optim_z_dim=128,
+                 interpolation_method='sail_s3_paper',
+                 interpolation_aggregate='mean',
+                 sign_decide_function='prim'
+                 ):
+        self.trainer = trainer
+        
+        self.points_batch_size = points_batch_size
+        self.threshold = threshold
+        self.device = device
+        self.resolution = resolution
+        self.padding = padding
+        self.simplify_nfaces = simplify_nfaces
+        self.preprocessor = preprocessor
+
+        self.optim_z_dim = optim_z_dim
+        self.furthur_refine = False
+
+        self.K = self.trainer.K # K subfields
+        self.hj = None # hj function 
+        self.interpolation_method = interpolation_method
+        self.interpolation_aggregate = interpolation_aggregate
+        self.sign_decide_function = sign_decide_function
+
+        print('Interpolation method:', self.interpolation_method, ',aggregate:', self.interpolation_aggregate)
+        print('Sign decide function:', self.sign_decide_function)
+
+    def generate_mesh(self, data, out_dict, return_stats=True):
+        ''' Generates the output mesh.
+
+        Args:
+            data (tensor): data tensor
+            return_stats (bool): whether stats should be returned
+        '''
+        self.trainer.model.eval()
+        device = self.device
+        stats_dict = {}
+        kwargs = {}
+
+        for key in out_dict:
+            data[key] = out_dict[key]
+        self.trainer.init_z(data, initialize_optimizer=False)
+        self.out_dict = out_dict
+
+        pc_numpy = data.get('inputs.pointcloud').squeeze(0).numpy()
+
+        self.center = self.out_dict['center'].squeeze(0).numpy() # K * 3
+        self.length = self.out_dict['length'].squeeze(0).numpy() # K
+
+        print('Mean length:', self.length.mean())
+
+        high = (1 + self.padding) / 2.0
+        low = -high
+
+        #tolerance_range = min((1 / self.resolution) * 3, 0.008)
+        tolerance_range = 0.005
+        self.voxel, self.calc_index, self.inside_index, self.outside_index = grid_points_query_range(
+            pc_numpy, 
+            self.resolution, tolerance_range, 
+            low, high
+        )
+
+        print('Grid points query results. voxel:', self.voxel.shape, 'calc_index:', self.calc_index.shape)
+        print('outside_index:', self.outside_index.shape, 'inside_index:', self.inside_index.shape)
+
+        if self.sign_decide_function == 'prim':
+            self.prim_decide_subfield_sign()
+        elif self.sign_decide_function == 'simple':
+            self.simple_decide_subfield_sign()
+        else:
+            raise NotImplementedError
+
+        mesh = self.generate_from_latent(stats_dict=stats_dict, **kwargs)
+
+        if return_stats:
+            return mesh, stats_dict
+        else:
+            return mesh
+
+    def _decide_sign_for_id(self, initial_id):
+        center = self.center
+        length = self.length
+        initial_center = center[initial_id, :] # (3,)
+        initial_length = length[initial_id]
+
+        xyz_low = initial_center - initial_length
+        xyz_high = initial_center + initial_length
+
+        xyz_low = np.round(get_grid_idx_float(xyz_low, self.resolution))
+        xyz_low[xyz_low < 0] = 0
+        xyz_low[xyz_low >= self.resolution - 1] = self.resolution - 1
+        xyz_high = np.round(get_grid_idx_float(xyz_high, self.resolution))
+        xyz_high[xyz_high < 0] = 0
+        xyz_high[xyz_high >= self.resolution - 1] = self.resolution - 1
+
+        #print('Initial xyz:', xyz_low, xyz_high)
+        need_calc_voxels = self.voxel[int(xyz_low[0]):int(xyz_high[0])+1, 
+            int(xyz_low[1]):int(xyz_high[1])+1, 
+            int(xyz_low[2]):int(xyz_high[2])+1, :]
+        outside_points = need_calc_voxels[need_calc_voxels[:,:,:,3] == 0][:,:3] # a1 * 3
+        inside_points = need_calc_voxels[need_calc_voxels[:,:,:,3] == 2][:,:3] # a2 * 3
+        
+        if outside_points.shape[0] > N_SAMPLE:
+            rand_idx = np.random.choice(outside_points.shape[0], size=N_SAMPLE, replace=False)
+            outside_points = outside_points[rand_idx,:]
+        if inside_points.shape[0] > N_SAMPLE:
+            rand_idx = np.random.choice(inside_points.shape[0], size=N_SAMPLE, replace=False)
+            inside_points = inside_points[rand_idx,:]
+
+        outside_points_torch = torch.from_numpy(outside_points).unsqueeze(0) # 1 * N_SAMPLE * 3
+        inside_points_torch = torch.from_numpy(inside_points).unsqueeze(0) # 1 * N_SAMPLE * 3
+
+        with torch.no_grad():
+            outside_p_r = self.trainer.predict_for_points_with_specific_subfield(outside_points_torch, initial_id)
+            inside_p_r = self.trainer.predict_for_points_with_specific_subfield(inside_points_torch, initial_id)
+
+            loss_positive = F.relu(-outside_p_r).sum() + F.relu(inside_p_r).sum()
+            loss_negative = F.relu(outside_p_r).sum() + F.relu(-inside_p_r).sum()
+
+        if loss_positive < loss_negative:
+            return True
+        else:
+            return False
+
+    def simple_decide_subfield_sign(self):
+        hj = np.ones((self.K), dtype=np.bool)
+
+        print('Simple decide subfields sign')
+        for i in range(self.K):
+            hj[i] = self._decide_sign_for_id(i)
+
+        self.hj = hj.astype(np.float)
+        self.hj[self.hj==0] = -1
+        #print('Hj:', self.hj)
+
+    def prim_decide_subfield_sign(self):
+        initial_id = np.random.randint(self.K)
+
+        print("Deciding the hj sign...")
+
+        hj = np.ones((self.K), dtype=np.bool)
+        # decide the first sign
+        center = self.center
+        length = self.length
+        hj[initial_id] = self._decide_sign_for_id(initial_id)
+
+        print('Finish deciding the initial sign...')
+
+        # prim algorithm
+        visited = np.zeros((self.K), dtype=np.bool)
+        dis = np.empty((self.K), dtype=np.float32)
+        dis[:] = 1e6
+        potential_hj = np.zeros((self.K), dtype=np.bool)
+        current_subset_count = 1
+        current_id = initial_id
+        visited[initial_id] = True
+        
+        def update_and_choose(cur_id):
+            cur_xyz_low = center[cur_id] - length[cur_id]
+            cur_xyz_high = center[cur_id] + length[cur_id]
+
+            nearest_id = -1
+            nearest_dis = 1e6
+
+            for i in range(self.K):
+                if visited[i] or i == cur_id:
+                    continue
+                
+                tar_xyz_low = center[i] - length[i]
+                tar_xyz_high = center[i] + length[i]
+
+                intersect_range = xyz_intersect(cur_xyz_low, cur_xyz_high, tar_xyz_low, tar_xyz_high)
+                if intersect_range != False:
+                    sample_points = np.random.rand(1, N_SAMPLE, 3).astype(np.float32)
+                    for j in range(3):
+                        sample_points[:,:,j] *= (intersect_range[j][1] - intersect_range[j][0])
+                        sample_points[:,:,j] += intersect_range[j][0]
+                    
+                    sample_points_torch = torch.from_numpy(sample_points)
+                    cur_p_r = self.trainer.predict_for_points_with_specific_subfield(sample_points_torch, cur_id)
+                    tar_p_r = self.trainer.predict_for_points_with_specific_subfield(sample_points_torch, i)
+
+                    loss_same = (cur_p_r - tar_p_r).abs().sum()
+                    loss_oppo = (cur_p_r + tar_p_r).abs().sum()
+
+                    if loss_same < loss_oppo and loss_same < dis[i]:
+                        dis[i] = loss_same
+                        potential_hj[i] = hj[cur_id]
+                    elif loss_oppo <= loss_same and loss_oppo < dis[i]:
+                        dis[i] = loss_oppo
+                        potential_hj[i] = ~hj[cur_id]
+                    
+                if dis[i] < nearest_dis:
+                    nearest_dis = dis[i]
+                    nearest_id = i
+
+            return nearest_id
+
+        print('Prim algorithm...')
+        while current_subset_count < self.K:
+            current_id = update_and_choose(current_id)
+            visited[current_id] = True
+            hj[current_id] = potential_hj[current_id]
+            current_subset_count += 1
+
+        self.hj = hj.astype(np.float)
+        self.hj[self.hj==0] = -1
+
+        #print('Hj:', self.hj)
+
+    def generate_from_latent(self, stats_dict={}, **kwargs):
+        ''' Generates mesh from latent.
+
+        Args:
+            z (tensor): latent code z
+            c (tensor): latent conditioned code c
+            stats_dict (dict): stats dictionary
+        '''
+        threshold = self.threshold
+
+        print('Hj:', self.hj)
+
+        t0 = time.time()
+        # Compute bounding box size
+        voxel_sdf_hat = np.zeros((self.resolution, self.resolution, self.resolution), dtype=np.float32)
+        voxel_sdf_hat[self.outside_index[:,0], self.outside_index[:,1], self.outside_index[:,2]] = 10
+        voxel_sdf_hat[self.inside_index[:,0], self.inside_index[:,1], self.inside_index[:,2]] = -10
+
+        ps = self.voxel[self.calc_index[:,0], self.calc_index[:,1], self.calc_index[:,2]][:,:3]
+        ps = torch.from_numpy(ps).unsqueeze(0) # 1 * N * 3
+        print('Need calc points:', ps.shape)
+        #p_r = self.trainer.predict_for_points(ps, hj=self.hj)
+        p_r = self.trainer.predict_for_points_fast(ps, hj=self.hj, 
+            weight_func=self.interpolation_method, aggregate=self.interpolation_aggregate
+        )
+        
+        print('Finish predict')
+        voxel_sdf_hat[self.calc_index[:,0], self.calc_index[:,1], self.calc_index[:,2]] = p_r.numpy()
+
+        # Extract mesh
+        stats_dict['time (eval points)'] = time.time() - t0
+
+        mesh = self.extract_mesh(voxel_sdf_hat, stats_dict=stats_dict)
+        return mesh
+
+    def extract_mesh(self, sdf_hat, stats_dict=dict()):
+        ''' Extracts the mesh from the predicted occupancy grid.
+
+        Args:
+            sdf_hat (tensor): value grid of occupancies
+            z (tensor): latent code z
+            c (tensor): latent conditioned code c
+            stats_dict (dict): stats dictionary
+        '''
+        # Some short hands
+        n_x, n_y, n_z = sdf_hat.shape
+        box_size = 1 + self.padding
+        threshold = self.threshold
+        # Make sure that mesh is watertight
+        t0 = time.time()
+        sdf_hat_padded = np.pad(
+            sdf_hat, 1, 'constant', constant_values=1e6)
+        vertices, triangles = libmcubes.marching_cubes(
+            sdf_hat_padded, threshold)
+        stats_dict['time (marching cubes)'] = time.time() - t0
+        # Strange behaviour in libmcubes: vertices are shifted by 0.5
+        vertices -= 0.5
+        # Undo padding
+        vertices -= 1
+        # Normalize to bounding box
+        vertices /= np.array([n_x-1, n_y-1, n_z-1])
+        vertices = box_size * (vertices - 0.5)
+
+        # mesh_pymesh = pymesh.form_mesh(vertices, triangles)
+        # mesh_pymesh = fix_pymesh(mesh_pymesh)
+
+        normals = None
+
+        # Create mesh
+        mesh = trimesh.Trimesh(vertices, triangles,
+                               vertex_normals=normals,
+                               process=False)
+
+        # Directly return if mesh is empty
+        if vertices.shape[0] == 0:
+            return mesh
+
+        # TODO: normals are lost here
+        if self.simplify_nfaces is not None:
+            t0 = time.time()
+            mesh = simplify_mesh(mesh, self.simplify_nfaces, 5.)
+            stats_dict['time (simplify)'] = time.time() - t0
 
         return mesh

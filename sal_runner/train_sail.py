@@ -18,7 +18,7 @@ parser = argparse.ArgumentParser(
 )
 parser.add_argument('config', type=str, help='Path to config file.')
 parser.add_argument('--no-cuda', action='store_true', help='Do not use cuda.')
-parser.add_argument('--learning_rate',type=float,default=1e-3,
+parser.add_argument('--learning_rate',type=float,default=1e-4,
                     help='Learning Rate.')
 parser.add_argument('--start_number', type=int, default=0)
 
@@ -125,15 +125,22 @@ for batch in train_loader:
     else:
         trainer.random_subfield = 0
     trainer.point_sample = 25600
+    if 'surface_point_weight' in cfg['training']:
+        trainer.surface_point_weight = cfg['training']['surface_point_weight']
+    else:
+        trainer.surface_point_weight = 0
+    print('Surface point weight:', trainer.surface_point_weight)
+    trainer.init_pointcloud_points_record(batch)
     trainer.init_training_points_record(batch)
-    scheduler = optim.lr_scheduler.MultiStepLR(optimizer, milestones=[40000, 60000, 80000], gamma=0.2)
+    scheduler = optim.lr_scheduler.MultiStepLR(optimizer, milestones=[60000, 80000], gamma=0.1)
     if trainer.z_optimizer is not None:
-        z_scheduler = optim.lr_scheduler.MultiStepLR(trainer.z_optimizer, milestones=[40000, 60000, 80000], gamma=0.1)
+        z_scheduler = optim.lr_scheduler.MultiStepLR(trainer.z_optimizer, milestones=[60000, 80000], gamma=0.1)
     else:
         z_scheduler = None
 
     # for testing
-    #trainer.show_points(model_output_dir)
+    # trainer.show_points(model_output_dir)
+    # continue
     while it <= exit_after:
         it += 1
 
