@@ -188,6 +188,7 @@ class Fusion:
         parser.add_argument('--points_according_to_pc_uniform_size', type=int, default=20000)
         parser.add_argument('--points_according_to_pc_size', type=int, default=100000)
         parser.add_argument('--points_pc_box', type=float, default=0.1)
+        parser.add_argument('--points_pc_box_large', type=float, default=0.2)
         parser.add_argument('--tsdf_offset', type=float, default=0.008, help='offset for tsdf to decide the surface')
         return parser
 
@@ -885,8 +886,15 @@ class Fusion:
         displacement = np.random.rand(n_points_according_to_pc, 3)
         displacement = (self.options.points_pc_box * (displacement - 0.5)).astype(np.float32)
         points_pc = points_pc + displacement
+
+        # according to pc large
+        idx_large = np.random.randint(pointcloud_size, size=n_points_according_to_pc)
+        points_pc_large = pointcloud_normalized[idx_large,:].astype(np.float32)
+        displacement_large = np.random.rand(n_points_according_to_pc, 3)
+        displacement_large = (self.options.points_pc_box_large * (displacement_large - 0.5)).astype(np.float32)
+        points_pc_large = points_pc_large + displacement_large
         
-        points = np.concatenate((points_uniform, points_pc), axis=0)
+        points = np.concatenate((points_uniform, points_pc, points_pc_large), axis=0)
         # normalize
         points_buffer = points * (1 - padding) / (1 - self.options.bbox_padding)
         #tsdf = self.judge_tsdf_view_pc(depths, Rts, pointcloud, points_buffer, truncation=self.truncation, aggregate='mean')

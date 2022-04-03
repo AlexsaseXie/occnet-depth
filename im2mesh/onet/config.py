@@ -303,12 +303,23 @@ def get_pix3d_data_fields(mode, cfg):
         else:
             input_range = None
 
+    by_tsdf = None
+    if mode == 'train':
+        if 'train_tsdf' in cfg['data']:
+            by_tsdf = cfg['data']['train_tsdf']
+            print('train by tsdf:', by_tsdf)
+    else:
+        if 'test_tsdf' in cfg['data']:
+            by_tsdf = cfg['data']['test_tsdf']
+            print('test by tsdf:', by_tsdf)
+
     fields = {}
     fields['points'] = data.Pix3d_PointField(
-        build_path='./data/pix3d/pix3d.build', transform=points_transform,
+        build_path=cfg['data']['pix3d_build_path'], transform=points_transform,
         with_transforms=with_transforms,
         unpackbits=cfg['data']['points_unpackbits'],
-        input_range=None
+        input_range=None,
+        by_tsdf=by_tsdf
     )
 
     if mode in ('val', 'test'):
@@ -323,10 +334,11 @@ def get_pix3d_data_fields(mode, cfg):
         #voxels_file = cfg['data']['voxels_file']
         if points_iou_file is not None:
             fields['points_iou'] = data.Pix3d_PointField(
-                build_path='./data/pix3d/pix3d.build', transform=val_subsample_transform,
+                build_path=cfg['data']['pix3d_build_path'], transform=val_subsample_transform,
                 with_transforms=with_transforms,
                 unpackbits=cfg['data']['points_unpackbits'],
-                input_range=None
+                input_range=None,
+                by_tsdf=by_tsdf
             )
 
         # TODO:

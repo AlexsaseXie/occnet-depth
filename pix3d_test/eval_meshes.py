@@ -11,6 +11,8 @@ sys.path.append('./')
 from im2mesh import config, data
 from im2mesh.eval import MeshEvaluator
 from im2mesh.utils.io import load_pointcloud
+from torchvision import transforms
+from im2mesh.data.transforms import PointcloudOffset
 from scripts.pix3d_preprocess import utils as pix3d_utils
 
 
@@ -31,8 +33,8 @@ device = torch.device("cuda" if is_cuda else "cpu")
 out_dir = cfg['training']['out_dir']
 generation_dir = os.path.join(out_dir, cfg['generation']['generation_dir'])
 if not args.eval_input:
-    out_file = os.path.join(generation_dir, 'eval_meshes_full.pkl')
-    out_file_class = os.path.join(generation_dir, 'eval_meshes.csv')
+    out_file = os.path.join(generation_dir, 'eval_meshes_new_full.pkl')
+    out_file_class = os.path.join(generation_dir, 'eval_meshes_new.csv')
 else:
     out_file = os.path.join(generation_dir, 'eval_input_full.pkl')
     out_file_class = os.path.join(generation_dir, 'eval_input.csv')
@@ -44,14 +46,29 @@ if 'test_range' in cfg['data']:
 else:
     input_range = None
 
+by_tsdf = None
+if 'test_tsdf' in cfg['data']:
+    by_tsdf = cfg['data']['test_tsdf']
+    print('test by tsdf:', by_tsdf)
+
 points_field = data.Pix3d_PointField(
-    build_path='./data/pix3d/pix3d.build',
+    build_path=cfg['data']['pix3d_build_path'],
     unpackbits=cfg['data']['points_unpackbits'],
-    input_range=input_range
+    input_range=input_range,
+    by_tsdf=by_tsdf
 )
+
+if by_tsdf is not None:
+    pc_transform = transforms.Compose([
+        PointcloudOffset(by_tsdf)
+    ])
+    print('Point cloud offset:', by_tsdf)
+else:
+    pc_transform = None
  
 pointcloud_field = data.Pix3d_PointCloudField(
-    build_path='./data/pix3d/pix3d.build'
+    build_path=cfg['data']['pix3d_build_path'],
+    transform=pc_transform
 )
 
 fields = {

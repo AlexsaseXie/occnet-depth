@@ -441,13 +441,14 @@ class Pix3d_MixedInputField(Field):
 # TODO: fix the issue of bug when batch size > 1, for there may be invalid point field for some  images. 
 class Pix3d_PointField(Field):
     def __init__(self, build_path='./data/pix3d/pix3d.build/', transform=None, with_transforms=False, unpackbits=False, input_range=None,
-        build_folder='4_points'):
+        build_folder='4_points', by_tsdf=None):
         self.build_path = build_path
         self.build_folder = build_folder
         self.transform = transform
         self.with_transforms = with_transforms
         self.unpackbits = unpackbits
         self.input_range = input_range
+        self.by_tsdf = by_tsdf
         print('Points_field:', self.build_path)
 
     def load(self, image_info, idx, pix3d_root=None):
@@ -473,10 +474,12 @@ class Pix3d_PointField(Field):
             else:
                 points = points.astype(np.float32)
 
-            occupancies = points_dict['occupancies']
-
-            if self.unpackbits:
-                occupancies = np.unpackbits(occupancies)[:points.shape[0]]
+            if self.by_tsdf is not None:
+                occupancies = points_dict['tsdf'] < self.by_tsdf
+            else:
+                occupancies = points_dict['occupancies']
+                if self.unpackbits:
+                    occupancies = np.unpackbits(occupancies)[:points.shape[0]]
             occupancies = occupancies.astype(np.float32)
 
             if self.input_range is not None:
