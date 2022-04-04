@@ -158,6 +158,17 @@ Space_carver_sampler_module = CUDAExtension(
     }
 )
 
+pointcloud_voxel_module = Extension(
+    'im2mesh.utils.lib_pointcloud_voxel.pointcloud_voxel',
+    sources=[
+        'im2mesh/utils/lib_pointcloud_voxel/pointcloud_voxel.pyx',
+        'im2mesh/utils/lib_pointcloud_voxel/pointcloud_voxel_c.cpp',
+    ],
+    language='c++',
+    extra_compile_args=['-std=c++11'],
+    include_dirs=[numpy_include_dir]
+)
+
 # Gather all extension modules
 ext_modules = [
     #pykdtree,
@@ -171,7 +182,8 @@ ext_modules = [
     pointnet2_cuda_module,
     lib_pointcloud_distance_module,
     MSN_module,
-    Space_carver_sampler_module 
+    Space_carver_sampler_module,
+    pointcloud_voxel_module
 ]
 
 setup(
