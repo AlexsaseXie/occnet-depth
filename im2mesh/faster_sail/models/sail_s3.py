@@ -68,7 +68,7 @@ class CubeSet:
         if self.refine_length:
             return_list['length'] = self.length
 
-        return_list['z_vectors'] = self.z_vectors
+        return_list['z'] = self.z_vectors
         return return_list
 
     def query(self, p):
@@ -165,13 +165,15 @@ class CubeSet:
 
         input_unified_coordinate = (input_p - center_vec) / bounding_length.view(batch_size,1) # in range of [-1, 1]
         input_unified_coordinate = (input_unified_coordinate - t_vec) / r_vec.view(batch_size,1) # coordinates initially lied on a unit circle
-        unified_weight = bounding_length.view(batch_size) * r_vec.view(batch_size)
+        first_weight = r_vec.view(batch_size)
+        unified_weight = bounding_length.view(batch_size) * first_weight
 
         data = {
             'input_p': input_p,    # M * 3
             'input_z': input_z,    # M * z_dim
             'gt_sal': gt_sal,    # M
             'unified_weight': unified_weight, # M
+            'first_weight': first_weight,
             'input_unified_coordinate': input_unified_coordinate, # M * 3
         }
         # on device

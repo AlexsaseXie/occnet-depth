@@ -114,9 +114,9 @@ for batch in train_loader:
         batch['z'] = z_vec
     # init_z
     trainer.init_z(batch)
-    scheduler = optim.lr_scheduler.MultiStepLR(optimizer, milestones=[100000, 200000], gamma=0.1)
+    scheduler = optim.lr_scheduler.MultiStepLR(optimizer, milestones=[100000, 125000], gamma=0.1)
     if trainer.z_optimizer is not None:
-        z_scheduler = optim.lr_scheduler.MultiStepLR(trainer.z_optimizer, milestones=[100000, 200000], gamma=0.1)
+        z_scheduler = optim.lr_scheduler.MultiStepLR(trainer.z_optimizer, milestones=[100000, 125000], gamma=0.1)
     else:
         z_scheduler = None
 
@@ -129,7 +129,7 @@ for batch in train_loader:
         it += 1
 
         # schedule
-        if it <= 80000:
+        if it <= 50000:
             trainer.point_range = [0, 20000]
             trainer.point_sample = 10000
         else:

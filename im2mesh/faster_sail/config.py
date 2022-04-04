@@ -128,6 +128,24 @@ def get_trainer(model, optimizer, cfg, device, **kwargs):
         else:
             trainer_params['z_learning_rate'] = 1e-3
 
+        if 'refine_subfield' in cfg['model']:
+            trainer_params['refine_subfield'] = cfg['model']['refine_subfield']
+
+        if 'subfield_learning_rate' in cfg['training']:
+            trainer_params['subfield_learning_rate'] = cfg['training']['subfield_learning_rate']
+
+        if 'initial_center_func' in cfg['model']:
+            trainer_params['initial_center_func'] = cfg['model']['initial_center_func']
+            
+        if 'use_subfield_weight' in cfg['training']:
+            trainer_params['use_subfield_weight'] = cfg['training']['use_subfield_weight']
+
+        if 'initial_r_t_func' in cfg['model']:
+            trainer_params['initial_r_t_func'] = cfg['model']['initial_r_t_func']
+
+        if 'initial_refine_subfield_centers' in cfg['model']:
+            trainer_params['initial_refine_subfield_centers'] = cfg['model']['initial_refine_subfield_centers']
+
         trainer = training.SAIL_S3_Trainer(
             model, optimizer, **trainer_params
         )

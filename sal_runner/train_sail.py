@@ -18,7 +18,7 @@ parser = argparse.ArgumentParser(
 )
 parser.add_argument('config', type=str, help='Path to config file.')
 parser.add_argument('--no-cuda', action='store_true', help='Do not use cuda.')
-parser.add_argument('--learning_rate',type=float,default=1e-4,
+parser.add_argument('--learning_rate',type=float,default=1e-3,
                     help='Learning Rate.')
 parser.add_argument('--start_number', type=int, default=0)
 
@@ -124,7 +124,7 @@ for batch in train_loader:
         trainer.random_subfield = cfg['training']['random_subfield']
     else:
         trainer.random_subfield = 0
-    trainer.point_sample = 25600
+    trainer.point_sample = 20000
     if 'surface_point_weight' in cfg['training']:
         trainer.surface_point_weight = cfg['training']['surface_point_weight']
     else:
@@ -132,14 +132,22 @@ for batch in train_loader:
     print('Surface point weight:', trainer.surface_point_weight)
     trainer.init_pointcloud_points_record(batch)
     trainer.init_training_points_record(batch)
-    scheduler = optim.lr_scheduler.MultiStepLR(optimizer, milestones=[60000, 80000], gamma=0.1)
+    #scheduler = optim.lr_scheduler.MultiStepLR(optimizer, milestones=[60000, 80000], gamma=0.1)
+    scheduler = optim.lr_scheduler.MultiStepLR(optimizer, milestones=[20000, 30000, 35000, 38000], gamma=0.2)
     if trainer.z_optimizer is not None:
-        z_scheduler = optim.lr_scheduler.MultiStepLR(trainer.z_optimizer, milestones=[60000, 80000], gamma=0.1)
+        #z_scheduler = optim.lr_scheduler.MultiStepLR(trainer.z_optimizer, milestones=[60000, 80000], gamma=0.1)
+        z_scheduler = optim.lr_scheduler.MultiStepLR(trainer.z_optimizer, milestones=[20000, 30000, 35000, 38000], gamma=0.2)
     else:
         z_scheduler = None
+    
+    if trainer.subfield_optimizer is not None:
+        #subfield_scheduler = optim.lr_scheduler.MultiStepLR(trainer.subfield_optimizer, milestones=[60000, 80000], gamma=0.1)
+        subfield_scheduler = optim.lr_scheduler.MultiStepLR(trainer.subfield_optimizer, milestones=[20000, 30000, 35000, 38000], gamma=0.2)
+    else:
+        subfield_scheduler = None
 
-    # for testing
-    # trainer.show_points(model_output_dir)
+    #for testing
+    trainer.show_points(model_output_dir)
     # continue
     while it <= exit_after:
         it += 1
@@ -150,6 +158,9 @@ for batch in train_loader:
         scheduler.step()
         if z_scheduler is not None:
             z_scheduler.step()
+
+        if subfield_scheduler is not None:
+            subfield_scheduler.step()
 
         # Print output
         if print_every > 0 and (it % print_every) == 0:

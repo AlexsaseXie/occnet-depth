@@ -217,9 +217,9 @@ class SALGenerator(object):
         threshold = self.threshold
         # Make sure that mesh is watertight
         t0 = time.time()
-        sdf_hat_padded = sdf_hat
-        #sdf_hat_padded = np.pad(
-        #    sdf_hat, 1, 'constant', constant_values=1e6)
+        #sdf_hat_padded = sdf_hat
+        sdf_hat_padded = np.pad(
+           sdf_hat, 1, 'constant', constant_values=1e6)
         vertices, triangles = libmcubes.marching_cubes(
             sdf_hat_padded, threshold)
         stats_dict['time (marching cubes)'] = time.time() - t0
@@ -418,7 +418,7 @@ class SAIL_S3Generator(object):
         print('Interpolation method:', self.interpolation_method, ',aggregate:', self.interpolation_aggregate)
         print('Sign decide function:', self.sign_decide_function)
 
-    def generate_mesh(self, data, out_dict, return_stats=True):
+    def generate_mesh(self, data, out_dict, return_stats=True, separate=False):
         ''' Generates the output mesh.
 
         Args:
@@ -463,12 +463,15 @@ class SAIL_S3Generator(object):
         else:
             raise NotImplementedError
 
-        mesh = self.generate_from_latent(stats_dict=stats_dict, **kwargs)
+        if not separate:
+            mesh = self.generate_from_latent(stats_dict=stats_dict, **kwargs)
 
-        if return_stats:
-            return mesh, stats_dict
+            if return_stats:
+                return mesh, stats_dict
+            else:
+                return mesh
         else:
-            return mesh
+            return self.generate_from_latent_separate()         
 
     def _decide_sign_for_id(self, initial_id):
         center = self.center
@@ -476,8 +479,8 @@ class SAIL_S3Generator(object):
         initial_center = center[initial_id, :] # (3,)
         initial_length = length[initial_id]
 
-        xyz_low = initial_center - initial_length
-        xyz_high = initial_center + initial_length
+        xyz_low = initial_center - initial_length / 2.0
+        xyz_high = initial_center + initial_length / 2.0
 
         xyz_low = np.round(get_grid_idx_float(xyz_low, self.resolution))
         xyz_low[xyz_low < 0] = 0
@@ -503,16 +506,28 @@ class SAIL_S3Generator(object):
         outside_points_torch = torch.from_numpy(outside_points).unsqueeze(0) # 1 * N_SAMPLE * 3
         inside_points_torch = torch.from_numpy(inside_points).unsqueeze(0) # 1 * N_SAMPLE * 3
 
+        if outside_points_torch.shape[1] != 0:
+            w_outside = initial_length - (outside_points_torch - initial_center).abs().max(axis=2)[0] # 1 * N_SAMPLE
+        if inside_points_torch.shape[1] != 0:
+            w_inside  = initial_length - (inside_points_torch - initial_center).abs().max(axis=2)[0] # 1 * N_SAMPLE
+
+        # print('_decide sign outside points.shape:', outside_points_torch.shape)
+        # print('_decide sign inside points.shape:', inside_points_torch.shape)
         with torch.no_grad():
             outside_p_r = self.trainer.predict_for_points_with_specific_subfield(outside_points_torch, initial_id)
             inside_p_r = self.trainer.predict_for_points_with_specific_subfield(inside_points_torch, initial_id)
 
+            if outside_points_torch.shape[1] != 0:
+                outside_p_r = outside_p_r * w_outside.to(self.device)
+            if inside_points_torch.shape[1] != 0:
+                inside_p_r = inside_p_r * w_inside.to(self.device)
             loss_positive = F.relu(-outside_p_r).sum() + F.relu(inside_p_r).sum()
             loss_negative = F.relu(outside_p_r).sum() + F.relu(-inside_p_r).sum()
 
         if loss_positive < loss_negative:
             return True
         else:
+            print('---Loss +:', loss_positive, '-:', loss_negative)
             return False
 
     def simple_decide_subfield_sign(self):
@@ -600,6 +615,73 @@ class SAIL_S3Generator(object):
         self.hj[self.hj==0] = -1
 
         #print('Hj:', self.hj)
+
+    def _genarate_mesh_by_id(self, initial_id):
+        center = self.center
+        length = self.length
+        initial_center = center[initial_id, :] # (3,)
+        initial_length = length[initial_id]
+
+        xyz_low = initial_center - initial_length
+        xyz_high = initial_center + initial_length
+
+        xyz_low = np.round(get_grid_idx_float(xyz_low, self.resolution))
+        xyz_low[xyz_low < 0] = 0
+        xyz_low[xyz_low >= self.resolution - 1] = self.resolution - 1
+        xyz_high = np.round(get_grid_idx_float(xyz_high, self.resolution))
+        xyz_high[xyz_high < 0] = 0
+        xyz_high[xyz_high >= self.resolution - 1] = self.resolution - 1
+
+        #print('Initial xyz:', xyz_low, xyz_high)
+        need_calc_voxels = self.voxel[int(xyz_low[0]):int(xyz_high[0])+1, 
+            int(xyz_low[1]):int(xyz_high[1])+1, 
+            int(xyz_low[2]):int(xyz_high[2])+1, :]
+
+        N_X = need_calc_voxels.shape[0]
+        N_Y = need_calc_voxels.shape[1]
+        N_Z = need_calc_voxels.shape[2]
+
+        box_low = need_calc_voxels[0,0,0,:3]
+        box_high = need_calc_voxels[-1,-1,-1,:3]
+
+        need_calc_voxels = need_calc_voxels.reshape(-1, 4)
+        points_torch = torch.from_numpy(need_calc_voxels[:,:3]).unsqueeze(0)
+
+        # print('N_X, N_Y, N_Z:', N_X, N_Y, N_Z)
+        # print('point torch.shape:', points_torch.shape)
+        
+        p_r = self.trainer.predict_for_points_with_specific_subfield(points_torch, initial_id)
+
+        sdf_hat = p_r.cpu().numpy().reshape(N_X, N_Y, N_Z)
+
+        vertices, triangles = libmcubes.marching_cubes(
+            sdf_hat, 0)
+        # Strange behaviour in libmcubes: vertices are shifted by 0.5
+        vertices -= 0.5
+        # Normalize to bounding box
+        vertices /= np.array([N_X-1, N_Y-1, N_Z-1])
+        vertices = vertices * (box_high - box_low) + box_low
+
+        # mesh_pymesh = pymesh.form_mesh(vertices, triangles)
+        # mesh_pymesh = fix_pymesh(mesh_pymesh)
+
+        normals = None
+
+        # Create mesh
+        mesh = trimesh.Trimesh(vertices, triangles,
+                               vertex_normals=normals,
+                               process=False)
+
+        return mesh
+
+    def generate_from_latent_separate(self):
+        meshes = []
+        for i in tqdm(range(self.K)):
+            mesh = self._genarate_mesh_by_id(i)
+
+            meshes.append(mesh)
+
+        return meshes
 
     def generate_from_latent(self, stats_dict={}, **kwargs):
         ''' Generates mesh from latent.
