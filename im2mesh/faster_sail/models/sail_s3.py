@@ -223,6 +223,9 @@ class SAIL_S3Network(nn.Module):
         elif func == 'loss':
             assert gt_sal is not None
             return self.forward_loss(p, z, gt_sal, z_loss_ratio=z_loss_ratio,  **kwargs)
+        elif func == 'signed_loss':
+            assert gt_sal is not None
+            return self.forward_signed_loss(p, z, gt_sal, **kwargs)
 
     def forward_loss(self, p, z, gt_sal, z_loss_ratio=1.0e-3, sal_loss_type='l1', sal_weight=None, **kwargs):
         if z is not None:
@@ -246,6 +249,23 @@ class SAIL_S3Network(nn.Module):
         # latent loss: regularization
         if z_loss_ratio != 0 and z_reg is not None:
             loss_sal += z_loss_ratio * z_reg.mean()
+
+        return loss_sal, p_r
+
+    def forward_signed_loss(self, p, z, gt_sal, sal_loss_type='l1', sal_weight=None, **kwargs):
+        p_r = self.decode(p, z, **kwargs)
+
+        # sal loss
+        if sal_loss_type == 'l1':
+            loss_sal = torch.abs(p_r - gt_sal)
+        elif sal_loss_type == 'l2':
+            loss_sal = torch.pow(p_r - gt_sal, 2)
+        else:
+            raise NotImplementedError
+
+        if sal_weight is not None:
+            loss_sal = loss_sal * sal_weight
+        loss_sal = loss_sal.mean()
 
         return loss_sal, p_r
 

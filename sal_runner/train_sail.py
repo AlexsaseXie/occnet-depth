@@ -18,7 +18,7 @@ parser = argparse.ArgumentParser(
 )
 parser.add_argument('config', type=str, help='Path to config file.')
 parser.add_argument('--no-cuda', action='store_true', help='Do not use cuda.')
-parser.add_argument('--learning_rate',type=float,default=1e-3,
+parser.add_argument('--learning_rate',type=float,default=1e-4,
                     help='Learning Rate.')
 parser.add_argument('--start_number', type=int, default=0)
 
@@ -72,6 +72,9 @@ else:
 
 print_model_info = False
 instance_id = -1
+
+
+
 for batch in train_loader:
     instance_id += 1
 
@@ -132,17 +135,38 @@ for batch in train_loader:
     print('Surface point weight:', trainer.surface_point_weight)
     trainer.init_pointcloud_points_record(batch)
     trainer.init_training_points_record(batch)
+    if 'voxelized_training' in cfg['training']:
+        voxelized_training = cfg['training']['voxelized_training']
+    else:
+        voxelized_training = False
+    print('Using voxelized_training:', voxelized_training)
+    trainer.init_voxelized_data(train=voxelized_training)
+
+    '''
+        Schedulers 
+    '''
+    # 10w:
     #scheduler = optim.lr_scheduler.MultiStepLR(optimizer, milestones=[60000, 80000], gamma=0.1)
-    scheduler = optim.lr_scheduler.MultiStepLR(optimizer, milestones=[20000, 30000, 35000, 38000], gamma=0.2)
+    # 4w:
+    # scheduler = optim.lr_scheduler.MultiStepLR(optimizer, milestones=[20000, 30000], gamma=0.1)
+    # sail-s3 paper 4w:
+    #scheduler = optim.lr_scheduler.MultiStepLR(optimizer, milestones=[20000, 30000, 35000, 38000], gamma=0.2)
+    # voxel 5w:
+    scheduler = optim.lr_scheduler.MultiStepLR(optimizer, milestones=[30000, 40000], gamma=0.1)
+    
     if trainer.z_optimizer is not None:
         #z_scheduler = optim.lr_scheduler.MultiStepLR(trainer.z_optimizer, milestones=[60000, 80000], gamma=0.1)
-        z_scheduler = optim.lr_scheduler.MultiStepLR(trainer.z_optimizer, milestones=[20000, 30000, 35000, 38000], gamma=0.2)
+        #z_scheduler = optim.lr_scheduler.MultiStepLR(trainer.z_optimizer, milestones=[20000, 30000], gamma=0.1)
+        #z_scheduler = optim.lr_scheduler.MultiStepLR(trainer.z_optimizer, milestones=[20000, 30000, 35000, 38000], gamma=0.2)
+        z_scheduler = optim.lr_scheduler.MultiStepLR(trainer.z_optimizer, milestones=[30000, 40000], gamma=0.1)
     else:
         z_scheduler = None
-    
+
     if trainer.subfield_optimizer is not None:
         #subfield_scheduler = optim.lr_scheduler.MultiStepLR(trainer.subfield_optimizer, milestones=[60000, 80000], gamma=0.1)
-        subfield_scheduler = optim.lr_scheduler.MultiStepLR(trainer.subfield_optimizer, milestones=[20000, 30000, 35000, 38000], gamma=0.2)
+        #subfield_scheduler = optim.lr_scheduler.MultiStepLR(trainer.subfield_optimizer, milestones=[20000, 30000], gamma=0.1)
+        #subfield_scheduler = optim.lr_scheduler.MultiStepLR(trainer.subfield_optimizer, milestones=[20000, 30000, 35000, 38000], gamma=0.2)
+        subfield_scheduler = optim.lr_scheduler.MultiStepLR(trainer.subfield_optimizer, milestones=[30000, 40000], gamma=0.1)
     else:
         subfield_scheduler = None
 
@@ -151,6 +175,9 @@ for batch in train_loader:
     # continue
     while it <= exit_after:
         it += 1
+
+        if (voxelized_training == True) and (it <= 20000):
+            trainer.voxelized_training = True
 
         loss = trainer.train_step(batch)
         logger.add_scalar('train/loss', loss, it)

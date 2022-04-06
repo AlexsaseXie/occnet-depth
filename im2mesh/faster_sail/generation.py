@@ -527,7 +527,7 @@ class SAIL_S3Generator(object):
         if loss_positive < loss_negative:
             return True
         else:
-            print('---Loss +:', loss_positive, '-:', loss_negative)
+            # print('---Loss +:', loss_positive, '-:', loss_negative)
             return False
 
     def simple_decide_subfield_sign(self):

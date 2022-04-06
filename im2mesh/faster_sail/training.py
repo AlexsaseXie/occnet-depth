@@ -16,6 +16,13 @@ from im2mesh.faster_sail.models.sail_s3 import CubeSet
 from im2mesh.faster_sail.utils import find_r_t, pcwrite
 from im2mesh.utils.lib_pointcloud_distance.chamfer_distance import chamfer_distance
 from sklearn.cluster import KMeans
+from im2mesh.utils.lib_pointcloud_voxel import grid_points_query_range
+from im2mesh.faster_sail.generation import get_grid_idx_float
+import sys
+sys.path.append('./external/mesh-fusion/')
+sys.path.append('../../external/mesh-fusion/')
+from libfusiongpu import pc_nn as compute_nn
+
 
 class SALTrainer(BaseTrainer):
     ''' SALTrainer object for the SALNetwork.
@@ -261,6 +268,12 @@ class SAIL_S3_Trainer(BaseTrainer):
         self.training_pc_calc_index = None
         self.training_gt_sal = None
 
+        self.neighbor_points = None
+        self.kmeans_pc_xyzrgb = None
+
+        self.voxelized_data = {}
+        self.voxelized_training = False
+
     def init_z(self, data, initialize_optimizer=True):
         device = self.device
         z_vec = data.get('z', None)
@@ -300,7 +313,7 @@ class SAIL_S3_Trainer(BaseTrainer):
                     dis, _ = dis.topk(7, dim=2, largest=False) # B * K * 7
 
                     initial_length = dis[:,:,1:].mean(dim=2) * (self.initial_length_alpha / 2.0) # B * K
-                elif self.initial_center_func == 'kmeans':
+                elif self.initial_center_func in ('kmeans', 'kmeans_raw'):
                     print('Initialize centers using kmeans')
                     pointcloud = data.get('inputs.pointcloud').cpu().numpy()
                     B = pointcloud.shape[0]
@@ -311,33 +324,45 @@ class SAIL_S3_Trainer(BaseTrainer):
                         clt = KMeans(n_clusters=K)
                         clt.fit(cur_pointcloud)
 
-                        #centers = clt.cluster_centers_
+                        # show function
+                        x = np.linspace(0, 255, 10, dtype=np.float32)
+                        r,g,b = np.meshgrid(x,x,x)
+                        color = np.concatenate([r.reshape(-1,1),g.reshape(-1,1),b.reshape(-1,1)], axis=1)
+                        color_pc = color[clt.labels_]
+                        self.kmeans_pc_xyzrgb = np.concatenate([cur_pointcloud, color_pc], axis=1)
+
                         labels = clt.labels_.astype(np.float32).reshape(-1,1)
 
                         infos = np.concatenate([labels,cur_pointcloud], axis=1)
                         infos = infos[infos[:, 0].argsort()]
                         infos = np.split(infos, np.unique(infos[:, 0], return_index=True)[1][1:])
-                        #infos = [np.abs(tmp[:,1:] - centers[idx]).max() for idx,tmp in enumerate(infos)]
-                        #cur_initial_length = np.array(infos)
-                        infos = [[
-                            tmp[:,1].max(),
-                            tmp[:,1].min(),
-                            tmp[:,2].max(),
-                            tmp[:,2].min(),
-                            tmp[:,3].max(),
-                            tmp[:,3].min()
-                        ]  for tmp in infos ]
-                        infos = np.array(infos)
-                        centers = np.concatenate([
-                            (infos[:,0:1] + infos[:,1:2]) / 2.0, 
-                            (infos[:,2:3] + infos[:,3:4]) / 2.0,
-                            (infos[:,4:5] + infos[:,5:6]) / 2.0,
-                        ], axis=1)
-                        cur_initial_length = np.concatenate([
-                            (infos[:,0:1] - infos[:,1:2]) / 2.0, 
-                            (infos[:,2:3] - infos[:,3:4]) / 2.0,
-                            (infos[:,4:5] - infos[:,5:6]) / 2.0,
-                        ], axis=1).max(axis=1)
+
+                        if self.initial_center_func == 'kmeans_raw':
+                            centers = clt.cluster_centers_
+                            infos = [np.abs(tmp[:,1:] - centers[idx]).max() for idx,tmp in enumerate(infos)]
+                            cur_initial_length = np.array(infos)
+                        elif self.initial_center_func == 'kmeans':
+                            infos = [[
+                                tmp[:,1].max(),
+                                tmp[:,1].min(),
+                                tmp[:,2].max(),
+                                tmp[:,2].min(),
+                                tmp[:,3].max(),
+                                tmp[:,3].min()
+                            ]  for tmp in infos ]
+                            infos = np.array(infos)
+                            centers = np.concatenate([
+                                (infos[:,0:1] + infos[:,1:2]) / 2.0, 
+                                (infos[:,2:3] + infos[:,3:4]) / 2.0,
+                                (infos[:,4:5] + infos[:,5:6]) / 2.0,
+                            ], axis=1)
+                            cur_initial_length = np.concatenate([
+                                (infos[:,0:1] - infos[:,1:2]) / 2.0, 
+                                (infos[:,2:3] - infos[:,3:4]) / 2.0,
+                                (infos[:,4:5] - infos[:,5:6]) / 2.0,
+                            ], axis=1).max(axis=1)
+                        else:
+                            raise NotImplementedError
                         
                         #tmp1 = cur_initial_length * self.initial_length_alpha
                         #tmp2 = cur_initial_length + 0.01
@@ -379,6 +404,81 @@ class SAIL_S3_Trainer(BaseTrainer):
             self.z_optimizer = optim.Adam([param_list['z']], lr=self.z_learning_rate)
             if self.refine_subfield:
                 self.subfield_optimizer = optim.Adam([param_list['length'], param_list['center']], lr=self.subfield_learning_rate)
+
+    def init_voxelized_data(self, train=False):
+        '''
+            Call after self.init_pointcloud_points_record
+        '''
+        print('Initializing voxelized data')
+        pc_numpy = self.training_pc.cpu().numpy()[0]
+        voxel, calc_index, inside_index, outside_index = grid_points_query_range(
+            pc_numpy, 
+            256, 0.005, 
+            -0.55, 0.55
+        )
+
+        self.voxelized_data['voxel'] = voxel
+        self.voxelized_data['calc_index'] = calc_index
+        self.voxelized_data['inside_index'] = inside_index
+        self.voxelized_data['outside_index'] = outside_index
+
+        if train:
+            self.init_voxelized_train_data()
+
+    def init_voxelized_train_data(self):
+        print('Initializing voxelized train data')
+        N_SAMPLE = 200000 // self.K
+
+        voxel = self.voxelized_data['voxel']
+        resolution = voxel.shape[0]
+
+        initial_center_numpy = self.cube_set_K.center.cpu().numpy().squeeze(0)
+        initial_length_numpy = self.cube_set_K.length.cpu().numpy().squeeze(0)
+
+        candidates = []
+        for i in range(self.K):
+            xyz_low = initial_center_numpy[i] - initial_length_numpy[i]
+            xyz_high = initial_center_numpy[i] + initial_length_numpy[i]
+
+            xyz_low = np.round(get_grid_idx_float(xyz_low, resolution))
+            xyz_low[xyz_low < 0] = 0
+            xyz_low[xyz_low >= resolution - 1] = resolution - 1
+            xyz_high = np.round(get_grid_idx_float(xyz_high, resolution))
+            xyz_high[xyz_high < 0] = 0
+            xyz_high[xyz_high >= resolution - 1] = resolution - 1
+
+            #print('Initial xyz:', xyz_low, xyz_high)
+            need_calc_voxels = voxel[int(xyz_low[0]):int(xyz_high[0])+1, 
+                int(xyz_low[1]):int(xyz_high[1])+1, 
+                int(xyz_low[2]):int(xyz_high[2])+1, :]
+
+            all_info = need_calc_voxels[need_calc_voxels[:,:,:,3] != 1] # A * 4
+            if all_info.shape[0] >= N_SAMPLE:
+                rand_idx = np.random.choice(all_info.shape[0], size=N_SAMPLE, replace=False)
+                all_info = all_info[rand_idx]
+
+            candidates.append(all_info)
+
+        candidates = np.concatenate(candidates, axis=0) # T * 4
+        candidates = np.unique(candidates, axis=0) # T' * 4
+        print('Voxel training data Candidates:', candidates.shape)
+        points = candidates[:, :3]
+        sign = candidates[:, 3]
+        sign[sign == 2] = 1
+        sign[sign == 0] = 0
+            
+        pc_numpy = self.training_pc.cpu().numpy()[0]
+        pc_numpy_fake_normal = np.zeros_like(pc_numpy)
+        pc_numpy_input = np.concatenate([pc_numpy, pc_numpy_fake_normal], axis=1) # N * 6 pc
+        dis, _ = compute_nn(pc_numpy_input, points)
+        sdf = dis * sign # T'
+
+        self.voxelized_data['training_points'] = torch.from_numpy(points).unsqueeze(0) # 1 * T' * 3
+        self.voxelized_data['training_points_gt_sdf'] = torch.from_numpy(sdf).unsqueeze(0) # 1 * T'
+        self.voxelized_data['training_calc_index'] = self.cube_set_K.query(self.voxelized_data['training_points'])
+
+        print('Voxel calc index:', self.voxelized_data['training_calc_index'].shape)
+        print('Finish initialize voxelized train data')
 
     def clear_z(self):
         self.z_optimizer = None
@@ -427,7 +527,6 @@ class SAIL_S3_Trainer(BaseTrainer):
 
     def show_points(self, output_dir):
         print('Show points')
-        from im2mesh.utils.lib_pointcloud_voxel import grid_points_query_range
         with torch.no_grad():
             centers = self.cube_set_K.center.cpu().numpy()[0,:,:]
             output_file = os.path.join(output_dir, 'centers.ply')
@@ -439,6 +538,19 @@ class SAIL_S3_Trainer(BaseTrainer):
             output_file = os.path.join(output_dir, 'batch_points.ply')
             lst = []
             neighbors = []
+            pc_numpy = self.training_pc.cpu().numpy()[0]
+            if self.neighbor_points is None:
+                initial_length_numpy = self.cube_set_K.length.cpu().numpy()[0,:]
+                self.neighbor_points = []
+                for i in range(self.K):
+                    center = centers[i,:]
+                    initial_length = initial_length_numpy[i]
+
+                    local_pc = pc_numpy - center
+                    dis_to_center = np.abs(local_pc).max(axis=1)
+                    cur_neighbors = pc_numpy[dis_to_center < initial_length]
+                    self.neighbor_points.append(cur_neighbors)
+
             for i in range(0,0+t):
                 batch_data = self.cube_set_K.get(self.training_p, self.training_calc_index_sep[0][i])
                 cur_points = batch_data['input_p'].cpu().numpy()
@@ -454,12 +566,10 @@ class SAIL_S3_Trainer(BaseTrainer):
             output_file = os.path.join(output_dir, 'neighbor_pc.ply')
             pcwrite(output_file, neighbors, color=False)  
 
-            pc_numpy = self.training_pc.cpu().numpy()[0]
-            voxel, calc_index, inside_index, outside_index = grid_points_query_range(
-                pc_numpy, 
-                256, 0.005, 
-                -0.55, 0.55
-            )
+            voxel = self.voxelized_data['voxel']
+            calc_index = self.voxelized_data['calc_index']
+            #inside_index = self.voxelized_data['inside_index']
+            #outside_index = self.voxelized_data['outside_index']
 
             need_calc_points = voxel[calc_index[:,0], calc_index[:,1], calc_index[:,2], :3]
             output_file = os.path.join(output_dir, '256_voxel_need_calc_pc.ply')
@@ -472,6 +582,10 @@ class SAIL_S3_Trainer(BaseTrainer):
 
             output_file = os.path.join(output_dir, '256_voxel_blank_pc.ply')
             pcwrite(output_file, blank_points, color=False)
+
+            if self.initial_center_func in ('kmeans', 'kmeans_raw') :
+                output_file = os.path.join(output_dir, 'kmeans_pc.ply')
+                pcwrite(output_file, self.kmeans_pc_xyzrgb)
 
     def _refine_center_length(self, data, pointcloud_K, initial_length):
         assert pointcloud_K.shape[0] == 1
@@ -761,7 +875,8 @@ class SAIL_S3_Trainer(BaseTrainer):
             sal_weight = self._sal_weight(weight, first_weight)
             if gt_sal_val is not None:
                 cur_loss, _ = self.model(batch_data['input_unified_coordinate'], gt_sal=batch_data['gt_sal'] / weight, 
-                    z=batch_data['input_z'], func='loss', sal_weight=sal_weight)
+                    z=batch_data['input_z'], func='loss', sal_weight=sal_weight,
+                    z_loss_ratio=0)
             else:
                 cur_loss, _ = self.model(batch_data['input_unified_coordinate'], gt_sal=0, 
                     z=batch_data['input_z'], func='loss', sal_weight=sal_weight, 
@@ -778,6 +893,8 @@ class SAIL_S3_Trainer(BaseTrainer):
         gt_sal_val = self.training_gt_sal
 
         loss1 = self._compute_loss_variant(p, gt_sal_val)
+        # z regularization
+        loss1 += 1e-3 * self.cube_set_K.z_vectors.abs().mean()
         if self.surface_point_weight != 0:
             loss2 = self._compute_loss_variant(self.training_pc, None)
         
@@ -831,102 +948,154 @@ class SAIL_S3_Trainer(BaseTrainer):
         else:
             raise NotImplementedError
 
-    def compute_loss(self, data, variant=False, return_status=False):
-        if variant == True:
-            return self.compute_loss_variant(data, return_status=return_status)
-
-        device = self.device
+    def _compute_normal_data_loss_training(self):
         p = self.training_p 
-        if p is None:
-            self.init_training_points_record(data)
-            p = self.training_p
-        
         calc_index = self.training_calc_index # M * 3
         gt_sal_val = self.training_gt_sal
 
-        M = calc_index.shape[0]
         assert self.point_sample is not None
+
+        if self.random_subfield == 0:
+            rand_idx = np.random.choice(calc_index.shape[0], size=self.point_sample, replace=False)
+            cs = calc_index[rand_idx,:]
+        else:
+            K = self.K
+            B = p.shape[0]
+            calc_index_list = []
+            for b in range(B):
+                rand_subfield_idx = np.random.choice(K, size=self.random_subfield, replace=False)
+                for subfield_id in rand_subfield_idx:
+                    cur_subfield = self.training_calc_index_sep[b][subfield_id]
+                    total_len = cur_subfield.shape[0]
+                    rand_idx = np.random.choice(total_len, size=self.point_sample // self.random_subfield)
+                    calc_index_list.append(cur_subfield[rand_idx,:])
+            cs = torch.cat(calc_index_list, dim=0)
+        batch_data = self.cube_set_K.get(p, calc_index=cs, gt_sal_val=gt_sal_val)
+
+        weight = batch_data['unified_weight']
+        first_weight = batch_data['first_weight']
+        sal_weight = self._sal_weight(weight, first_weight)
+        # print('Training input data')
+        # for key in batch_data:
+        #     print('%s:' % key, batch_data[key].shape, 'Dtype: %s' % batch_data[key].dtype,
+        #          'Device: %s' % batch_data[key].device)
+        loss, _ = self.model(batch_data['input_unified_coordinate'], gt_sal=batch_data['gt_sal'] / weight, 
+            z=batch_data['input_z'], func='loss', sal_weight=sal_weight,
+            z_loss_ratio=0)
+
+        return loss
+
+    def _compute_surface_loss_training(self):
+        rand_idx = np.random.choice(self.training_pc_calc_index.shape[0], size=self.point_sample, replace=False)
+        cs = self.training_pc_calc_index[rand_idx, :]
         
-        if self.model.training:
-            if self.random_subfield == 0:
-                rand_idx = np.random.choice(calc_index.shape[0], size=self.point_sample, replace=False)
-                cs = calc_index[rand_idx,:]
-            else:
-                K = self.K
-                B = p.shape[0]
-                calc_index_list = []
-                for b in range(B):
-                    rand_subfield_idx = np.random.choice(K, size=self.random_subfield, replace=False)
-                    for subfield_id in rand_subfield_idx:
-                        cur_subfield = self.training_calc_index_sep[b][subfield_id]
-                        total_len = cur_subfield.shape[0]
-                        rand_idx = np.random.choice(total_len, size=self.point_sample // self.random_subfield)
-                        calc_index_list.append(cur_subfield[rand_idx,:])
-                cs = torch.cat(calc_index_list, dim=0)
-            batch_data = self.cube_set_K.get(p, calc_index=cs, gt_sal_val=gt_sal_val)
+        batch_data = self.cube_set_K.get(self.training_pc, cs, gt_sal_val=None)
 
-            weight = batch_data['unified_weight']
-            first_weight = batch_data['first_weight']
-            sal_weight = self._sal_weight(weight, first_weight)
-            # print('Training input data')
-            # for key in batch_data:
-            #     print('%s:' % key, batch_data[key].shape, 'Dtype: %s' % batch_data[key].dtype,
-            #          'Device: %s' % batch_data[key].device)
-            loss, _ = self.model(batch_data['input_unified_coordinate'], gt_sal=batch_data['gt_sal'] / weight, 
-                z=batch_data['input_z'], func='loss', sal_weight=sal_weight)
+        weight = batch_data['unified_weight']
+        first_weight = batch_data['first_weight']
+        sal_weight = self._sal_weight(weight, first_weight)
+        loss_pc, _ = self.model(batch_data['input_unified_coordinate'], gt_sal=0, 
+            z=batch_data['input_z'], func='loss', sal_weight=sal_weight,
+            z_loss_ratio=0)
 
-            if self.surface_point_weight != 0:
-                rand_idx = np.random.choice(self.training_pc_calc_index.shape[0], size=self.point_sample, replace=False)
-                cs = self.training_pc_calc_index[rand_idx, :]
-                
+        return loss_pc
+
+    def _compute_voxelized_data_loss_training(self):
+        calc_index = self.voxelized_data['training_calc_index']
+        p = self.voxelized_data['training_points']
+        gt_sdf = self.voxelized_data['training_points_gt_sdf']
+
+        rand_idx = np.random.choice(calc_index.shape[0], size=self.point_sample, replace=False)
+        cs = calc_index[rand_idx,:]
+
+        batch_data = self.cube_set_K.get(p, calc_index=cs, gt_sal_val=gt_sdf)
+
+        weight = batch_data['unified_weight']
+        first_weight = batch_data['first_weight']
+        sal_weight = self._sal_weight(weight, first_weight)
+        loss, _ = self.model(batch_data['input_unified_coordinate'], gt_sal=batch_data['gt_sal'] / weight, 
+            z=batch_data['input_z'], func='signed_loss', sal_weight=sal_weight,
+            z_loss_ratio=0)
+
+        return loss
+
+    def _compute_normal_data_loss_eval(self):
+        p = self.training_p 
+        calc_index = self.training_calc_index # M * 3
+        gt_sal_val = self.training_gt_sal
+
+        with torch.no_grad():
+            calc_index_b = torch.split(calc_index, 500000)
+            losses = 0
+            total_size = calc_index.shape[0]
+            for cs in tqdm(calc_index_b):
+                batch_size = cs.shape[0]
+                batch_data = self.cube_set_K.get(p, cs, gt_sal_val=gt_sal_val)
+
+                weight = batch_data['unified_weight']
+                first_weight = batch_data['first_weight']
+                sal_weight = self._sal_weight(weight, first_weight)
+                cur_loss, _ = self.model(batch_data['input_unified_coordinate'], gt_sal=batch_data['gt_sal'] / weight, 
+                    z=batch_data['input_z'], func='loss', sal_weight=sal_weight,
+                    z_loss_ratio=0)
+
+                losses += cur_loss * batch_size
+
+            losses = losses / total_size
+
+        return losses
+
+    def _compute_surface_loss_eval(self):
+        with torch.no_grad():
+            calc_index_b = torch.split(self.training_pc_calc_index, 500000)
+            losses_pc = 0
+            total_size = self.training_pc_calc_index.shape[0]
+            for cs in tqdm(calc_index_b):
+                batch_size = cs.shape[0]
                 batch_data = self.cube_set_K.get(self.training_pc, cs, gt_sal_val=None)
 
                 weight = batch_data['unified_weight']
                 first_weight = batch_data['first_weight']
                 sal_weight = self._sal_weight(weight, first_weight)
-                loss_pc, _ = self.model(batch_data['input_unified_coordinate'], gt_sal=0, 
-                    z=batch_data['input_z'], func='loss', sal_weight=sal_weight,
+                cur_loss, _ = self.model(batch_data['input_unified_coordinate'], gt_sal=0, 
+                    z=batch_data['input_z'], func='loss', sal_weight=sal_weight, 
                     z_loss_ratio=0)
+
+                losses_pc += cur_loss * batch_size
+
+            losses_pc = losses_pc / total_size
+
+        return losses_pc
+
+    def compute_loss(self, data, variant=False, return_status=False):
+        if variant == True:
+            return self.compute_loss_variant(data, return_status=return_status)
+
+        device = self.device
+        
+        if self.model.training:
+            if not self.voxelized_training:
+                loss = self._compute_normal_data_loss_training()
+            else:
+                loss = self._compute_voxelized_data_loss_training()
+
+            # z regularization
+            # previously, loss = self.model(...z_loss_ratio = 1e-3)
+            loss += 1e-3 * self.cube_set_K.z_vectors.abs().mean()
+
+            if self.surface_point_weight != 0:
+                loss_pc = self._compute_surface_loss_training()
 
                 loss += loss_pc * self.surface_point_weight
         else:
             with torch.no_grad():
-                calc_index_b = torch.split(calc_index, 500000)
-                losses = 0
-                total_size = calc_index.shape[0]
-                for cs in tqdm(calc_index_b):
-                    batch_size = cs.shape[0]
-                    batch_data = self.cube_set_K.get(p, cs, gt_sal_val=gt_sal_val)
+                loss = self._compute_normal_data_loss_eval()
 
-                    weight = batch_data['unified_weight']
-                    first_weight = batch_data['first_weight']
-                    sal_weight = self._sal_weight(weight, first_weight)
-                    cur_loss, _ = self.model(batch_data['input_unified_coordinate'], gt_sal=batch_data['gt_sal'] / weight, 
-                        z=batch_data['input_z'], func='loss', sal_weight=sal_weight)
-
-                    losses += cur_loss * batch_size
-
-                loss = losses / total_size
+                loss += 1e-3 * self.cube_set_K.z_vectors.abs().mean()
 
                 # surface points
                 if self.surface_point_weight != 0:
-                    calc_index_b = torch.split(self.training_pc_calc_index, 500000)
-                    losses_pc = 0
-                    total_size = self.training_pc_calc_index.shape[0]
-                    for cs in tqdm(calc_index_b):
-                        batch_size = cs.shape[0]
-                        batch_data = self.cube_set_K.get(self.training_pc, cs, gt_sal_val=None)
-
-                        weight = batch_data['unified_weight']
-                        first_weight = batch_data['first_weight']
-                        sal_weight = self._sal_weight(weight, first_weight)
-                        cur_loss, _ = self.model(batch_data['input_unified_coordinate'], gt_sal=0, 
-                            z=batch_data['input_z'], func='loss', sal_weight=sal_weight, 
-                            z_loss_ratio=0)
-
-                        losses_pc += cur_loss * batch_size
-
-                    losses_pc = losses_pc / total_size
+                    losses_pc = self._compute_surface_loss_eval()
                     
                     loss += losses_pc * self.surface_point_weight
         
