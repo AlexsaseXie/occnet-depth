@@ -464,15 +464,16 @@ class SAIL_S3_Trainer(BaseTrainer):
         print('Voxel training data Candidates:', candidates.shape)
         points = candidates[:, :3]
         sign = candidates[:, 3]
-        sign[sign == 2] = 1
-        sign[sign == 0] = 0
-            
+        sign[sign == 2] = -1 # inside
+        sign[sign == 0] = 1 # outside
+
         pc_numpy = self.training_pc.cpu().numpy()[0]
         pc_numpy_fake_normal = np.zeros_like(pc_numpy)
         pc_numpy_input = np.concatenate([pc_numpy, pc_numpy_fake_normal], axis=1) # N * 6 pc
         dis, _ = compute_nn(pc_numpy_input, points)
         sdf = dis * sign # T'
 
+        print('SDF mean:', sdf.mean(), 'min:', sdf.min(), 'max:', sdf.max())
         self.voxelized_data['training_points'] = torch.from_numpy(points).unsqueeze(0) # 1 * T' * 3
         self.voxelized_data['training_points_gt_sdf'] = torch.from_numpy(sdf).unsqueeze(0) # 1 * T'
         self.voxelized_data['training_calc_index'] = self.cube_set_K.query(self.voxelized_data['training_points'])
