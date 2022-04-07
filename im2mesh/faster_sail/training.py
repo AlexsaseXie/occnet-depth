@@ -272,6 +272,8 @@ class SAIL_S3_Trainer(BaseTrainer):
         self.kmeans_pc_xyzrgb = None
 
         self.voxelized_data = {}
+        self.voxelized_tolerance = 0.005
+        self.voxelized_resolution = 256
         self.voxelized_training = False
 
     def init_z(self, data, initialize_optimizer=True):
@@ -413,7 +415,7 @@ class SAIL_S3_Trainer(BaseTrainer):
         pc_numpy = self.training_pc.cpu().numpy()[0]
         voxel, calc_index, inside_index, outside_index = grid_points_query_range(
             pc_numpy, 
-            256, 0.005, 
+            self.voxelized_resolution, self.voxelized_tolerance, 
             -0.55, 0.55
         )
 
@@ -470,6 +472,7 @@ class SAIL_S3_Trainer(BaseTrainer):
         pc_numpy = self.training_pc.cpu().numpy()[0]
         pc_numpy_fake_normal = np.zeros_like(pc_numpy)
         pc_numpy_input = np.concatenate([pc_numpy, pc_numpy_fake_normal], axis=1) # N * 6 pc
+        print('pc_numpy_input:', pc_numpy_input.shape)
         dis, _ = compute_nn(pc_numpy_input, points)
         sdf = dis * sign # T'
 
@@ -569,12 +572,16 @@ class SAIL_S3_Trainer(BaseTrainer):
 
             voxel = self.voxelized_data['voxel']
             calc_index = self.voxelized_data['calc_index']
-            #inside_index = self.voxelized_data['inside_index']
+            inside_index = self.voxelized_data['inside_index']
             #outside_index = self.voxelized_data['outside_index']
 
             need_calc_points = voxel[calc_index[:,0], calc_index[:,1], calc_index[:,2], :3]
             output_file = os.path.join(output_dir, '256_voxel_need_calc_pc.ply')
             pcwrite(output_file, need_calc_points, color=False)
+
+            inside_points = voxel[inside_index[:,0], inside_index[:,1], inside_index[:,2], :3]
+            output_file = os.path.join(output_dir, '256_voxel_inside_pc.ply')
+            pcwrite(output_file, inside_points, color=False)
 
             need_calc_points_torch = torch.from_numpy(need_calc_points).unsqueeze(0)
             vs = self.predict_for_points_fast(need_calc_points_torch).cpu().numpy()
@@ -587,6 +594,16 @@ class SAIL_S3_Trainer(BaseTrainer):
             if self.initial_center_func in ('kmeans', 'kmeans_raw') :
                 output_file = os.path.join(output_dir, 'kmeans_pc.ply')
                 pcwrite(output_file, self.kmeans_pc_xyzrgb)
+
+            if 'training_points' in self.voxelized_data:
+                pc_tmp = self.voxelized_data['training_points'].cpu().numpy()[0]
+                sdf = self.voxelized_data['training_points_gt_sdf'].cpu().numpy()[0]
+
+                output_file = os.path.join(output_dir, 'voxelized_points_out.ply')
+                pcwrite(output_file, pc_tmp[sdf > 0], color=False)
+
+                output_file = os.path.join(output_dir, 'voxelized_points_in.ply')
+                pcwrite(output_file, pc_tmp[sdf <= 0], color=False)
 
     def _refine_center_length(self, data, pointcloud_K, initial_length):
         assert pointcloud_K.shape[0] == 1

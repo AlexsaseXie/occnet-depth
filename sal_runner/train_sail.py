@@ -72,9 +72,6 @@ else:
 
 print_model_info = False
 instance_id = -1
-
-
-
 for batch in train_loader:
     instance_id += 1
 
@@ -139,6 +136,24 @@ for batch in train_loader:
         voxelized_training = cfg['training']['voxelized_training']
     else:
         voxelized_training = False
+
+    if 'voxelized_tolerance' in cfg['training']:
+        if isinstance(cfg['training']['voxelized_tolerance'], float):
+            trainer.voxelized_tolerance = cfg['training']['voxelized_tolerance']
+        elif isinstance(cfg['training']['voxelized_tolerance'], list):
+            trainer.voxelized_tolerance = cfg['training']['voxelized_tolerance'][instance_id]
+        else:
+            raise NotImplementedError
+
+    if 'voxelized_resolution' in cfg['training']:
+        if isinstance(cfg['training']['voxelized_resolution'], int):
+            trainer.voxelized_resolution = cfg['training']['voxelized_resolution']
+        elif isinstance(cfg['training']['voxelized_resolution'], list):
+            trainer.voxelized_resolution = cfg['training']['voxelized_resolution'][instance_id]
+        else:
+            raise NotImplementedError
+
+    print('Voxelized resolution:', trainer.voxelized_resolution, 'tolerance:', trainer.voxelized_tolerance)
     print('Using voxelized_training:', voxelized_training)
     trainer.init_voxelized_data(train=voxelized_training)
 
@@ -178,6 +193,8 @@ for batch in train_loader:
 
         if (voxelized_training == True) and (it <= 20000):
             trainer.voxelized_training = True
+        else:
+            trainer.voxelized_training = False
 
         loss = trainer.train_step(batch)
         logger.add_scalar('train/loss', loss, it)
