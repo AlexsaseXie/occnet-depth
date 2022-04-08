@@ -209,6 +209,9 @@ def get_generator(model, cfg, device, **kwargs):
         if 'sign_decide_function' in cfg['generation']:
             generator_params['sign_decide_function'] = cfg['generation']['sign_decide_function']
 
+        if 'voxelized_tolerance' in cfg['training']:
+            generator_params['voxelized_tolerance'] = cfg['training']['voxelized_tolerance']
+
         trainer = get_trainer(model, None, cfg, device)
 
         generator = generation.SAIL_S3Generator(trainer, **generator_params)

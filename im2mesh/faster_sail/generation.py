@@ -390,6 +390,7 @@ class SAIL_S3Generator(object):
     def __init__(self, trainer, points_batch_size=100000,
                  threshold=0,  device=None,
                  resolution=256, padding=0.1, 
+                 voxelized_tolerance=0.005,
                  simplify_nfaces=None,
                  preprocessor=None, optim_z_dim=128,
                  interpolation_method='sail_s3_paper',
@@ -402,6 +403,7 @@ class SAIL_S3Generator(object):
         self.threshold = threshold
         self.device = device
         self.resolution = resolution
+        self.voxelized_tolerance = voxelized_tolerance
         self.padding = padding
         self.simplify_nfaces = simplify_nfaces
         self.preprocessor = preprocessor
@@ -417,6 +419,7 @@ class SAIL_S3Generator(object):
 
         print('Interpolation method:', self.interpolation_method, ',aggregate:', self.interpolation_aggregate)
         print('Sign decide function:', self.sign_decide_function)
+        print('Resolution:', self.resolution, 'tolerance:', self.voxelized_tolerance)
 
     def generate_mesh(self, data, out_dict, return_stats=True, separate=False):
         ''' Generates the output mesh.
@@ -446,7 +449,7 @@ class SAIL_S3Generator(object):
         low = -high
 
         #tolerance_range = min((1 / self.resolution) * 3, 0.008)
-        tolerance_range = 0.005
+        tolerance_range = self.voxelized_tolerance
         self.voxel, self.calc_index, self.inside_index, self.outside_index = grid_points_query_range(
             pc_numpy, 
             self.resolution, tolerance_range, 
