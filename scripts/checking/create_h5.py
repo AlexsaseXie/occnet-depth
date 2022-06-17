@@ -29,7 +29,7 @@ if __name__ == '__main__':
 
     h5file = h5py.File(filename, 'w')
     chunk_size = args.chunk_size
-    h5file.create_dataset("points", data=points, chunks=(chunk_size, 3))
+    h5file.create_dataset("points", data=points)
     h5file.create_dataset("occupancies", data=occupancies)
     h5file.create_dataset("loc", data=loc)
     h5file.create_dataset("scale", data=scale)

@@ -8,6 +8,7 @@ for c in ${CLASSES[@]}; do
   CHOY2016_VOX_PATH_C="$CHOY2016_PATH/ShapeNetVox32/$c"
 
   ls $CHOY2016_VOX_PATH_C | parallel -P $NPROC --timeout $TIMEOUT \
-    python create_h5.py "$TRANSFER_PATH_C/{}" --unpack_bits
-
+    python create_h5.py "$TRANSFER_PATH_C/{}" --unpack_bits  \
+                         --in_points_name "points.npz" \
+                         --out_points_name "points.h5"
 done
