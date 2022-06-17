@@ -1,0 +1,9 @@
+inherit_from: configs/pc_completion/MSN_mixed.yaml
+data:
+  dataset: pix3d
+  path: data/pix3d
+  pix3d_build_path: ./data/pix3d/pix3d.build
+  input_fields: ['depth_pointcloud', 'depth_pred', 'camera', 'mask']
+  depth_pred_root: data/pix3d/uresnet.depth_pred/
+  depth_pointcloud_root: data/pix3d/uresnet.depth_pred/
+  depth_pointcloud_folder: depth_pointcloud

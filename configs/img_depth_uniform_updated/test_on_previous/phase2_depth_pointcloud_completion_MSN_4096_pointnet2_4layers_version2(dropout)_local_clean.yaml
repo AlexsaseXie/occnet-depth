@@ -1,0 +1,69 @@
+method: onet_depth
+data_parallel: DP
+data:
+  path: data/ShapeNet.with_depth.10w10w
+  img_folder: img
+  input_type: depth_pointcloud_completion
+  #input_fields: ['depth_pointcloud']
+  input_fields: ['depth_pointcloud', 'mask', 'camera', 'depth_pred']
+  depth_pred_root: data/ShapeNet.depth_pred.uresnet.origin_subdivision
+  depth_pointcloud_root: data/ShapeNet.depth_pred.uresnet.origin_subdivision
+  depth_pointcloud_folder: MSN_space_carved_4096_clean
+  img_size: 224 
+  train_split: updated_train
+  val_split: updated_val
+  test_split: updated_test
+  points_file: points_direct_tsdf0.008.npz
+  points_iou_file: points_direct_tsdf0.008.npz
+  train_tsdf: 0.002
+  test_tsdf: 0.002
+  points_subsample: 2048 
+  points_unpackbits: false
+  depth_pointcloud_shuffle: true
+model:
+  encoder_latent: null
+  decoder: cbatchnorm
+  encoder: pointnet2_4layers
+  encoder_kwargs: 
+    version: 2
+    local_radius: [0.05, 0.1, 0.1, 0.1]
+    local_n_sample: [32, 16, 16, 8]
+  c_dim: 1024
+  z_dim: 0
+  depth_pointcloud_transfer: world_normalized
+  use_local_feature: true
+  decoder_local: batchnormsimple_localfeature
+  decoder_local_kwargs: {}
+  local_feature_dim: 512
+  use_camera: true
+  space_carver_mode: depth
+  space_carver_eps: 0.03
+training:
+  out_dir:  out/img_depth_uniform/phase2_depth_pointcloud_MSN_4096_pointnet2_4layers_version2(dropout)_local_clean
+  batch_size: 28
+  model_selection_metric: iou
+  model_selection_mode: maximize
+  #loss_type: cross_entropy_with_sigmoid
+  visualize_every: 20000
+  validate_every: 20000
+  backup_every: 50000
+  phase: 2
+  detach: true
+  use_gt_depth: false
+test:
+  val_subsample: 20000
+  threshold: 0.3
+  eval_mesh: true
+  eval_pointcloud: false
+  model_file: model_best.pt
+generation:
+  batch_size: 100000
+  refine: false
+  n_x: 128
+  n_z: 1
+  resolution_0: 32 
+  upsampling_steps: 2
+  generation_dir: generation
+  #refinement_step: 30
+  simplify_nfaces: 10000
+ 

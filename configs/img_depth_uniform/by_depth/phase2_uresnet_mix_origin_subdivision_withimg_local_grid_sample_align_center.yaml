@@ -1,0 +1,62 @@
+method: onet_depth
+data_parallel: DP
+data:
+  path: data/ShapeNet.with_depth.10w10w
+  img_folder: img
+  input_type: depth_pred
+  input_fields: ['depth_pred', 'depth', 'img', 'camera', 'mask']
+  depth_pred_root: data/ShapeNet.depth_pred.uresnet.origin_subdivision
+  test_range: null
+  img_size: 224 
+  img_extension: png
+  points_file: points.npz
+  points_iou_file: points.npz
+  points_subsample: 2048 
+  points_unpackbits: true
+  #img_with_camera: true
+model:
+  encoder_latent: null
+  decoder: cbatchnorm
+  encoder: depth_resnet18
+  encoder_kwargs:
+    input_dim: 4
+    model_pretrained: out/classify/depth_img_resnet18_origin_subdivision/encoder_best.pt
+  c_dim: 256
+  z_dim: 0
+  pred_with_img: true
+  use_local_feature: true
+  #space_carver_mode: depth
+  #space_carver_eps: 0.03
+  decoder_local: batchnormsimple_localfeature
+  decoder_local_kwargs: {}
+  local_feature_dim: 256
+  use_camera: true
+training:
+  out_dir:  out/img_depth_uniform/phase2_uresnet_mix_origin_subdivision_withimg_local_align_center
+  batch_size: 64
+  model_selection_metric: iou
+  model_selection_mode: maximize
+  #loss_type: cross_entropy_with_sigmoid
+  visualize_every: 20000
+  validate_every: 20000
+  backup_every: 50000
+  phase: 2
+  detach: true
+  use_gt_depth: false
+  depth_map_mix: true
+test:
+  threshold: 0.3
+  eval_mesh: true
+  eval_pointcloud: false
+  model_file: model_best.pt
+generation:
+  batch_size: 100000
+  generation_dir: generation
+  refine: false
+  n_x: 128
+  n_z: 1
+  resolution_0: 32 
+  upsampling_steps: 2
+  #refinement_step: 30
+  simplify_nfaces: 10000
+

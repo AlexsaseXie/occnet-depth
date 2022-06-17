@@ -1,0 +1,6 @@
+inherit_from: configs/img_depth_phase1/uresnet_origin_division.yaml
+data:
+  dataset: pix3d
+  path: data/pix3d
+  pix3d_build_path: ./data/pix3d/pix3d.build
+  input_fields: ['img', 'mask']

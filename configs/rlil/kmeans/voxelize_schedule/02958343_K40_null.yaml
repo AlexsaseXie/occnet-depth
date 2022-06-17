@@ -1,0 +1,79 @@
+data_parallel: null
+method: SAIL_S3
+data:
+  dataset: Shapes3D_list
+  train_instance_list: 02958343/train_instance.lst
+  input_type: null
+  input_fields: ['pointcloud']
+  test_instance_list: null
+  val_instance_list: null
+  path: /home3/xieyunwei/ShapeNet.SAL
+  points_subsample: null
+  points_file: sal_30000.npz
+  with_transforms: false
+  pointcloud_file: pointcloud_fps_N30000.npz
+  pointcloud_n: null
+  pointcloud_noise: null
+model:
+  encoder_latent: null
+  decoder: deepsdf
+  decoder_kwargs:
+    dims: [512, 512, 512, 512, 512, 512, 512, 512]
+    dropout: []
+    dropout_prob: 0.2
+    norm_layers: [0, 1, 2, 3, 4, 5, 6, 7]
+    latent_in: [4]
+    xyz_in_all: False
+    activation: null
+    latent_dropout: False
+    weight_norm: True
+    initial_radius: 0.6
+  encoder: null
+  c_dim: 0
+  z_dim: 300
+  neighbors_K: 40
+  initial_length_alpha: 1.25
+  initial_center_func: kmeans_raw
+  initial_r_t_func: simple
+  initial_refine_subfield_centers: False
+training:
+  out_dir:  out/sail_s3_z_fixed/kmeans/voxelize_schedule/02958343_K40_null/
+  batch_size: 1
+  model_selection_metric: loss
+  model_selection_mode: minimize
+  checkpoint_every: 5000
+  validate_every: 5000
+  backup_every: 10000
+  visualize_every: 5000
+  print_every: 10
+  exit_after: 50000
+  z_learning_rate: 0.0001
+  surface_point_weight: 0.5
+  #random_subfield: 10
+  use_subfield_weight: null
+  voxelized_training: True
+  voxelized_resolution: 256
+  voxelized_tolerance: 0.016
+test:
+  eval_mesh: true
+  eval_pointcloud: false
+  model_file: model_50000.pt
+generation:
+  generation_dir: generation_mean_simple
+  batch_size: 100000
+  refine: false
+  n_x: 128
+  n_z: 1
+  resolution_0: 256
+  upsampling_steps: 0
+  furthur_refine: false
+  #refinement_step: 30
+  simplify_nfaces: 30000
+  interpolation_method: sail_s3_paper
+  interpolation_aggregate: mean
+  sign_decide_function: simple
+  
+
+
+
+

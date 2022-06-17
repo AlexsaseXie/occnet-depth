@@ -1,0 +1,14 @@
+inherit_from: configs/img_depth_uniform/raw_onet/onet.yaml
+data:
+  dataset: pix3d
+  path: data/pix3d
+  pix3d_build_path: ./data/pix3d/pix3d.build.new
+  input_fields: ['img']
+  points_unpackbits: true
+  test_tsdf: 0.002
+  #depth_pred_root: data/pix3d/uresnet.depth_pred/
+  #depth_pointcloud_root: data/pix3d/uresnet.depth_pred/
+  #depth_pointcloud_folder: MSN_mixed_space_carved_4096
+generation:
+  generation_dir: generation_pix3d
+  
