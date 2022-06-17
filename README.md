@@ -152,7 +152,7 @@ python eval.py CONFIG.yaml
 ```
 All results reported in the paper were obtained using the `eval_meshes.py` script.
 
-### (Pix3D) TESTING
+### (Pix3D) Evaluation
 To test the ShapeNet pretrained model on Pix3D, first we need to generate input images and the ground truth 3D data.
 ```
 cd scripts/pix3d_preprocess
@@ -193,6 +193,30 @@ python manage.py runserver 0.0.0.0:8001
 You can browse the website in chrome by [127.0.0.1:8001](127.0.0.1:8001).
 
 ## Point Cloud Surface Reconstruction *(Chapter 4)
+
+### SAL dataset
+In order to train by unsigned loss, we need to produce unsigned ground truth samples. The point cloud we sampled the initial 100k point cloud into a 30k point cloud as the input.
+
+First we create the list containing the first K models in each class of ShapeNet
+```
+cd scripts
+python create_first_K_split.py
+```
+
+Then we sample each 100k point cloud on those K models.
+```
+CHANGE THE LIST OF OBJECTS THEN
+python generate_pointcloud_sample.py configs/pointcloud_sample.yaml
+```
+
+We copy the models into the build folder by data/copy_points.lst. Finally we conduct unsigned ground truth building operation by
+```
+cd scripts
+MODIFY THE PATHS IN dataset_shapenet/config.sh THEN
+bash dataset_shapenet/build_sal_c.sh
+MODIFY dataset_shapenet/install.sh THEN
+bash dataset_shapenet/install
+```
 
 ### SAL
 Train by 
