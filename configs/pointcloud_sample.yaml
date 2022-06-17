@@ -1,5 +1,5 @@
 data:
-  path: /home/xieyunwei/occnet_data/ShapeNet.with_depth/
+  path: /home3/xieyunwei/ShapeNet.SAL/
   train_split: updated_train
   val_split: updated_val
   test_split: updated_test

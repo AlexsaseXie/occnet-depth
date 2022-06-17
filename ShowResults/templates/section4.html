@@ -1,0 +1,645 @@
+{% load static %}
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Section 4: Point Cloud Surface Reconstruction</title>
+
+    <style>
+        #page{
+            width: 70%;
+            margin: auto;
+        }
+
+        #left_column {
+            width: 49.5%;
+            margin: 0px;
+            display: inline-block;
+            vertical-align: top;
+        }
+
+        #right_column {
+            width: 49.5%;
+            margin: 0px;
+            display: inline-block;
+            vertical-align: top;
+        }
+
+        #navbar{
+            margin-top: 20px;
+            margin-bottom: 20px;
+        }
+
+        .td_div{
+            width: 49%;
+            background-color: #CCCCCC;
+            text-align: center;
+            margin: auto;
+            vertical-align: top;
+            display: inline-block;
+            position: relative;
+        }
+
+        .placeholder {
+            text-align: left;
+            display: block;
+            position: absolute;
+            left: 0;
+            top: 0;
+        }
+
+        .r_placeholder {
+            position: absolute;
+            top: 0;
+            right: 0;
+        }
+
+        .page_nav{
+            margin-top: 20px;
+            margin-bottom: 20px;
+            text-align: center;
+            display: inline-block;
+            vertical-align: top;
+        }
+
+        #pagin{
+            vertical-align: top;
+            display: inline-block;
+        }
+
+        .example_row {
+            text-align: center;
+            margin: auto;
+            margin-top: 10px;
+            margin-bottom: 10px;
+        }
+
+        .single_example{
+            vertical-align: top;
+            display: inline-block;
+            width: 11.8%;
+            margin-left: 0.1%;
+            margin-right: 0.1%;
+            text-align: left;
+        }
+
+        .single_example:hover {
+            background-color: aquamarine;
+            cursor: pointer;
+        }
+
+        .example_img_container{
+            width: 100%;
+            margin: 0px;
+            background-color: blue;
+            display: block;
+        }
+
+        #RunButton{
+            text-align: center; 
+            margin: auto; 
+            margin-top: 20px; 
+            margin-bottom: 20px;
+        }
+        
+        #RunButtonObject{
+            background-color: greenyellow;
+        }
+    </style>
+
+    <script type="text/javascript" src="https://apps.bdimg.com/libs/jquery/2.1.4/jquery.min.js"></script> 
+    <script type="text/javascript" src="{% static 'js/three.js' %}"></script> 
+    <script type="text/javascript" src="{% static 'js/OBJLoader.js' %}"></script> 
+    <script type="text/javascript" src="{% static 'js/PLYLoader.js' %}"></script> 
+    <link rel="stylesheet" href="https://stackpath.bootstrapcdn.com/bootstrap/3.4.1/css/bootstrap.min.css" integrity="sha384-HSMxcRTRxnN+Bdg0JdbxYKrThecOKuH5zCYotlSAcp1+c8xmyTe9GYg1l9a69psu" crossorigin="anonymous">
+    <script src="https://stackpath.bootstrapcdn.com/bootstrap/3.4.1/js/bootstrap.min.js" integrity="sha384-aJ21OjlMXNL5UyIl/XNwTMqvzeRMZH2w8c5cRVpzpU8Y5bApTppSuUkhZXN0VxHd" crossorigin="anonymous"></script>
+</head>
+<body>
+    <div id="page">
+        <ul id="navbar" class="nav nav-pills nav-justified">
+            <li role="presentation"><a href="/section3/">Section #3</a></li>
+            <li role="presentation" class="active"><a href="/section4/">Section #4</a></li>
+        </ul>
+
+        <div id="Introduction">
+            <h4>Point cloud surface reconstruction results predicted by SAL and RLIL.</h4>
+        </div>
+    </div>
+
+    <div id="left_column">
+        <div id="AllInputs" class="panel panel-success">
+            <div class="panel-heading">Inputs</div>
+
+            <div id="td_pc" class="td_div">
+                <div class="placeholder">Point Cloud </div>
+            </div>
+
+            <div id="td_gt" class="td_div">
+                <div class="placeholder">Gt </div>
+            </div>
+        </div>
+
+        <div id="Examples" class="panel panel-info">
+            <div class="panel-heading">Examples</div>
+
+            <div id="example_show_area">
+                <!--div class="example_row">
+                    <div class="panel panel-warning single_example" example_index="100">
+                        <div class="panel-body">
+                            <p> RGB </p>
+                            <div class="example_img_container">
+                                <img class="example_img" src="/media/section3/00_rgb.png" alt="Blank" width="100%" class="img_object">
+                            </div>
+
+                            <p> Mask </p>
+                            <div class="example_img_container">
+                                <img class="example_mask" src="/media/section3/01_rgb.png" alt="Blank" width="100%" class="img_object">
+                            </div>
+                        </div>
+                        <div class="panel-footer">Case 1</div>
+                    </div>
+                </div-->
+            </div>
+
+            <nav aria-label="Page navigation" style="text-align: center;">
+                <div> 
+                    <div class="page_nav">
+                        <button type="button" 
+                        class="btn btn-info page_nav_button"
+                        onclick="prev()" 
+                        id="prev">&laquo;</button>
+                    </div>
+                    <ul class="pagination" id="pagin">
+                    
+                    </ul>
+                    <div class="page_nav">
+                        <button type="button" 
+                        class="btn btn-info page_nav_button" 
+                        onclick="next()" id="next"
+                        >&raquo;</button>
+                    </div>
+                </div>
+            </nav>
+        </div>
+
+        <!--div id="RunButton">
+            <button type="button" class="btn btn-default btn-lg" id="RunButtonObject">
+                <span class="glyphicon glyphicon-star" aria-hidden="true"></span> Calculate!
+            </button>
+        </div-->
+    </div>
+    
+    <div id="right_column">
+        <div id="AllOutput" class="panel panel-warning">
+            <div class="panel-heading">Outputs</div>
+
+            <div id="td_sal_output" class="td_div">
+                <div class="placeholder">SAL </div>
+       
+                <div class="r_placeholder">
+                    <button type="button" class="btn btn-default" id="download_sal_button">
+                        <span class="glyphicon glyphicon-save" aria-hidden="true"></span>
+                    </button>
+                </div>   
+            </div>
+
+            <div id="td_output" class="td_div">
+                <div class="placeholder">RLIL </div>
+
+                <div class="r_placeholder">
+                    <button type="button" class="btn btn-default" id="download_sail_button">
+                        <span class="glyphicon glyphicon-save" aria-hidden="true"></span>
+                    </button>
+                </div>   
+            </div>
+        </div>    
+    <div>
+    
+    <script type="text/javascript">
+        var example_list = [];
+        var currentPage = 1;
+        var pageNum = 1;
+        const example_per_page = 8;
+
+        function httpGet(url, func=null) {
+            var xhr = new XMLHttpRequest();
+            xhr.responseType = "text";
+            xhr.open('GET', url);
+            xhr.setRequestHeader("Content-Type", "application/x-www-form-urlencoded;")
+            xhr.send();
+            xhr.onload = function(e) {
+                console.log('onload。e====>' + JSON.stringify(e));
+            };
+            xhr.onreadystatechange = function(e) {
+                console.log('onreadystatechange。e====>' + JSON.stringify(e));
+                if(xhr.readyState == 4 && xhr.status == 200){
+                    var xhrRes = xhr.responseText;
+                    console.log('return message====>' + xhrRes);
+
+                    if (func != null) {
+                        func(xhrRes);
+                    }
+                }
+            };
+        };
+        
+        function httpPostTest(url, params, func=null) {
+            var xhr = new XMLHttpRequest();
+            xhr.responseType = "text";
+            xhr.open('POST', url);
+            xhr.setRequestHeader("Content-Type", "application/x-www-form-urlencoded;");
+            var formData = new FormData();
+            for (var x in params) {
+                formData.append(x, params[x]);
+            }
+            xhr.send(formData);
+        
+            //2. 发送 JSON
+            // xhr.send({"username": "Anne"});
+        
+            //3. 发送 字符串
+            // xhr.send(JSON.stringify({"username": "Anne"}));
+        
+            xhr.onload = function(e) {
+                console.log('httpPostTest onload。e====>' + JSON.stringify(e));
+            };
+            xhr.onreadystatechange = function(e) {
+                console.log('httpPostTest onreadystatechange。e====>' + JSON.stringify(e));
+                if(xhr.readyState == 4 && xhr.status == 200){
+                    var xhrRes = xhr.responseText;
+                    console.log('httpPostTest return message====>' + xhrRes);
+                    //正常情况下收到返回值 {"status": 1, "res": "http post test return!"}
+
+                    if (func != null) {
+                        func(xhrRes);
+                    }
+                }
+            };
+        };
+
+        function InitialExampleList(xhrRes) {
+            example_list = JSON.parse(xhrRes);
+            pageNum = Math.ceil( example_list.length / example_per_page );
+            initialPages();
+        }
+
+        function initialPages(){
+            var num = pageNum;
+            var pagin = "";
+            for(let i=1; i<=num; i++){
+                if(currentPage ==i){
+                    pagin+= `<li class="active"><span>${i}</span></li>`;
+                } else{
+                    pagin+= `<li><span>${i}</span></li>`;
+                }
+            }
+            $('#pagin').append(pagin);
+
+            // 初始上一页按钮不可点击
+            $('#prev').attr('disabled', true);
+            if (currentPage >= num) {
+                $('#next').attr('disabled', true);
+            }
+
+            initialExampleShowArea();
+            updatePage();
+        } 
+
+        function initialExampleShowArea() {
+            const single_row_count = 8;
+            var num_rows = Math.ceil(example_per_page / single_row_count); 
+
+            var insert_code = '';
+            for (let r=0;r<num_rows;r++) {
+                for (let i=0;i<single_row_count;i++) {
+                    var index = r * single_row_count + i;
+
+                    if (i == 0) {
+                        insert_code += `<div class="example_row">`;
+                    }
+
+                    insert_code += `<div class="panel panel-warning single_example" example_index="` + (index) +`">
+                        <div class="panel-body">
+                            <p> View </p>
+                            <div class="example_img_container">
+                                <img class="example_img" src="" alt="Blank" width="100%" class="img_object">
+                            </div>
+                        </div>
+                        <div class="panel-footer">Case ` + (index+1) + `</div>
+                    </div>`;
+                }
+
+                insert_code += `</div>`;
+            }
+
+            $("#example_show_area").append(insert_code);
+
+            var all_examples = $(".single_example");
+            for (let i=0;i<all_examples.length; i++) {
+                all_examples[i].addEventListener('click', function() {
+                    let index = $(this).attr("example_index");
+                    clickExp(index);
+                });
+            }
+        }
+
+        function clickExp(id) {
+            var list_index = (currentPage - 1) * example_per_page + parseInt(id);
+            if (list_index < example_list.length && list_index >= 0) {
+                var info = example_list[list_index];
+                v_gt.SetNewOBJ(info.gt);
+                v_pc.SetNewOBJ(info.pc);
+                v_output.SetNewOBJ(info.sail_s3);
+                v_sal_output.SetNewOBJ(info.sal);
+            }
+        }
+
+        function updatePage() {
+            console.log('Update page: cur:', currentPage)
+            var start_index = (currentPage-1) * example_per_page;
+            var end_index = currentPage * example_per_page;
+
+            var example_blocks = $(".single_example");
+            for (var i=0; i < example_per_page; i ++) {
+                var id = start_index + i;
+                if (id < example_list.length) {
+                    info = example_list[id];
+
+                    example_blocks.each(function() {
+                        if (parseInt($(this).attr("example_index")) == i) {
+                            $(this).css("visibility","visible");
+                            $(this).find(".example_img").attr("src", info.img);
+                        }
+                    })
+                }
+                else {
+                    example_blocks.each(function() {
+                        if (parseInt($(this).attr("example_index")) == i) {
+                            $(this).css("visibility","hidden");
+                        }
+                    })
+                }
+            }
+        }
+
+        // 分页点击
+        $('#pagin').on('click', 'li', function(){
+            let num = pageNum;
+            $(this).addClass('active').siblings().removeClass('active');
+            currentPage = $(this).find('span').text();
+            updatePage();
+            // 点击单个分页判断下标值
+            if(currentPage<=1){
+                $('#prev').attr('disabled', true);
+            } else {
+                $('#prev').attr('disabled', false);
+            }
+            
+            if(currentPage>=num){
+                $('#next').attr('disabled', true);
+            } else{
+                $('#next').attr('disabled', false);
+            }
+        })
+
+        // 上一页
+        function prev(){
+            if(currentPage > 1){
+                $('#next').attr('disabled', false)
+                $('#kfTable tr').remove()
+                prevActive();
+                currentPage--;
+                updatePage();
+                if(currentPage<=1){
+                    $('#prev').attr('disabled', true)
+                    }
+            }
+        }
+
+        // 下一页
+        function next(){
+            let num = pageNum;
+            if(num > currentPage){
+                $('#prev').attr('disabled', false)
+                $('#kfTable tr').remove()
+                html = '';
+                nextActive();
+                currentPage++;
+                updatePage();
+                if(currentPage>=num){
+                    $('#next').attr('disabled', true)
+                }
+            }
+        }
+        
+        // 上一页的下标颜色切换效果
+        function prevActive(){
+            $('#pagin').find('li').each(function(){
+                if($(this).find('span').text() == currentPage){
+                    $(this).prev().addClass('active')
+                    $(this).removeClass('active')
+                }
+            })
+        }
+
+        // 下一页的下标颜色切换效果
+        function nextActive(){
+            $('#pagin').find('li').each(function(){
+                if($(this).find('span').text() == currentPage){
+                    $(this).next().addClass('active')
+                    $(this).removeClass('active')
+                }
+            })
+        }
+
+        //initialPages();
+        httpGet('/section4_list/', InitialExampleList);
+    </script>
+
+    <script type="text/javascript">
+        function Create3DViewer(father, use_light=true) {
+            console.log('3D father width:', father.clientWidth)
+            console.log('3D father heigt:', father.clientHeight)
+
+            var WIDTH = father.clientWidth;
+            var HEIGHT = father.clientHeight;
+
+            var status = {}
+            status.use_light = use_light;
+            status.url = null;
+
+            const scene = new THREE.Scene();
+            const camera = new THREE.PerspectiveCamera( 45, WIDTH / HEIGHT, 0.1, 1000 );
+
+            const renderer = new THREE.WebGLRenderer();
+            renderer.setSize( WIDTH, HEIGHT );
+            father.appendChild( renderer.domElement );
+
+            const geometry = new THREE.BoxGeometry();
+            const material = new THREE.MeshBasicMaterial( { color: 0x00ff00 } );
+
+            const loader = new THREE.OBJLoader();
+            const plyloader = new THREE.PLYLoader();
+            console.log(this);
+            status.loaded_obj = null;
+
+            function ClearScene() {
+                function clearThree(obj){
+                    while(obj.children.length > 0){ 
+                        clearThree(obj.children[0])
+                        obj.remove(obj.children[0]);
+                    }
+                    if(obj.geometry) obj.geometry.dispose()
+
+                    if(obj.material){ 
+                        //in case of map, bumpMap, normalMap, envMap ...
+                        Object.keys(obj.material).forEach(prop => {
+                        if(!obj.material[prop])
+                            return         
+                        if(typeof obj.material[prop].dispose === 'function')                                  
+                            obj.material[prop].dispose()                                                        
+                        })
+                        obj.material.dispose()
+                    }
+                }   
+                clearThree(scene);
+
+                cancelAnimationFrame(animateId);
+                renderer.render( scene, camera );
+            }
+
+            function SetNewOBJ(urlpath) {
+                status.url = urlpath;
+
+                if (urlpath == "") {
+                    return ClearScene();
+                }
+
+                var v_loader = null;
+
+                var path_string = urlpath.split(".")[1];
+
+                if (path_string == "ply") {
+                    v_loader = plyloader;
+                }
+                else  {
+                    v_loader = loader;
+                }
+                
+                v_loader.load(
+                    urlpath,
+
+                    // onLoad callback
+                    // Here the loaded data is assumed to be an object
+                    function ( obj ) {
+                        // Add the loaded object to the scene
+                        obj.traverse( function( node ) {
+                            if( node instanceof THREE.Mesh ) {
+                                node.material.side = THREE.DoubleSide;
+                            }
+                        });
+
+                        status.loaded_obj = obj;
+                        
+                        ClearScene();
+                        ResetLightAndCamera();
+                        scene.add(status.loaded_obj);
+
+                        animate();
+                    },
+
+                    // onProgress callback
+                    function ( xhr ) {
+                        console.log( (xhr.loaded / xhr.total * 100) + '% loaded' );
+                    },
+
+                    // onError callback
+                    function ( err ) {
+                        console.error( 'An error happened' );
+                    }
+                );
+            }
+
+            function ResetLightAndCamera() {
+                camera.position.x = 1.3;
+                camera.position.y = 0.75;
+                camera.position.z = 0;
+                camera.lookAt(scene.position);
+
+                if (status.use_light) {
+                    var point = new THREE.PointLight(0xffffff); // 创建光源对象
+                    point.position.set(1,1,1); // 设置光源位置
+                    point.intensity = 0.7;
+                    scene.add(point);
+
+                    var point = new THREE.PointLight(0xffffff); // 创建光源对象
+                    point.position.set(-1,1,-1); // 设置光源位置
+                    point.intensity = 0.7;
+                    scene.add(point);
+                }
+            }
+
+            var animateId = 0;
+            function animate() {
+                animateId = requestAnimationFrame( animate );
+
+                //loaded_obj.rotation.x += 0.01;
+                status.loaded_obj.rotation.y += 0.01;
+
+                renderer.setClearColor(0xCCCCCC, 1.0)
+                //renderer.clear((0.1,0.1,0.1));
+                renderer.render( scene, camera );
+            };
+
+            //SetNewOBJ("/media/bunny_1651911529.obj");
+            status.SetNewOBJ = SetNewOBJ;
+            status.scene = scene;
+            console.log(status.loaded_obj);
+            //status.loaded_obj = loaded_obj;
+            return status;
+        }
+
+        var w = $("#td_output").css("width");
+
+        $(".td_div").each(function() {
+            $(this).css("height", w);
+        })
+
+        var v_pc = Create3DViewer(document.getElementById("td_pc"));
+        var v_gt = Create3DViewer(document.getElementById("td_gt"));
+        var v_output = Create3DViewer(document.getElementById("td_output"));
+        var v_sal_output = Create3DViewer(document.getElementById("td_sal_output"));
+    </script>
+
+    <script type="text/javascript">
+        function downloadEvt(url='/media/section3/case01/output.obj', fileName='X.obj') {
+            const el = document.createElement('a');
+            el.style.display = 'none';
+            el.setAttribute('target', '_blank');
+            /**
+            * download的属性是HTML5新增的属性
+            * href属性的地址必须是非跨域的地址，如果引用的是第三方的网站或者说是前后端分离的项目(调用后台的接口)，这时download就会不起作用。
+            * 此时，如果是下载浏览器无法解析的文件，例如.exe,.xlsx..那么浏览器会自动下载，但是如果使用浏览器可以解析的文件，比如.txt,.png,.pdf....浏览器就会采取预览模式
+            * 所以，对于.txt,.png,.pdf等的预览功能我们就可以直接不设置download属性(前提是后端响应头的Content-Type: application/octet-stream，如果为application/pdf浏览器则会判断文件为 pdf ，自动执行预览的策略)
+            */
+            fileName && el.setAttribute('download', fileName);
+            el.href = url;
+            console.log(url)
+            console.log(el);
+            document.body.appendChild(el);
+            el.click();
+            document.body.removeChild(el);
+        }
+
+        $('#download_sal_button').click(function() {
+            if (v_sal_output.url != null) 
+                downloadEvt(v_sal_output.url, fileName='output.obj'); 
+        });
+
+        $('#download_sail_button').click(function() {
+            if (v_output.url != null)
+                downloadEvt(v_output.url, fileName='sail.obj'); 
+        });
+    </script>
+</body>
+</html>

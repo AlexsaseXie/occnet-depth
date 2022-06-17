@@ -1,0 +1,848 @@
+{% load static %}
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Section 3: Single-view 3D Reconstruction</title>
+
+    <style>
+        #page{
+            width: 70%;
+            margin: auto;
+        }
+
+        #left_column {
+            width: 59.5%;
+            margin: 0px;
+            display: inline-block;
+            vertical-align: top;
+        }
+
+        #right_column {
+            width: 39.5%;
+            margin: 0px;
+            display: inline-block;
+            vertical-align: top;
+        }
+
+        #navbar{
+            margin-top: 20px;
+            margin-bottom: 20px;
+        }
+
+        .img_container{
+            width: 49%;
+            margin: 0px;
+            background-color: white;
+            display: inline-block;
+            vertical-align: top;
+            position: relative;
+        }
+
+        .img_container:hover{
+            cursor: pointer;
+            background-color: aquamarine;
+        }
+
+        .img_object{
+            margin: auto;
+            vertical-align: middle;
+            text-align: center;
+        }
+
+        .td_div{
+            width: 49.5%;
+            background-color: #CCCCCC;
+            text-align: center;
+            margin: 0px;
+            display: inline-block;
+            vertical-align: top;
+            position: relative;
+        }
+
+        .placeholder {
+            text-align: left;
+            display: block;
+            position: absolute;
+            left: 0;
+            top: 0;
+        }
+
+        .r_placeholder {
+            position: absolute;
+            top: 0;
+            right: 0;
+        }
+
+        #input_imgs{
+            width: 60%;
+            margin: 0px;
+            display: inline-block;
+            vertical-align: top;
+        }
+
+        #cameras {
+            width: 39%;
+            display: inline-block;
+            vertical-align: top;
+        }
+        
+        #camera_ext{
+            width: 100%;
+            margin: 0px;
+        }
+
+        #camera_int{
+            width: 100%;
+            margin: 0px;
+        }
+
+        .table input{
+            width: 100%;
+        }
+
+        .page_nav{
+            margin-top: 20px;
+            margin-bottom: 20px;
+            text-align: center;
+            display: inline-block;
+            vertical-align: top;
+        }
+
+        #pagin{
+            vertical-align: top;
+            display: inline-block;
+        }
+
+        .example_row {
+            text-align: center;
+            margin: auto;
+            margin-top: 10px;
+            margin-bottom: 10px;
+        }
+
+        .single_example{
+            vertical-align: top;
+            display: inline-block;
+            width: 11.8%;
+            margin-left: 0.1%;
+            margin-right: 0.1%;
+            text-align: left;
+        }
+
+        .single_example:hover {
+            background-color: aquamarine;
+            cursor: pointer;
+        }
+
+        .example_img_container{
+            width: 100%;
+            margin: 0px;
+            background-color: blue;
+            display: block;
+        }
+
+        #RunButton{
+            text-align: center; 
+            margin: auto; 
+            margin-top: 20px; 
+            margin-bottom: 20px;
+        }
+        
+        #RunButtonObject{
+            background-color: greenyellow;
+        }
+    </style>
+
+    <script type="text/javascript" src="https://apps.bdimg.com/libs/jquery/2.1.4/jquery.min.js"></script> 
+    <script type="text/javascript" src="{% static 'js/three.js' %}"></script> 
+    <script type="text/javascript" src="{% static 'js/OBJLoader.js' %}"></script> 
+    <script type="text/javascript" src="{% static 'js/PLYLoader.js' %}"></script> 
+    <link rel="stylesheet" href="https://stackpath.bootstrapcdn.com/bootstrap/3.4.1/css/bootstrap.min.css" integrity="sha384-HSMxcRTRxnN+Bdg0JdbxYKrThecOKuH5zCYotlSAcp1+c8xmyTe9GYg1l9a69psu" crossorigin="anonymous">
+    <script src="https://stackpath.bootstrapcdn.com/bootstrap/3.4.1/js/bootstrap.min.js" integrity="sha384-aJ21OjlMXNL5UyIl/XNwTMqvzeRMZH2w8c5cRVpzpU8Y5bApTppSuUkhZXN0VxHd" crossorigin="anonymous"></script>
+</head>
+<body>
+    <div id="page">
+        <ul id="navbar" class="nav nav-pills nav-justified">
+            <li role="presentation" class="active"><a href="/section3/">Section #3</a></li>
+            <li role="presentation"><a href="/section4/">Section #4</a></li>
+        </ul>
+
+        <div id="Introduction">
+            <h4>Single-view 3D reconstruction results predicted by 3StageRec.</h4>
+        </div>
+    </div>
+
+    <div id="left_column">
+        <div id="AllInputs" class="panel panel-success">
+            <div class="panel-heading">Inputs</div>
+
+            <div id="input_imgs" class="panel panel-default" >
+                <div class="panel-heading">RGB & Mask</div>
+                <div id="img_div" class="img_container">
+                    <div class="placeholder">RGB </div>
+                    <img id="img_t" src=""  width="100%" class="img_object">
+                    <form id='upload_form' action="/receive_upload/" method="post" enctype="multipart/form-data" style="display:none">
+                        <input id="choose_file" type="file" name="file" accept="image/*">
+                        <input id="choose_file_submit" type="submit" value="上传">
+                    </form>
+                </div>
+
+                <div id="img_div_mask" class="img_container">
+                    <div class="placeholder">Mask </div>
+                    <img id="img_t_mask" src=""  width="100%" class="img_object">
+                    <form id='upload_form_mask' action="/receive_upload/" method="post" enctype="multipart/form-data" style="display:none">
+                        <input id="choose_file_mask" type="file" name="file" accept="image/*">
+                        <input id="choose_file_submit_mask" type="submit" value="上传">
+                    </form>
+                </div>
+            </div>
+
+            <div id="cameras">
+                <div id="camera_ext" class="panel panel-default">
+                    <!-- Default panel contents -->
+                    <div class="panel-heading">Camera Extrinsics</div>
+                
+                    <!-- Table -->
+                    <table class="table">
+                        <tr>
+                            <th><input type="number" value=1 step="0.01" pos_id="0"></th>
+                            <th><input type="number" value=0 step="0.01" pos_id="1"></th>
+                            <th><input type="number" value=0 step="0.01" pos_id="2"></th>
+                            <th><input type="number" value=0 step="0.01" pos_id="3"></th>
+                        </tr>
+                        <tr>
+                            <th><input type="number" value=0 step="0.01" pos_id="4"></th>
+                            <th><input type="number" value=1 step="0.01" pos_id="5"></th>
+                            <th><input type="number" value=0 step="0.01" pos_id="6"></th>
+                            <th><input type="number" value=0 step="0.01" pos_id="7"></th>
+                        </tr>
+                        <tr>
+                            <th><input type="number" value=0 step="0.01" pos_id="8"></th>
+                            <th><input type="number" value=0 step="0.01" pos_id="9"></th>
+                            <th><input type="number" value=1 step="0.01" pos_id="10"></th>
+                            <th><input type="number" value=0 step="0.01" pos_id="11"></th>
+                        </tr>
+                    </table>
+                </div>
+
+                <div id="camera_int" class="panel panel-default">
+                    <!-- Default panel contents -->
+                    <div class="panel-heading">Camera Intrinsics</div>
+                
+                    <!-- Table -->
+                    <table class="table">
+                        <tr>
+                            <th><input type="number" value=1  step="0.01" pos_id="0"></th>
+                            <th>0</th>
+                            <th><input type="number" value=112  step="0.01" pos_id="1"></th>
+                        </tr>
+                        <tr>
+                            <th>0</th>
+                            <th><input type="number" value=1  step="0.01" pos_id="2"></th>
+                            <th><input type="number" value=112  step="0.01" pos_id="3"></th>
+                        </tr>
+                        <tr>
+                            <th>0</th>
+                            <th>0</th>
+                            <th>1</th>
+                        </tr>
+                    </table>
+                </div>
+            </div>
+        </div>
+    
+        <div id="Examples" class="panel panel-info">
+            <div class="panel-heading">Examples</div>
+
+            <div id="example_show_area">
+                <!--div class="example_row">
+                    <div class="panel panel-warning single_example" example_index="100">
+                        <div class="panel-body">
+                            <p> RGB </p>
+                            <div class="example_img_container">
+                                <img class="example_img" src="/media/section3/00_rgb.png" alt="Blank" width="100%" class="img_object">
+                            </div>
+
+                            <p> Mask </p>
+                            <div class="example_img_container">
+                                <img class="example_mask" src="/media/section3/01_rgb.png" alt="Blank" width="100%" class="img_object">
+                            </div>
+                        </div>
+                        <div class="panel-footer">Case 1</div>
+                    </div>
+                </div-->
+            </div>
+
+            <nav aria-label="Page navigation" style="text-align: center;">
+                <div> 
+                    <div class="page_nav">
+                        <button type="button" 
+                        class="btn btn-info page_nav_button"
+                        onclick="prev()" 
+                        id="prev">&laquo;</button>
+                    </div>
+                    <ul class="pagination" id="pagin">
+                    
+                    </ul>
+                    <div class="page_nav">
+                        <button type="button" 
+                        class="btn btn-info page_nav_button" 
+                        onclick="next()" id="next"
+                        >&raquo;</button>
+                    </div>
+                </div>
+            </nav>
+        </div>
+
+        <!-- <div id="RunButton">
+            <button type="button" class="btn btn-default btn-lg" id="RunButtonObject">
+                <span class="glyphicon glyphicon-star" aria-hidden="true"></span> Calculate!
+            </button>
+        </div> -->
+    </div>
+
+    <div id="right_column">
+        <div id="AllOutput" class="panel panel-warning">
+            <div class="panel-heading">Outputs</div>
+
+            <div id="td_output" class="td_div">
+                <div class="placeholder">3D </div>
+
+                <div class="r_placeholder">
+                    <button type="button" class="btn btn-default" id="download_output_button">
+                        <span class="glyphicon glyphicon-save" aria-hidden="true"></span>
+                    </button>
+                </div>           
+            </div>
+
+            <div id="td_gt" class="td_div">
+                <div class="placeholder">Gt </div> 
+                
+                <div class="r_placeholder">
+                    <button type="button" class="btn btn-default" id="download_gt_button">
+                        <span class="glyphicon glyphicon-save" aria-hidden="true"></span>
+                    </button>
+                </div>   
+            </div>
+        </div>    
+    <div>
+    
+    <script type="text/javascript">  
+        var upload_file = null
+        var form = document.getElementById("upload_form")
+        var img_div = document.getElementById("img_div")
+        var img = document.getElementById("img_t")
+        var choose_file = document.getElementById("choose_file");
+        var choose_file_submit = document.getElementById("choose_file_submit");
+
+        var form_mask = document.getElementById("upload_form_mask")
+        var img_div_mask = document.getElementById("img_div_mask")
+        var img_mask = document.getElementById("img_t_mask")
+        var choose_file_mask = document.getElementById("choose_file_mask");
+        var choose_file_submit_mask = document.getElementById("choose_file_submit_mask");
+
+
+        function getRootPath(){
+            var curPageUrl = window.document.location.href;
+            var rootPath = curPageUrl.split("//")[1].split("/")[0];
+            return rootPath;
+        };
+
+        function AttachImgEvent(img_div, img, form, choose_file, choose_file_submit) {
+            img_div.addEventListener("click", function(e) {
+                choose_file.click();
+            }, true);
+
+            choose_file.addEventListener("change", function(e) {
+                choose_file_submit.click();
+            }, true);
+
+            form.addEventListener("submit", function (e) {
+                e.preventDefault();
+                console.log({ method: e.target.method, body: new FormData(form) })
+                fetch(e.target.action, { method: e.target.method, body: new FormData(form) })
+                    .then(res => res.text()).then(res => {
+                        console.log('后端返回内容', res);
+                        upload_file = res;
+                        console.log(upload_file);
+                        img.src = "/" + upload_file;
+                        //alert('后端返回内容: ' + res)
+                    })
+                    .catch(() => {
+                        console.error('请求出错');
+                        //alert('请求出错')
+                    });
+            });     
+        };
+
+        img_div.style.height = img_div.clientWidth + "px";
+        img_div.style.width = img_div.clientWidth + "px";
+        img_div_mask.style.height = img_div.clientWidth + "px";
+        img_div_mask.style.width = img_div.clientWidth + "px";
+
+        AttachImgEvent(img_div, img, form, choose_file, choose_file_submit);
+        AttachImgEvent(img_div_mask, img_mask, form_mask, choose_file_mask, choose_file_submit_mask);
+    </script>
+
+    <script type="text/javascript">
+        var example_list = [];
+        var currentPage = 1;
+        var pageNum = 1;
+        const example_per_page = 8;
+
+        var camera_ext_true_value = [0,0,0,0,0,0,0,0,0,0,0,0];
+        var camera_int_true_value = [0,0,0,0];
+
+        function httpGet(url, func=null) {
+            var xhr = new XMLHttpRequest();
+            xhr.responseType = "text";
+            xhr.open('GET', url);
+            xhr.setRequestHeader("Content-Type", "application/x-www-form-urlencoded;")
+            xhr.send();
+            xhr.onload = function(e) {
+                console.log('onload。e====>' + JSON.stringify(e));
+            };
+            xhr.onreadystatechange = function(e) {
+                console.log('onreadystatechange。e====>' + JSON.stringify(e));
+                if(xhr.readyState == 4 && xhr.status == 200){
+                    var xhrRes = xhr.responseText;
+                    console.log('return message====>' + xhrRes);
+
+                    if (func != null) {
+                        func(xhrRes);
+                    }
+                }
+            };
+        };
+        
+        function httpPostTest(url, params, func=null) {
+            var xhr = new XMLHttpRequest();
+            xhr.responseType = "text";
+            xhr.open('POST', url);
+            xhr.setRequestHeader("Content-Type", "application/x-www-form-urlencoded;");
+            var formData = new FormData();
+            for (var x in params) {
+                formData.append(x, params[x]);
+            }
+            xhr.send(formData);
+        
+            //2. 发送 JSON
+            // xhr.send({"username": "Anne"});
+        
+            //3. 发送 字符串
+            // xhr.send(JSON.stringify({"username": "Anne"}));
+        
+            xhr.onload = function(e) {
+                console.log('httpPostTest onload。e====>' + JSON.stringify(e));
+            };
+            xhr.onreadystatechange = function(e) {
+                console.log('httpPostTest onreadystatechange。e====>' + JSON.stringify(e));
+                if(xhr.readyState == 4 && xhr.status == 200){
+                    var xhrRes = xhr.responseText;
+                    console.log('httpPostTest return message====>' + xhrRes);
+                    //正常情况下收到返回值 {"status": 1, "res": "http post test return!"}
+
+                    if (func != null) {
+                        func(xhrRes);
+                    }
+                }
+            };
+        };
+
+        function InitialExampleList(xhrRes) {
+            example_list = JSON.parse(xhrRes);
+            pageNum = Math.ceil( example_list.length / example_per_page );
+            initialPages();
+        }
+
+        function initialPages(){
+            var num = pageNum;
+            var pagin = "";
+            for(let i=1; i<=num; i++){
+                if(currentPage ==i){
+                    pagin+= `<li class="active"><span>${i}</span></li>`;
+                } else{
+                    pagin+= `<li><span>${i}</span></li>`;
+                }
+            }
+            $('#pagin').append(pagin);
+
+            // 初始上一页按钮不可点击
+            $('#prev').attr('disabled', true);
+            if (currentPage >= num) {
+                $('#next').attr('disabled', true);
+            }
+
+            initialExampleShowArea();
+            updatePage();
+        } 
+
+        function initialExampleShowArea() {
+            const single_row_count = 8;
+            var num_rows = Math.ceil(example_per_page / single_row_count); 
+
+            var insert_code = '';
+            for (let r=0;r<num_rows;r++) {
+                for (let i=0;i<single_row_count;i++) {
+                    var index = r * single_row_count + i;
+
+                    if (i == 0) {
+                        insert_code += `<div class="example_row">`;
+                    }
+
+                    insert_code += `<div class="panel panel-warning single_example" example_index="` + (index) +`">
+                        <div class="panel-body">
+                            <p> RGB </p>
+                            <div class="example_img_container">
+                                <img class="example_img" src="/media/section3/0` + (index) + `_rgb.png" alt="Blank" width="100%" class="img_object">
+                            </div>
+
+                            <p> Mask </p>
+                            <div class="example_img_container">
+                                <img class="example_mask" src="/media/section3/0` + (index) + `_rgb.png" alt="Blank" width="100%" class="img_object">
+                            </div>
+                        </div>
+                        <div class="panel-footer">Case ` + (index+1) + `</div>
+                    </div>`;
+                }
+
+                insert_code += `</div>`;
+            }
+
+            $("#example_show_area").append(insert_code);
+
+            var all_examples = $(".single_example");
+            for (let i=0;i<all_examples.length; i++) {
+                all_examples[i].addEventListener('click', function() {
+                    let index = $(this).attr("example_index");
+                    clickExp(index);
+                });
+            }
+        }
+
+        function clickExp(id) {
+            var list_index = (currentPage - 1) * example_per_page + parseInt(id);
+            if (list_index < example_list.length && list_index >= 0) {
+                var info = example_list[list_index];
+                $("#img_t").attr("src", info.img);
+                $("#img_t_mask").attr("src", info.mask);
+                v1.SetNewOBJ(info.output);
+                v_gt.SetNewOBJ(info.gt);
+
+                var Rt = info.Rt;
+                var K = info.K;
+
+                $("#camera_ext input").each(function() {
+                    var id = parseInt($(this).attr("pos_id"));
+                    $(this).attr("value", Rt[id].toFixed(4));
+                    camera_ext_true_value[id] = Rt[id];
+                })
+
+                $("#camera_int input").each(function() {
+                    var id = parseInt($(this).attr("pos_id"));
+                    $(this).attr("value", K[id].toFixed(4));
+                    camera_int_true_value[id] = K[id];
+                })
+            }
+        }
+
+        function updatePage() {
+            var start_index = (currentPage-1) * example_per_page;
+            var end_index = currentPage * example_per_page;
+
+            var example_blocks = $(".single_example");
+            for (var i=0; i < example_per_page; i ++) {
+                var id = start_index + i;
+                if (id < example_list.length) {
+                    info = example_list[id];
+
+                    example_blocks.each(function() {
+                        if (parseInt($(this).attr("example_index")) == i) {
+                            $(this).css("visibility","visible");
+                            $(this).find(".example_img").attr("src", info.img);
+                            $(this).find(".example_mask").attr("src", info.mask);
+                        }
+                    })
+                }
+                else {
+                    example_blocks.each(function() {
+                        if (parseInt($(this).attr("example_index")) == i) {
+                            $(this).css("visibility","hidden");
+                        }
+                    })
+                }
+            }
+        }
+
+        // 分页点击
+        $('#pagin').on('click', 'li', function(){
+            let num = pageNum;
+            $(this).addClass('active').siblings().removeClass('active');
+            currentPage = $(this).find('span').text();
+            updatePage();
+            // 点击单个分页判断下标值
+            if(currentPage<=1){
+                $('#prev').attr('disabled', true);
+            } else {
+                $('#prev').attr('disabled', false);
+            }
+            
+            if(currentPage>=num){
+                $('#next').attr('disabled', true);
+            } else{
+                $('#next').attr('disabled', false);
+            }
+        })
+
+        // 上一页
+        function prev(){
+            if(currentPage > 1){
+                $('#next').attr('disabled', false)
+                $('#kfTable tr').remove()
+                prevActive();
+                currentPage--;
+                updatePage();
+                if(currentPage<=1){
+                    $('#prev').attr('disabled', true)
+                    }
+            }
+        }
+
+        // 下一页
+        function next(){
+            let num = pageNum;
+            if(num > currentPage){
+                $('#prev').attr('disabled', false)
+                $('#kfTable tr').remove()
+                html = '';
+                nextActive();
+                currentPage++;
+                updatePage();
+                if(currentPage>=num){
+                    $('#next').attr('disabled', true)
+                }
+            }
+        }
+        
+        // 上一页的下标颜色切换效果
+        function prevActive(){
+            $('#pagin').find('li').each(function(){
+                if($(this).find('span').text() == currentPage){
+                    $(this).prev().addClass('active')
+                    $(this).removeClass('active')
+                }
+            })
+        }
+
+        // 下一页的下标颜色切换效果
+        function nextActive(){
+            $('#pagin').find('li').each(function(){
+                if($(this).find('span').text() == currentPage){
+                    $(this).next().addClass('active')
+                    $(this).removeClass('active')
+                }
+            })
+        }
+
+        //initialPages();
+        httpGet('/section3_list/', InitialExampleList);
+    </script>
+
+    <script type="text/javascript">
+        function Create3DViewer(father, use_light=true) {
+            console.log('3D father width:', father.clientWidth)
+            console.log('3D father heigt:', father.clientHeight)
+
+            var WIDTH = father.clientWidth;
+            var HEIGHT = father.clientHeight;
+
+            var status = {}
+            status.use_light = use_light;
+            status.url = null;
+
+            const scene = new THREE.Scene();
+            const camera = new THREE.PerspectiveCamera( 45, WIDTH / HEIGHT, 0.1, 1000 );
+
+            const renderer = new THREE.WebGLRenderer();
+            renderer.setSize( WIDTH, HEIGHT );
+            father.appendChild( renderer.domElement );
+
+            const geometry = new THREE.BoxGeometry();
+            const material = new THREE.MeshBasicMaterial( { color: 0x00ff00 } );
+
+            const loader = new THREE.OBJLoader();
+            const plyloader = new THREE.PLYLoader();
+            console.log(this);
+            status.loaded_obj = null;
+
+            function ClearScene() {
+                function clearThree(obj){
+                    while(obj.children.length > 0){ 
+                        clearThree(obj.children[0])
+                        obj.remove(obj.children[0]);
+                    }
+                    if(obj.geometry) obj.geometry.dispose()
+
+                    if(obj.material){ 
+                        //in case of map, bumpMap, normalMap, envMap ...
+                        Object.keys(obj.material).forEach(prop => {
+                        if(!obj.material[prop])
+                            return         
+                        if(typeof obj.material[prop].dispose === 'function')                                  
+                            obj.material[prop].dispose()                                                        
+                        })
+                        obj.material.dispose()
+                    }
+                }   
+                clearThree(scene);
+
+                cancelAnimationFrame(animateId);
+                renderer.render( scene, camera );
+            }
+
+            function SetNewOBJ(urlpath) {
+                status.url = urlpath;
+
+                if (urlpath == "") {
+                    return ClearScene();
+                }
+
+                var v_loader = null;
+
+                var path_string = urlpath.split(".")[1];
+
+                if (path_string == "ply") {
+                    v_loader = plyloader;
+                }
+                else  {
+                    v_loader = loader;
+                }
+                
+                v_loader.load(
+                    urlpath,
+
+                    // onLoad callback
+                    // Here the loaded data is assumed to be an object
+                    function ( obj ) {
+                        // Add the loaded object to the scene
+                        obj.traverse( function( node ) {
+                            if( node instanceof THREE.Mesh ) {
+                                node.material.side = THREE.DoubleSide;
+                            }
+                        });
+
+                        status.loaded_obj = obj;
+                        
+                        ClearScene();
+                        ResetLightAndCamera();
+                        scene.add(status.loaded_obj);
+
+                        animate();
+                    },
+
+                    // onProgress callback
+                    function ( xhr ) {
+                        console.log( (xhr.loaded / xhr.total * 100) + '% loaded' );
+                    },
+
+                    // onError callback
+                    function ( err ) {
+                        console.error( 'An error happened' );
+                    }
+                );
+            }
+
+            function ResetLightAndCamera() {
+                camera.position.x = 1.3;
+                camera.position.y = 0.75;
+                camera.position.z = 0;
+                camera.lookAt(scene.position);
+
+                if (status.use_light) {
+                    var point = new THREE.PointLight(0xffffff); // 创建光源对象
+                    point.position.set(1,1,1); // 设置光源位置
+                    point.intensity = 0.7;
+                    scene.add(point);
+
+                    var point = new THREE.PointLight(0xffffff); // 创建光源对象
+                    point.position.set(-1,1,-1); // 设置光源位置
+                    point.intensity = 0.7;
+                    scene.add(point);
+                }
+            }
+
+            var animateId = 0;
+            function animate() {
+                animateId = requestAnimationFrame( animate );
+
+                //loaded_obj.rotation.x += 0.01;
+                status.loaded_obj.rotation.y += 0.01;
+
+                renderer.setClearColor(0xCCCCCC, 1.0)
+                //renderer.clear((0.1,0.1,0.1));
+                renderer.render( scene, camera );
+            };
+
+            //SetNewOBJ("/media/bunny_1651911529.obj");
+            status.SetNewOBJ = SetNewOBJ;
+            status.scene = scene;
+            console.log(status.loaded_obj);
+            //status.loaded_obj = loaded_obj;
+            return status;
+        };
+
+        var w = $("#td_output").css("width");
+        $(".td_div").each(function() {
+            $(this).css("height", w);
+        })
+
+        var v1 = Create3DViewer(document.getElementById("td_output"));
+        var v_gt = Create3DViewer(document.getElementById("td_gt"));
+    </script>
+
+    <script type="text/javascript">
+        function ShowResults(xhrRes) {
+            var data = JSON.parse(xhrRes);
+            console.log("section3 show outputs:", data.output);
+
+            v1.SetNewOBJ(data.output);
+        }
+
+        function ProcessPredict() {
+            console.log("section3 predict");
+
+            httpPostTest('/section3_predict/', params={}, ShowResults);
+        }
+
+        function downloadEvt(url='/media/section3/case01/output.obj', fileName='X.obj') {
+            const el = document.createElement('a');
+            el.style.display = 'none';
+            el.setAttribute('target', '_blank');
+            /**
+            * download的属性是HTML5新增的属性
+            * href属性的地址必须是非跨域的地址，如果引用的是第三方的网站或者说是前后端分离的项目(调用后台的接口)，这时download就会不起作用。
+            * 此时，如果是下载浏览器无法解析的文件，例如.exe,.xlsx..那么浏览器会自动下载，但是如果使用浏览器可以解析的文件，比如.txt,.png,.pdf....浏览器就会采取预览模式
+            * 所以，对于.txt,.png,.pdf等的预览功能我们就可以直接不设置download属性(前提是后端响应头的Content-Type: application/octet-stream，如果为application/pdf浏览器则会判断文件为 pdf ，自动执行预览的策略)
+            */
+            fileName && el.setAttribute('download', fileName);
+            el.href = url;
+            console.log(url)
+            console.log(el);
+            document.body.appendChild(el);
+            el.click();
+            document.body.removeChild(el);
+        }
+
+        $('#download_output_button').click(function() {
+            if (v1.url != null) 
+                downloadEvt(v1.url, fileName='output.obj'); 
+        });
+
+        $('#download_gt_button').click(function() {
+            if (v_gt.url != null)
+                downloadEvt(v_gt.url, fileName='gt.obj'); 
+        });
+    </script>
+</body>
+</html>
