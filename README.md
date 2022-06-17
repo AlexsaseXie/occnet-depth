@@ -4,9 +4,9 @@ This repository contains the 3 main contributions of xyw's master thesis "3D rec
 The code is constructed based on Occupancy Networks [Occupancy Networks - github](https://github.com/autonomousvision/occupancy_networks). For some of the issues you can refer to the original repository.
 
 The 3 main contributions are:
-1. A new ShapeNet preprocess algorithm
-2. A new 3 stage single-view 3D reconstruction pipeline.
-3. Code for SAL and RLIL point cloud surface reconstruction.
+1. A new ShapeNet preprocess algorithm which produces 3D ground truths with minimal shift over the raw ShapeNet models.
+2. A new 3 stage single-view 3D reconstruction pipeline which achieves much higher IoU over the raw implicit surface network baseline ONet.
+3. Code for SAL and RLIL point cloud surface reconstruction without normal input for challenging models on ShapeNet. The training uses unsigned loss.
 
 ## Installation
 First you have to make sure that you have all dependencies in place.
