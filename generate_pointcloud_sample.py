@@ -1,11 +1,9 @@
 import argparse
 import os
-import pandas as pd
 import torch
 import numpy as np
 from tqdm import tqdm
 from im2mesh import config, data
-from im2mesh.checkpoints import CheckpointIO
 from im2mesh.utils.pointnet2_ops_lib.pointnet2_ops import pointnet2_utils
 
 
@@ -39,9 +37,23 @@ fields = get_fields()
 
 
 # Dataset
-train_dataset = data.Shapes3dDataset(dataset_folder, fields, split=cfg['data']['train_split'])
-test_dataset = data.Shapes3dDataset(dataset_folder, fields, split=cfg['data']['test_split'])
-val_dataset = data.Shapes3dDataset(dataset_folder, fields, split=cfg['data']['val_split'])
+do_categories = ['03001627',
+'02958343',
+'04256520',
+'02691156',
+'03636649',
+'04401088',
+'04530566',
+'03691459',
+'02933112',
+'04379243',
+'03211117',
+'02828884',
+'04090263'
+]
+train_dataset = data.Shapes3dDataset(dataset_folder, fields, split=cfg['data']['train_split'], categories=do_categories)
+test_dataset = data.Shapes3dDataset(dataset_folder, fields, split=cfg['data']['test_split'], categories=do_categories)
+val_dataset = data.Shapes3dDataset(dataset_folder, fields, split=cfg['data']['val_split'], categories=do_categories)
 
 print('train len: %d, val len: %d, test len: %d' % (len(train_dataset), len(val_dataset), len(test_dataset)))
 print('total len: %d' % (len(train_dataset) + len(val_dataset) + len(test_dataset)))

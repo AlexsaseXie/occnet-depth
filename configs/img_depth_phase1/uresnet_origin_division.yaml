@@ -1,0 +1,45 @@
+method: onet_depth
+data:
+  path: data/ShapeNet.with_depth.10w10w
+  img_folder: img
+  input_type: img_with_depth
+  img_size: 224 
+  points_subsample: 2048 
+  points_unpackbits: false
+  absolute_depth: true
+  with_minmax: false
+  train_split: train
+  val_split: val
+  test_split: test
+model:
+  depth_predictor: uresnet
+  pred_minmax: false
+  encoder_latent: null
+  decoder: cbatchnorm
+  encoder: resnet18
+  c_dim: 256
+  z_dim: 0
+training:
+  out_dir:  out/img_depth_phase1/uresnet_origin_subdivision
+  batch_size: 64
+  model_selection_metric: eval_loss
+  model_selection_mode: minimize
+  #loss_type: cross_entropy_with_sigmoid
+  visualize_every: 5000
+  validate_every: 5000
+  backup_every: 20000
+  phase: 1
+  detach: true
+test:
+  threshold: 0.4
+  eval_mesh: true
+  eval_pointcloud: false
+  model_file: model_best.pt
+generation:
+  batch_size: 100000
+  refine: false
+  n_x: 128
+  n_z: 1
+  resolution_0: 32 
+  upsampling_steps: 2
+

@@ -16,6 +16,7 @@ parser = argparse.ArgumentParser(
     description='Evaluate mesh algorithms.'
 )
 parser.add_argument('atlasnet_dir', type=str, help='Path to imnet generation dir.')
+parser.add_argument('--by_tsdf', type=float, default=0.002)
 parser.add_argument('--shapenet_gt', type=str, default='/home2/xieyunwei/occupancy_networks/data/ShapeNet.build', 
     help='Path to disn marching cube gt surface')
 
@@ -24,17 +25,25 @@ args = parser.parse_args()
 # Shorthands
 out_dir = args.atlasnet_dir
 
-out_file = os.path.join(out_dir, 'eval_meshes_full.pkl')
-out_file_class = os.path.join(out_dir, 'eval_meshes.csv')
+out_file = os.path.join(out_dir, 'eval_meshes_full_tsdf0.002.pkl')
+out_file_class = os.path.join(out_dir, 'eval_meshes_tsdf0.002.csv')
 
 def evaluate_occ_gt_mesh():
+    by_tsdf = args.by_tsdf if args.by_tsdf > 0 else None
     points_field = im_data.PointsField(
-        'points.npz', 
+        'points_direct_tsdf0.008.npz', 
         unpackbits=True,
+        by_tsdf=by_tsdf
     )
     
+    print('by_tsdf:', by_tsdf)
+    if by_tsdf is not None:
+        pointcloud_transform = im_data.PointcloudOffset(by_tsdf)
+    else:
+        pointcloud_transform = None
     pointcloud_field = im_data.PointCloudField(
-        'pointcloud.npz'
+        'pointcloud_direct.npz',
+        transform=pointcloud_transform
     )
 
     fields = {
@@ -48,7 +57,7 @@ def evaluate_occ_gt_mesh():
     dataset_folder = './data/ShapeNet.with_depth.10w10w/'
     dataset = im_data.Shapes3dDataset(
         dataset_folder, fields,
-        'imnet_test',
+        ['imnet_test', 'updated_test'],
         categories=None
     )
 
@@ -122,6 +131,8 @@ def evaluate_occ_gt_mesh():
                 mesh, pointcloud_tgt, normals_tgt, points_tgt, occ_tgt, eval_iou=False)
             for k, v in eval_dict_mesh.items():
                 eval_dict[k + ' (mesh)'] = v
+            
+            mesh.export(os.path.join(out_dir, category_id, '%s_normalized.ply' % modelname))
         else:
             print('Warning: mesh does not exist: %s' % mesh_file)
 

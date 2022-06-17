@@ -17,6 +17,7 @@ parser = argparse.ArgumentParser(
 parser.add_argument('disn_checkpoint', type=str, help='Path to config file.')
 parser.add_argument('--disn_gt', type=str, default='/home2/xieyunwei/DISN_data/marching_cubes', 
     help='Path to disn marching cube gt surface')
+parser.add_argument('--by_tsdf', type=float, default=0.002)
 parser.add_argument('--pymesh', action='store_true', help='Use pymesh voxelize')
 parser.add_argument('--compare_disn', action='store_true', help='Compare with disn marching cube gt')
 
@@ -34,20 +35,28 @@ else:
     save_f = "%s"
 
 if not args.compare_disn:
-    out_file = os.path.join(generation_dir, save_f % 'eval_meshes_full.pkl')
-    out_file_class = os.path.join(generation_dir, save_f % 'eval_meshes.csv')
+    out_file = os.path.join(generation_dir, save_f % 'eval_meshes_full_tsdf0.002.pkl')
+    out_file_class = os.path.join(generation_dir, save_f % 'eval_meshes_tsdf0.002.csv')
 else:
     out_file = os.path.join(generation_dir, save_f % 'eval_meshes_disn_gt_full.pkl')
     out_file_class = os.path.join(generation_dir, save_f % 'eval_meshes_disn_gt.csv')
 
 def evaluate_occ_gt_mesh():
+    by_tsdf = args.by_tsdf if args.by_tsdf > 0 else None
     points_field = im_data.PointsField(
-        'points.npz', 
+        'points_direct_tsdf0.008.npz', 
         unpackbits=True,
+        by_tsdf=by_tsdf
     )
     
+    print('by_tsdf:', by_tsdf)
+    if by_tsdf is not None:
+        pointcloud_transform = im_data.PointcloudOffset(by_tsdf)
+    else:
+        pointcloud_transform = None
     pointcloud_field = im_data.PointCloudField(
-        'pointcloud.npz'
+        'pointcloud_direct.npz',
+        transform=pointcloud_transform
     )
 
     fields = {
@@ -58,10 +67,10 @@ def evaluate_occ_gt_mesh():
 
     print('Test split: ', 'disn_test')
 
-    dataset_folder = './data/ShapeNet/'
+    dataset_folder = './data/ShapeNet.with_depth.10w10w/'
     dataset = im_data.Shapes3dDataset(
         dataset_folder, fields,
-        'disn_test',
+        ['disn_test', 'updated_test'],
         categories=None
     )
 
@@ -161,6 +170,7 @@ def evaluate_occ_gt_mesh():
             else:
                 print('skip model ', mesh_file)
 
+            mesh.export(os.path.join(mesh_dir, '%s_%s_00_normalized.obj' % (category_id, modelname)))
 
             for k, v in eval_dict_mesh.items():
                 eval_dict[k + ' (mesh)'] = v
