@@ -251,3 +251,10 @@ Eval all meshes by
 CHANGE CONFIG IN sal_runner/eval_meshes.py THEN
 python sal_runner/eval_meshes.py
 ```
+
+## Contact Author
+
+In case you have other questions about the code, you can contact me by email.
+
+Email: thss15_xieyw@163.com
+Xie Yunwei
