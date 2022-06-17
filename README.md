@@ -1,21 +1,12 @@
-# Occupancy Networks
-![Example 1](img/00.gif)
-![Example 2](img/01.gif)
-![Example 3](img/02.gif)
+# Code for XYW's master thesis
 
-This repository contains the code to reproduce the results from the paper
-[Occupancy Networks - Learning 3D Reconstruction in Function Space](https://avg.is.tuebingen.mpg.de/publications/occupancy-networks).
+This repository contains the 3 main contributions of xyw's master thesis "3D reconstruction based on implicit function networks".
+The code is constructed based on Occupancy Networks [Occupancy Networks - github](https://github.com/autonomousvision/occupancy_networks). For some of the issues you can refer to the original repository.
 
-You can find detailed usage instructions for training your own models and using pretrained models below.
-
-If you find our code or paper useful, please consider citing
-
-    @inproceedings{Occupancy Networks,
-        title = {Occupancy Networks: Learning 3D Reconstruction in Function Space},
-        author = {Mescheder, Lars and Oechsle, Michael and Niemeyer, Michael and Nowozin, Sebastian and Geiger, Andreas},
-        booktitle = {Proceedings IEEE Conf. on Computer Vision and Pattern Recognition (CVPR)},
-        year = {2019}
-    }
+The 3 main contributions are:
+1. A new ShapeNet preprocess algorithm
+2. A new 3 stage single-view 3D reconstruction pipeline.
+3. Code for SAL and RLIL point cloud surface reconstruction.
 
 ## Installation
 First you have to make sure that you have all dependencies in place.
@@ -23,7 +14,10 @@ The simplest way to do so, is to use [anaconda](https://www.anaconda.com/).
 
 You can create an anaconda environment called `mesh_funcspace` using
 ```
-conda env create -f environment.yaml
+conda env create -f environment_new.yaml
+```
+[!Change]Check the environment.yaml if bug occurs. The main difference between the ONet's environment and ours is the pytorch version. We use 1.7+.
+```
 conda activate mesh_funcspace
 ```
 
@@ -31,28 +25,16 @@ Next, compile the extension modules.
 You can do this via
 ```
 python setup.py build_ext --inplace
+python setup_c.py build_ext --inplace
 ```
 
-To compile the dmc extension, you have to have a cuda enabled device set up.
-If you experience any errors, you can simply comment out the `dmc_*` dependencies in `setup.py`.
-You should then also comment out the `dmc` imports in `im2mesh/config.py`.
+[!Change] pytorch1.7+ has bug for the C module (especially pykdtree) so we use a separate install script.
 
-## Demo
-![Example Input](img/example_input.png)
-![Example Output](img/example_output.gif)
+## ONet's Original Dataset 
 
-You can now test our code on the provided input images in the `demo` folder.
-To this end, simply run
-```
-python generate.py configs/demo.yaml
-```
-This script should create a folder `demo/generation` where the output meshes are stored.
-The script will copy the inputs into the `demo/generation/inputs` folder and creates the meshes in the `demo/generation/meshes` folder.
-Moreover, the script creates a `demo/generation/vis` folder where both inputs and outputs are copied together.
+[!Change] We use ONet's original 3D data for training.
 
-## Dataset
-
-To evaluate a pretrained model or train a new model from scratch, you have to obtain the dataset.
+For ShapeNet dataset
 To this end, there are two options:
 
 1. you can download our preprocessed data
@@ -91,55 +73,43 @@ bash dataset_shapenet/install.sh
 
 If everything worked out, this will copy the dataset into `data/ShapeNet`.
 
-## Usage
+## Additional Dataset
+Our full dataset is built based on the original ONet's dataset.
+
+The 2D view dataset of our paper is rebuilt due to the need of depth ground truth. The 3D dataset is also rebuilt in order to conduct fair and accurate evaluation compared to other methods.
+
+### 2D view dataset with depth
+The rendering script requires blender, install blender then
+```
+cd script/render_img_views/3D-R2N2/
+CONFIG THE PATHS IN rendering_config.py THEN
+python render_work.py
+```
+
+The rendering settings is the same with 3D-R2N2 but produces additional depth output. The output format for depth is a png gray image and a txt containing the min and max depth value for each depth map.
+
+Then you can install a ShapeNet dataset with depth in which the folder structure is similar to the ONet's preprocess ShapeNet dataset.
+```
+cd script
+CONFIG THE PATHS IN dataset_shapenet_with_depth/config.sh THEN
+bash dataset_shapenet_with_depth/install
+```
+
+### A new 3D evaluation data *(Chapter 2)
+The code for the new 3D ShapeNet preprocess data is in external/mesh-fusion/. Build the module first as the instruction by ONet.
+The main contributed code is in librender/offscreen_new.cpp and libfusiongpu/fusion.cu. Then you can build the dataset by
+
+```
+cd script
+CONFIG THE PATHS in dataset_shapenet/config.sh THEN
+bash dataset_shapenet/build1_c1.sh
+```
+
+## 3 Stage Single-view 3D Reconstruction *(Chapter 3)
 When you have installed all binary dependencies and obtained the preprocessed data, you are ready to run our pretrained models and train new models from scratch.
 
-### Generation
-To generate meshes using a trained model, use
-```
-python generate.py CONFIG.yaml
-```
-where you replace `CONFIG.yaml` with the correct config file.
-
-The easiest way is to use a pretrained model.
-You can do this by using one of the config files
-```
-configs/img/onet_pretrained.yaml
-configs/pointcloud/onet_pretrained.yaml
-configs/voxels/onet_pretrained.yaml
-configs/unconditional/onet_cars_pretrained.yaml
-configs/unconditional/onet_airplanes_pretrained.yaml
-configs/unconditional/onet_sofas_pretrained.yaml
-configs/unconditional/onet_chairs_pretrained.yaml
-```
-which correspond to the experiments presented in the paper.
-Our script will automatically download the model checkpoints and run the generation.
-You can find the outputs in the `out/*/*/pretrained` folders.
-
-Please note that the config files  `*_pretrained.yaml` are only for generation, not for training new models: when these configs are used for training, the model will be trained from scratch, but during inference our code will still use the pretrained model.
-
-### Evaluation
-For evaluation of the models, we provide two scripts: `eval.py` and `eval_meshes.py`.
-
-The main evaluation script is `eval_meshes.py`.
-You can run it using
-```
-python eval_meshes.py CONFIG.yaml
-```
-The script takes the meshes generated in the previous step and evaluates them using a standardized protocol.
-The output will be written to `.pkl`/`.csv` files in the corresponding generation folder which can be processed using [pandas](https://pandas.pydata.org/).
-
-For a quick evaluation, you can also run
-```
-python eval.py CONFIG.yaml
-```
-This script will run a fast method specific evaluation to obtain some basic quantities that can be easily computed without extracting the meshes.
-This evaluation will also be conducted automatically on the validation set during training.
-
-All results reported in the paper were obtained using the `eval_meshes.py` script.
-
-### Training
-Finally, to train a new network from scratch, run
+### (ShapeNet) Training
+To train a new network from scratch, run
 ```
 python train.py CONFIG.yaml
 ```
@@ -152,18 +122,108 @@ tensorboard --logdir ./logs --port 6006
 ```
 where you replace `OUTPUT_DIR` with the respective output directory.
 
-For available training options, please take a look at `configs/default.yaml`.
+[!Change] To reproduce the results in Chapter 3, please use the configs in 
+```
+configs/img_depth_uniform/*
+configs/img_depth_uniform_updated/* (FOR TESTING RESULTS IN PAPER)
+```
+### (ShapeNet)Generation
+To generate meshes using a trained model, use
+```
+python generate_pred_depth_maps.py configs/img_depth_phase1/uresnet_origin_division.yaml --output_dir XXXXXX (Stage 1: Depth Estimation)
+python generate_pointcloud_from_depth.py --mask_dir XXXXXX --output_dir XXXXXX (Stage 2: Back Projection)
+python generate_pointcloud_completion.py configs/img_depth_uniform/* (Stage 2: Point Cloud Completion)
+python generate.py CONFIG.yaml (Stage 3: Surface Reconstruction)
+python generate_spsr.py (SPSR using meshlab)
+```
+where you replace `CONFIG.yaml` with the correct config file.
 
-# Notes
-* In our paper we used random crops and scaling to augment the input images. 
-  However, we later found that this image augmentation decreases performance on the ShapeNet test set.
-  The pretrained model that is loaded in `configs/img/onet_pretrained.yaml` was hence trained without data augmentation and has slightly better performance than the model from the paper. The updated table looks a follows:
-  ![Updated table for single view 3D reconstruction experiment](img/table_img2mesh.png)
-  For completeness, we also provide the trained weights for the model which was used in the paper in  `configs/img/onet_legacy_pretrained.yaml`.
-* Note that training and evaluation of both our model and the baselines is performed with respect to the *watertight models*, but that normalization into the unit cube is performed with respect to the *non-watertight meshes* (to be consistent with the voxelizations from Choy et al.). As a result, the bounding box of the sampled point cloud is usually slightly bigger than the unit cube and may differ a little bit from a point cloud that was sampled from the original ShapeNet mesh.
+### (ShapeNet) Evaluation
+For evaluation of the models, we provide two scripts: `eval.py` and `eval_meshes.py`.
 
-# Futher Information
-Please also check out the following concurrent papers that have proposed similar ideas:
-* [Park et al. - DeepSDF: Learning Continuous Signed Distance Functions for Shape Representation (2019)](https://arxiv.org/abs/1901.05103)
-* [Chen et al. - Learning Implicit Fields for Generative Shape Modeling (2019)](https://arxiv.org/abs/1812.02822)
-* [Michalkiewicz et al. - Deep Level Sets: Implicit Surface Representations for 3D Shape Inference (2019)](https://arxiv.org/abs/1901.06802)
+The main evaluation script is `eval_meshes.py`.
+You can run it using
+```
+python eval_meshes.py CONFIG.yaml
+```
+For a quick evaluation, you can also run
+```
+python eval.py CONFIG.yaml
+```
+All results reported in the paper were obtained using the `eval_meshes.py` script.
+
+### (Pix3D) TESTING
+To test the ShapeNet pretrained model on Pix3D, first we need to generate input images and the ground truth 3D data.
+```
+cd scripts/pix3d_preprocess
+bash run.sh
+```
+
+Then run by
+```
+python generate_*.py configs/pix3d/*.yaml
+python eval*.py configs/pix3d/*.yaml
+```
+
+### Selecting the Images in the Paper
+Please refer to the following folders
+```
+selected_models\
+selected_models_pix3d\
+selected_models_preprocess\
+```
+
+The selection first chooses the best models, then gathers different predictions by different methods into a single folder, then render images for each prediction and finally combine the images into a long sticker.
+
+### Evaluating Foreign Methods
+We provide scripts to eval AtlasNet, DISN and IM-Net as well.
+```
+python eval_xxxxx_meshsh.py --...
+```
+
+### Front End HTML Pages
+A website based on django under the folder ShowResults/
+
+Usage:
+```
+python organize_examples.py (GATHER REQUIRED RECONSTRUCTED MODELS)
+python manage.py runserver 0.0.0.0:8001
+```
+
+You can browse the website in chrome by [127.0.0.1:8001](127.0.0.1:8001).
+
+## Point Cloud Surface Reconstruction *(Chapter 4)
+
+### SAL
+Train by 
+```
+python sal_runner/train_single.py configs/sal/XXX.yaml
+```
+Generate by 
+```
+python sal_runner/generate_single.py configs/sal/XXX.yaml
+```
+
+Eval all meshes by 
+```
+CHANGE CONFIG IN sal_runner/eval_meshes.py THEN
+python sal_runner/eval_meshes.py
+```
+
+### RLIL
+
+Train by 
+```
+python sal_runner/train_sail.py configs/rlil/XXX.yaml
+```
+Generate by 
+```
+python sal_runner/generate_sail.py configs/rlil/XXX.yaml
+python sal_runner/generate_sail_sep.py configs/rlil/XXX.yaml (FOR TESTING ON INDIVIDUAL LOCAL CUBES)
+```
+
+Eval all meshes by 
+```
+CHANGE CONFIG IN sal_runner/eval_meshes.py THEN
+python sal_runner/eval_meshes.py
+```
