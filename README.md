@@ -63,7 +63,7 @@ You are now ready to build the dataset:
 ```
 cd scripts
 bash dataset_shapenet/build.sh
-``` 
+```
 
 This command will build the dataset in `data/ShapeNet.build`.
 To install the dataset, run
@@ -105,8 +105,13 @@ CONFIG THE PATHS in dataset_shapenet/config.sh THEN
 bash dataset_shapenet/build1_c1.sh
 ```
 
+![new dataset](imgs/pre_process.png)
+
 ## 3 Stage Single-view 3D Reconstruction *(Chapter 3)
-When you have installed all binary dependencies and obtained the preprocessed data, you are ready to run our pretrained models and train new models from scratch.
+
+When you have installed all binary dependencies and obtained the preprocessed data, you are ready to run our pretrained models and train new models from scratch. We name our model as IDPIR(Image-Depth-Point cloud-Implicit function Reconstruction).
+
+![onet depth](imgs/onet_depth.png)
 
 ### (ShapeNet) Training
 To train a new network from scratch, run
@@ -194,7 +199,10 @@ You can browse the website in chrome by [127.0.0.1:8001](127.0.0.1:8001).
 
 ## Point Cloud Surface Reconstruction *(Chapter 4)
 
+![point recon](imgs/point_recon.png)
+
 ### SAL dataset
+
 In order to train by unsigned loss, we need to produce unsigned ground truth samples. The point cloud we sampled the initial 100k point cloud into a 30k point cloud as the input.
 
 First we create the list containing the first K models in each class of ShapeNet
